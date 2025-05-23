@@ -91,4 +91,11 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         
         return nil
     }
+    
+    func updateUserFavoriteGyms(userId: String, favoritedGymIds: [String]) async throws {
+        // Update the user document with the new favorite gyms
+        try await db.collection("users").document(userId).updateData([
+            "favouriteGyms": favoritedGymIds
+        ])
+    }
 }

@@ -9,14 +9,15 @@ import SwiftUI
 
 struct EventCardView: View {
     let event: EventItem
-    let onFavourite: () -> Void
+    let onFavorite: () -> Void
+    let isFavorite: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Media display
             ZStack(alignment: .topTrailing) {
-                if let mediaItems = event.mediaItems, let firstMedia = mediaItems.first {
-                    AsyncImage(url: firstMedia.url) { image in
+                if let media = event.mediaItems {
+                    AsyncImage(url: media.url) { image in
                         image
                             .resizable()
                             .scaledToFill()
@@ -36,20 +37,32 @@ struct EventCardView: View {
                         )
                 }
                 
-                // Like button overlay
-                Button(action: {}) {
-                    Text("Register")
-                        .font(.appSubheadline)
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.appAccent)
-                        .foregroundColor(.white)
-                        .clipShape(Capsule())
+                // Register button overlay if required
+                if event.registrationRequired {
+                    Button(action: {}) {
+                        Text("Register")
+                            .font(.appSubheadline)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.appAccent)
+                            .foregroundColor(.white)
+                            .clipShape(Capsule())
+                    }
+                    .padding(8)
                 }
-                .padding(8)
+                
+                // Favorite button
+                Button(action: onFavorite) {
+                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                        .foregroundColor(isFavorite ? .red : .white)
+                        .font(.system(size: 22))
+                        .padding(8)
+                        .shadow(radius: 2)
+                }
+                .padding([.top, .trailing], 8)
             }
-            
+
             // Info box at bottom
             VStack {
                 HStack {
@@ -128,21 +141,24 @@ struct EventCardView: View {
         // Upcoming event with image
         EventCardView(
             event: SampleData.events[0],
-            onFavourite: {}
+            onFavorite: {},
+            isFavorite: false
         )
         .frame(width: 250)
         
         // Event happening today with image
         EventCardView(
             event: SampleData.events[1],
-            onFavourite: {}
+            onFavorite: {},
+            isFavorite: true
         )
         .frame(width: 250)
         
         // Past event without image
         EventCardView(
             event: SampleData.events[2],
-            onFavourite: {}
+            onFavorite: {},
+            isFavorite: false
         )
         .frame(width: 250)
     }

@@ -7,8 +7,6 @@
 
 import Foundation
 import SwiftUI
-import FirebaseAuth
-import FirebaseFirestore
 
 enum AuthenticationState {
     case unauthenticated
@@ -28,26 +26,36 @@ class AppState: ObservableObject {
     @Published var gym: Gym?
     @Published var profileType: ProfileType?
     
-    private let auth = Auth.auth()
-    private let db = Firestore.firestore()
+    private let userRepository: UserRepositoryProtocol
     
-    init() {
-        if let currentUser = auth.currentUser {
-            Task {
-                await fetchUserData(uid: currentUser.uid)
-            }
-        } else {
-            self.authState = .unauthenticated
+    init(userRepository: UserRepositoryProtocol = FirebaseUserRepository()) {
+        self.userRepository = userRepository
+        
+        Task {
+            await checkAuthState()
         }
     }
     
-    private func fetchUserData(uid: String) async {
+    func checkAuthState() async {
         do {
-            let document = try await db.collection("users").document(uid).getDocument()
-            let user = try? document.data(as: User.self)
-            self.updateAuthState(user: user)
+            if userRepository.getCurrentAuthUser() != nil {
+                if let currentUser = try await userRepository.getCurrentUser() {
+                    await MainActor.run {
+                        self.user = currentUser
+                        self.authState = .authenticated
+                    }
+                    return
+                }
+            }
+            
+            await MainActor.run {
+                self.authState = .unauthenticated
+            }
         } catch {
-            print("Error fetching user data: \(error)")
+            print("Error checking auth state: \(error)")
+            await MainActor.run {
+                self.authState = .unauthenticated
+            }
         }
     }
     

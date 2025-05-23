@@ -109,9 +109,10 @@ struct GymSelectionView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(passViewModel.selectedGym == nil ? Color.gray : AppTheme.appAccent)
                         .foregroundColor(.white)
                         .cornerRadius(10)
+                        .opacity(passViewModel.selectedGym == nil ? 0.6 : 1.0)
                     }
                     .disabled(passViewModel.selectedGym == nil)
                     
@@ -179,3 +180,43 @@ struct GymRow: View {
     }
 }
 
+#Preview("Gym Selection - With Selected") {
+    GymSelectionView(
+        passViewModel: createPreviewViewModel(),
+        isPrimary: .constant(true),
+        isPresented: .constant(true)
+    )
+}
+
+#Preview("No Gym Selected") {
+    GymSelectionView(
+        passViewModel: createPreviewViewModel(selectedGym: false),
+        isPrimary: .constant(false),
+        isPresented: .constant(true)
+    )
+}
+
+#Preview("Loading State") {
+    GymSelectionView(
+        passViewModel: createPreviewViewModel(isLoading: true),
+        isPrimary: .constant(true),
+        isPresented: .constant(true)
+    )
+}
+
+// Helper function to create a view model for previews
+private func createPreviewViewModel(isLoading: Bool = false, selectedGym: Bool = true) -> PassViewModel {
+    let viewModel = PassViewModel()
+    
+    // For the pass view, we might be using a simplified Gym model
+    // If PassViewModel uses the full Gym model:
+    viewModel.gyms = SampleData.gyms
+    
+    viewModel.isLoading = isLoading
+    
+    if !isLoading && !SampleData.gyms.isEmpty && selectedGym {
+        viewModel.selectedGym = SampleData.gyms.first
+    }
+    
+    return viewModel
+}

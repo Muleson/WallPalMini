@@ -17,4 +17,7 @@ protocol GymRepositoryProtocol {
     
     /// Get a specific gym by ID
     func getGym(id: String) async throws -> Gym?
-} 
+    
+    /// Update user's favorite gyms
+    func updateUserFavoriteGyms(userId: String, favoritedGymIds: [String]) async throws
+}

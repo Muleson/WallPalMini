@@ -15,11 +15,12 @@ struct EventItem: Identifiable, Equatable, Codable {
     var type: EventType
     var location: String
     var description: String
-    var mediaItems: [MediaItem]?
+    var mediaItems: MediaItem?
     var registrationLink: String?
     var createdAt: Date
     var eventDate: Date
     var isFeatured: Bool
+    var registrationRequired: Bool
 }
 
 enum EventType: String, Codable {

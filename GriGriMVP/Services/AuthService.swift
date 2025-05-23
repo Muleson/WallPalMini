@@ -6,20 +6,18 @@
 //
 
 import Foundation
-import FirebaseAuth
-import FirebaseFirestore
 
 @MainActor
 class AuthService: ObservableObject {
     @Published var errorMessage: String?
     @Published var isLoading = false
         
-    private let auth = Auth.auth()
-    private let db = Firestore.firestore()
     private var appState: AppState
+    private let userRepository: UserRepositoryProtocol
     
-    init(appState: AppState) {
+    init(appState: AppState, userRepository: UserRepositoryProtocol = FirebaseUserRepository()) {
         self.appState = appState
+        self.userRepository = userRepository
     }
     
     func signIn(email: String, password: String) async {
@@ -27,18 +25,7 @@ class AuthService: ObservableObject {
         errorMessage = nil
         
         do {
-            let authResult = try await auth.signIn(withEmail: email, password: password)
-            let documentSnapshot = try await db.collection("users").document(authResult.user.uid).getDocument()
-            
-            // Use manual decoding instead of Firestore.decode
-            guard
-                let data = documentSnapshot.data(),
-                let user = User(firestoreData: data)
-            else {
-                errorMessage = "Failed to parse user data"
-                isLoading = false
-                return
-            }
+            let user = try await userRepository.signIn(email: email, password: password)
             
             await MainActor.run {
                 appState.updateAuthState(user: user)
@@ -56,19 +43,12 @@ class AuthService: ObservableObject {
         errorMessage = nil
             
         do {
-            let authResult = try await auth.createUser(withEmail: email, password: password)
-            
-            let user = User(
-                id: authResult.user.uid,
-                email: email,
+            let user = try await userRepository.createUser(
+                email: email, 
+                password: password,
                 firstName: firstName,
-                lastName: lastName,
-                createdAt: Date(),
-                favouriteGyms: nil
+                lastName: lastName
             )
-            
-            // Use manual encoding instead of direct dictionary creation
-            try await db.collection("users").document(user.id).setData(user.toFirestoreData())
             
             await MainActor.run {
                 appState.updateAuthState(user: user)
@@ -82,7 +62,7 @@ class AuthService: ObservableObject {
     
     func signOut() {
         do {
-            try auth.signOut()
+            try userRepository.signOut()
             appState.updateAuthState(user: nil)
         } catch {
             errorMessage = error.localizedDescription

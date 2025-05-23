@@ -17,7 +17,8 @@ struct SampleData {
              firstName: "John",
              lastName: "Doe",
              createdAt: Date(timeIntervalSince1970: 1620000000),
-             favouriteGyms: ["gym1", "gym3"]
+             favoriteGyms: ["gym1", "gym3"],
+             favoriteEvents: ["event1", "event3"]
          ),
          User(
              id: "user2",
@@ -25,7 +26,8 @@ struct SampleData {
              firstName: "Jane",
              lastName: "Smith",
              createdAt: Date(timeIntervalSince1970: 1625000000),
-             favouriteGyms: ["gym2"]
+             favoriteGyms: ["gym2"],
+             favoriteEvents: ["event2", "event4"]
          ),
          User(
              id: "user3",
@@ -33,7 +35,8 @@ struct SampleData {
              firstName: "Alex",
              lastName: "Wilson",
              createdAt: Date(timeIntervalSince1970: 1630000000),
-             favouriteGyms: nil
+             favoriteGyms: nil,
+             favoriteEvents: nil
          )
      ]
      
@@ -138,11 +141,13 @@ struct SampleData {
              type: .competition,
              location: "Boulder World, Main Hall",
              description: "Annual bouldering competition with categories for all levels. Cash prizes for top finishers!",
-             mediaItems: [mediaItems[0]],
+             mediaItems: mediaItems[0],
              registrationLink: "https://example.com/register-summer-send",
              createdAt: Date(timeIntervalSince1970: 1650000000),
              eventDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!,
-             isFeatured: true
+             isFeatured: true,
+             registrationRequired: true
+
          ),
          EventItem(
              id: "event2",
@@ -152,11 +157,13 @@ struct SampleData {
              type: .openDay,
              location: "Vertical Edge, Training Area",
              description: "Learn the basics of climbing in this introductory session. Equipment provided.",
-             mediaItems: [mediaItems[1]],
+             mediaItems: mediaItems[1],
              registrationLink: "https://example.com/register-workshop",
              createdAt: Date(timeIntervalSince1970: 1655000000),
              eventDate: Calendar.current.date(byAdding: .hour, value: 3, to: Date())!,
-             isFeatured: false
+             isFeatured: false,
+             registrationRequired: false
+
          ),
          EventItem(
              id: "event3",
@@ -170,7 +177,9 @@ struct SampleData {
              registrationLink: nil,
              createdAt: Date(timeIntervalSince1970: 1660000000),
              eventDate: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
-             isFeatured: true
+             isFeatured: true,
+             registrationRequired: false
+
          ),
          EventItem(
              id: "event4",
@@ -180,11 +189,12 @@ struct SampleData {
              type: .opening,
              location: "Crag Climb",
              description: "Join us for the grand opening of our new facility! Free climbing all day and prizes.",
-             mediaItems: [mediaItems[2]],
+             mediaItems: mediaItems[2],
              registrationLink: "https://example.com/grand-opening",
              createdAt: Date(timeIntervalSince1970: 1665000000),
              eventDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!,
-             isFeatured: true
+             isFeatured: true,
+             registrationRequired: true
          )
      ]
 }

@@ -70,3 +70,23 @@ struct LocationData: Codable, Equatable, Hashable {
     let longitude: Double
     let address: String?
 }
+
+
+// Placeholder for event codable
+extension Gym {
+    /// Creates a minimal placeholder Gym with just an ID for use in relationships
+    static func placeholder(id: String) -> Gym {
+        return Gym(
+            id: id,
+            email: "",
+            name: "Loading...",
+            description: nil,
+            location: LocationData(latitude: 0, longitude: 0, address: nil),
+            climbingType: [],
+            amenities: [],
+            events: [],
+            imageUrl: nil,
+            createdAt: Date()
+        )
+    }
+}
