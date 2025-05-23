@@ -20,4 +20,13 @@ protocol GymRepositoryProtocol {
     
     /// Update user's favorite gyms
     func updateUserFavoriteGyms(userId: String, favoritedGymIds: [String]) async throws
+    
+    /// Create a new gym
+     func createGym(_ gym: Gym) async throws -> Gym
+     
+     /// Update an existing gym
+     func updateGym(_ gym: Gym) async throws -> Gym
+     
+     /// Delete a gym
+     func deleteGym(id: String) async throws
 }
