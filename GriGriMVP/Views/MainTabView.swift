@@ -16,15 +16,23 @@ struct MainTabView: View {
         TabView {
             NavigationStack {
                 HomeView(appState: appState)
-                    }
+            }
             .tabItem {
                 Label("Home", systemImage: "house")
             }
+            
             NavigationStack {
                 PassesRootView()
-                    }
+            }
             .tabItem {
                 Label("Passes", systemImage: "qrcode.viewfinder")
+            }
+            
+            NavigationStack {
+                GymManagementView(appState: appState)
+            }
+            .tabItem {
+                Label("Gyms", systemImage: "building.2")
             }
         }
         .tint(AppTheme.appAccent)
