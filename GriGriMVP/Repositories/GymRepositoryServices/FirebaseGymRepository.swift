@@ -126,3 +126,121 @@ class FirebaseGymRepository: GymRepositoryProtocol {
          try await db.collection(gymsCollection).document(id).delete()
      }
 }
+
+// MARK: - Staff management extension
+
+extension FirebaseGymRepository {
+        
+    func addStaffMember(to gymId: String, userId: String) async throws {
+        let gymRef = db.collection(gymsCollection).document(gymId)
+        
+        try await gymRef.updateData([
+            "staffUserIds": FieldValue.arrayUnion([userId])
+        ])
+    }
+    
+    func removeStaffMember(from gymId: String, userId: String) async throws {
+        let gymRef = db.collection(gymsCollection).document(gymId)
+        
+        try await gymRef.updateData([
+            "staffUserIds": FieldValue.arrayRemove([userId])
+        ])
+    }
+    
+    func getStaffMembers(for gymId: String) async throws -> [StaffMember] {
+        guard let gym = try await getGym(id: gymId) else {
+            throw NSError(domain: "GymRepository", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "Gym not found"
+            ])
+        }
+        
+        var staffMembers: [StaffMember] = []
+        
+        // Get user details for each staff member
+        for staffUserId in gym.staffUserIds {
+            if let user = try await getUserById(staffUserId) {
+                let staffMember = StaffMember(user: user)
+                staffMembers.append(staffMember)
+            }
+        }
+        
+        return staffMembers
+    }
+    
+    // MARK: - User Search for Staff Addition
+    
+    func searchUsers(query: String) async throws -> [User] {
+        let lowercaseQuery = query.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !lowercaseQuery.isEmpty else { return [] }
+        
+        // Search by email (most common use case)
+        let emailQuery = db.collection("users")
+            .whereField("email", isGreaterThanOrEqualTo: lowercaseQuery)
+            .whereField("email", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
+            .limit(to: 10)
+        
+        let snapshot = try await emailQuery.getDocuments()
+        
+        var users: [User] = []
+        for document in snapshot.documents {
+            if let user = User(firestoreData: document.data()) {
+                var userWithId = user
+                // Assuming User has mutable id or init with id
+                users.append(userWithId)
+            }
+        }
+        
+        return users
+    }
+    
+    // MARK: - Gym Access Check
+    
+    func getGymsUserCanManage(userId: String) async throws -> [Gym] {
+        // Get gyms where user is owner
+        let ownerQuery = db.collection(gymsCollection)
+            .whereField("ownerId", isEqualTo: userId)
+        
+        // Get gyms where user is staff
+        let staffQuery = db.collection(gymsCollection)
+            .whereField("staffUserIds", arrayContains: userId)
+        
+        async let ownerSnapshot = ownerQuery.getDocuments()
+        async let staffSnapshot = staffQuery.getDocuments()
+        
+        let (ownerResults, staffResults) = try await (ownerSnapshot, staffSnapshot)
+        var uniqueGyms = [String: Gym]()
+        
+        // Process owned gyms
+        for document in ownerResults.documents {
+            if let gym = try? document.data(as: Gym.self) {
+                var gymWithId = gym
+                gymWithId.id = document.documentID
+                uniqueGyms[document.documentID] = gymWithId
+            }
+        }
+        
+        // Process staff gyms (avoid duplicates)
+        for document in staffResults.documents {
+            if uniqueGyms[document.documentID] == nil {
+                if let gym = try? document.data(as: Gym.self) {
+                    var gymWithId = gym
+                    gymWithId.id = document.documentID
+                    uniqueGyms[document.documentID] = gymWithId
+                }
+            }
+        }
+        
+        return Array(uniqueGyms.values)
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getUserById(_ userId: String) async throws -> User? {
+        let userDoc = try await db.collection("users").document(userId).getDocument()
+        
+        guard userDoc.exists else { return nil }
+        
+        return User(firestoreData: userDoc.data() ?? [:])
+    }
+}

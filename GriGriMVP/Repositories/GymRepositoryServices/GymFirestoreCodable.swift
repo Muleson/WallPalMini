@@ -22,7 +22,9 @@ extension Gym: FirestoreCodable {
             "climbingType": climbingType.map { $0.rawValue },
             "amenities": amenities,
             "events": events,
-            "createdAt": createdAt.firestoreTimestamp
+            "createdAt": createdAt.firestoreTimestamp,
+            "ownerId": ownerId,
+            "staffUserIds": staffUserIds,
         ]
         
         if let description = description {
@@ -46,9 +48,9 @@ extension Gym: FirestoreCodable {
             let longitude = locationData["longitude"] as? Double,
             let climbingTypeStrings = firestoreData["climbingType"] as? [String],
             let amenities = firestoreData["amenities"] as? [String],
-            let events = firestoreData["events"] as? [String]
+            let events = firestoreData["events"] as? [String],
+            let ownerId = firestoreData["ownerId"] as? String
         else {
-            // Return nil if required fields are missing
             return nil
         }
         
@@ -66,12 +68,16 @@ extension Gym: FirestoreCodable {
             imageUrl = nil
         }
         
+        // Handle staff user IDs array (default to empty if missing)
+        let staffUserIds = firestoreData["staffUserIds"] as? [String] ?? []
+        
+        
         // Handle createdAt timestamp
         let createdAt: Date
         if let timestamp = firestoreData["createdAt"] as? Timestamp {
             createdAt = timestamp.dateValue
         } else {
-            createdAt = Date()  // Default to current date if missing
+            createdAt = Date()
         }
         
         // Handle optional address (check for empty string too)
@@ -95,7 +101,9 @@ extension Gym: FirestoreCodable {
             amenities: amenities,
             events: events,
             imageUrl: imageUrl,
-            createdAt: createdAt
+            createdAt: createdAt,
+            ownerId: ownerId,
+            staffUserIds: staffUserIds,
         )
     }
 }

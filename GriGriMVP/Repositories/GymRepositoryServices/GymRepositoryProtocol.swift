@@ -29,4 +29,19 @@ protocol GymRepositoryProtocol {
      
      /// Delete a gym
      func deleteGym(id: String) async throws
+    
+    /// Get staff members for a gym
+    func getStaffMembers(for gymId: String) async throws -> [StaffMember]
+    
+    /// Remove a staff member from a gym
+    func removeStaffMember(from gymId: String, userId: String) async throws
+    
+    /// Search for users by query
+    func searchUsers(query: String) async throws -> [User]
+    
+    /// Add a staff member to a gym
+    func addStaffMember(to gymId: String, userId: String) async throws
+    
+    /// Get gyms that a user can manage (as owner or staff)
+    func getGymsUserCanManage(userId: String) async throws -> [Gym]
 }

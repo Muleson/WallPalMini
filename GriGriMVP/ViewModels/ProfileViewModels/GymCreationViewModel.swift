@@ -35,10 +35,14 @@ class GymCreationViewModel: ObservableObject {
     @Published var showSuccessAlert: Bool = false
     @Published var isLocationLoading: Bool = false
     
+    private let userRepository: UserRepositoryProtocol
     private let gymRepository: GymRepositoryProtocol
     private let locationManager = CLLocationManager()
     
-    init(gymRepository: GymRepositoryProtocol = FirebaseGymRepository()) {
+    init(userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
+         gymRepository: GymRepositoryProtocol = FirebaseGymRepository())
+    {
+        self.userRepository = userRepository
         self.gymRepository = gymRepository
         setupLocationManager()
     }
@@ -182,6 +186,11 @@ class GymCreationViewModel: ObservableObject {
                 address: address.isEmpty ? nil : address
             )
             
+            // Get the current user ID - replace with your actual authentication code
+            guard let currentUserId = userRepository.getCurrentAuthUser() else {
+                throw NSError(domain: "GymCreation", code: 401, userInfo: [NSLocalizedDescriptionKey: "You must be signed in to create a gym"])
+            }
+            
             let gym = Gym(
                 id: UUID().uuidString,
                 email: email.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -192,12 +201,13 @@ class GymCreationViewModel: ObservableObject {
                 amenities: amenities,
                 events: [],
                 imageUrl: nil,
-                createdAt: Date()
+                createdAt: Date(),
+                ownerId: currentUserId,
+                staffUserIds: []
             )
             
-            // In a real implementation, you'd call the repository to save the gym
-            // For now, we'll simulate success
-            try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+            // Actually call the repository to create the gym
+            _ = try await gymRepository.createGym(gym)
             
             await MainActor.run {
                 self.isLoading = false

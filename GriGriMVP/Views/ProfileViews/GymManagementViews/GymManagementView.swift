@@ -55,8 +55,8 @@ struct GymManagementView: View {
                 } else {
                     List {
                         ForEach(filteredGyms) { gym in
-                            NavigationLink(destination: GymDetailView(gym: gym)) {
-                                GymRowView(gym: gym)
+                            NavigationLink(destination: GymDetailManagementView(gym: gym)) {
+                                GymRowView(gym: gym, viewModel: viewModel)
                             }
                         }
                         .onDelete(perform: deleteGyms)
@@ -121,6 +121,7 @@ struct GymManagementView: View {
 
 struct GymRowView: View {
     let gym: Gym
+    let viewModel: GymManagementViewModel
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -130,15 +131,14 @@ struct GymRowView: View {
                 
                 Spacer()
                 
-                ForEach(gym.climbingType, id: \.self) { type in
-                    Text(type.rawValue.capitalized)
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(AppTheme.appAccent.opacity(0.2))
-                        .foregroundColor(AppTheme.appAccent)
-                        .cornerRadius(8)
-                }
+                // User's role badge
+                Text(viewModel.getUserRoleForGym(gym))
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(roleColor.opacity(0.2))
+                    .foregroundColor(roleColor)
+                    .cornerRadius(8)
             }
             
             if let address = gym.location.address {
@@ -154,130 +154,144 @@ struct GymRowView: View {
                 }
             }
             
-            if !gym.amenities.isEmpty {
-                HStack {
-                    Image(systemName: "star.fill")
+            // Climbing types
+            HStack {
+                ForEach(gym.climbingType.prefix(3), id: \.self) { type in
+                    Text(type.rawValue.capitalized)
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text(gym.amenities.prefix(3).joined(separator: ", "))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                    
-                    if gym.amenities.count > 3 {
-                        Text("+ \(gym.amenities.count - 3) more")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(AppTheme.appAccent.opacity(0.2))
+                        .foregroundColor(AppTheme.appAccent)
+                        .cornerRadius(4)
                 }
+                
+                if gym.climbingType.count > 3 {
+                    Text("+\(gym.climbingType.count - 3)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Staff count
+            HStack {
+                Image(systemName: "person.2")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text("\(gym.staffUserIds.count) staff members")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 4)
     }
+    
+    private var roleColor: Color {
+        let role = viewModel.getUserRoleForGym(gym)
+        switch role {
+        case "Owner": return .blue
+        case "Staff": return .green
+        default: return .gray
+        }
+    }
 }
 
-struct GymDetailView: View {
+struct GymDetailManagementView: View {
     let gym: Gym
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
-                VStack(alignment: .leading, spacing: 8) {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
                     Text(gym.name)
-                        .font(.largeTitle)
+                        .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text(gym.email)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Description
-                if let description = gym.description {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description")
-                            .font(.headline)
-                        
+                    if let description = gym.description {
                         Text(description)
                             .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Image(systemName: "envelope")
+                        Text(gym.email)
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 8)
+            }
+            
+            Section("Management") {
+                if gym.canAddStaff(userId: getCurrentUserId()) {
+                    NavigationLink(destination: StaffManagementView(gym: gym)) {
+                        Label("Manage Staff", systemImage: "person.2")
                     }
                 }
                 
-                // Location
+                if gym.canCreateEvents(userId: getCurrentUserId()) {
+                    NavigationLink(destination: EventManagementView(gym: gym)) {
+                        Label("Manage Events", systemImage: "calendar")
+                    }
+                }
+                
+                NavigationLink(destination: GymProfileView(gym: gym)) {
+                    Label("View Public Profile", systemImage: "eye")
+                }
+            }
+            
+            Section("Details") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Location")
                         .font(.headline)
                     
                     if let address = gym.location.address {
-                        HStack {
-                            Image(systemName: "location.fill")
-                            Text(address)
-                        }
+                        Text(address)
+                    } else {
+                        Text("Coordinates: \(gym.location.latitude, specifier: "%.4f"), \(gym.location.longitude, specifier: "%.4f")")
                     }
-                    
-                    Text("Coordinates: \(gym.location.latitude, specifier: "%.4f"), \(gym.location.longitude, specifier: "%.4f")")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
                 
-                // Climbing Types
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Climbing Types")
                         .font(.headline)
                     
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                        ForEach(gym.climbingType, id: \.self) { type in
-                            Text(type.rawValue.capitalized)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(AppTheme.appAccent.opacity(0.2))
-                                .foregroundColor(AppTheme.appAccent)
-                                .cornerRadius(8)
-                        }
-                    }
+                    Text(gym.climbingType.map { $0.rawValue.capitalized }.joined(separator: ", "))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
                 
-                // Amenities
                 if !gym.amenities.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Amenities")
                             .font(.headline)
                         
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                            ForEach(gym.amenities, id: \.self) { amenity in
-                                HStack {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                        .font(.caption)
-                                    Text(amenity)
-                                        .font(.body)
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                            }
-                        }
+                        Text(gym.amenities.joined(separator: ", "))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                 }
-                
-                // Created Date
-                VStack(alignment: .leading, spacing: 8) {
+            }
+            
+            Section("Info") {
+                HStack {
                     Text("Created")
-                        .font(.headline)
-                    
-                    Text(gym.createdAt.formatted(date: .abbreviated, time: .shortened))
-                        .font(.body)
+                    Spacer()
+                    Text(gym.createdAt.formatted(date: .abbreviated, time: .omitted))
                         .foregroundColor(.secondary)
                 }
             }
-            .padding()
         }
         .navigationTitle("Gym Details")
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    private func getCurrentUserId() -> String {
+        return FirebaseUserRepository().getCurrentAuthUser() ?? ""
     }
 }
 
