@@ -81,15 +81,30 @@ class FirebaseGymRepository: GymRepositoryProtocol {
     }
     
     func getGym(id: String) async throws -> Gym? {
-        let documentSnapshot = try await db.collection(gymsCollection).document(id).getDocument()
-        
-        if documentSnapshot.exists {
-            var gym = try documentSnapshot.data(as: Gym.self)
-            gym.id = documentSnapshot.documentID
-            return gym
+        do {
+            let document = try await db.collection(gymsCollection).document(id).getDocument()
+            
+            guard let data = document.data() else {
+                return nil // Document doesn't exist
+            }
+            
+            // Add more detailed logging
+            let missingFields = checkRequiredGymFields(data)
+            if !missingFields.isEmpty {
+                print("DEBUG: Gym document \(id) is missing fields: \(missingFields.joined(separator: ", "))")
+            }
+            
+            // Add the ID to the data
+            var gymData = data
+            gymData["id"] = document.documentID
+            
+            // Use a more robust initializer
+            return Gym(firestoreData: gymData)
+        } catch {
+            print("DEBUG: Error in getGym(\(id)): \(error.localizedDescription)")
+            // Try to create a minimal placeholder instead of throwing
+            return Gym.placeholder(id: id)
         }
-        
-        return nil
     }
     
     func updateUserFavoriteGyms(userId: String, favoritedGymIds: [String]) async throws {
@@ -197,36 +212,43 @@ extension FirebaseGymRepository {
     // MARK: - Gym Access Check
     
     func getGymsUserCanManage(userId: String) async throws -> [Gym] {
-        // Get gyms where user is owner
+        // Query for gyms where user is owner
         let ownerQuery = db.collection(gymsCollection)
             .whereField("ownerId", isEqualTo: userId)
         
-        // Get gyms where user is staff
+        // Query for gyms where user is staff
         let staffQuery = db.collection(gymsCollection)
             .whereField("staffUserIds", arrayContains: userId)
         
+        // Execute both queries concurrently
         async let ownerSnapshot = ownerQuery.getDocuments()
         async let staffSnapshot = staffQuery.getDocuments()
         
         let (ownerResults, staffResults) = try await (ownerSnapshot, staffSnapshot)
+
         var uniqueGyms = [String: Gym]()
         
         // Process owned gyms
         for document in ownerResults.documents {
-            if let gym = try? document.data(as: Gym.self) {
-                var gymWithId = gym
-                gymWithId.id = document.documentID
-                uniqueGyms[document.documentID] = gymWithId
+            if var firestoreData = document.data() as? [String: Any] {
+                // Create a gym using the FirestoreCodable initializer
+                if let gym = Gym(firestoreData: firestoreData) {
+                    var gymWithId = gym
+                    gymWithId.id = document.documentID // Set the ID from the document ID
+                    uniqueGyms[document.documentID] = gymWithId
+                }
             }
         }
         
-        // Process staff gyms (avoid duplicates)
+        // Process staff gyms
         for document in staffResults.documents {
             if uniqueGyms[document.documentID] == nil {
-                if let gym = try? document.data(as: Gym.self) {
-                    var gymWithId = gym
-                    gymWithId.id = document.documentID
-                    uniqueGyms[document.documentID] = gymWithId
+                if var firestoreData = document.data() as? [String: Any] {
+                    if let gym = Gym(firestoreData: firestoreData) {
+                        var gymWithId = gym
+                        gymWithId.id = document.documentID
+                        uniqueGyms[document.documentID] = gymWithId
+                    }
                 }
             }
         }
@@ -242,5 +264,21 @@ extension FirebaseGymRepository {
         guard userDoc.exists else { return nil }
         
         return User(firestoreData: userDoc.data() ?? [:])
+    }
+    
+    // Helper function to check for missing fields
+    private func checkRequiredGymFields(_ data: [String: Any]) -> [String] {
+        var missingFields: [String] = []
+        
+        // Add all required fields for a Gym object
+        let requiredFields = ["name", "address", "description", "ownerId"]
+        
+        for field in requiredFields {
+            if data[field] == nil {
+                missingFields.append(field)
+            }
+        }
+        
+        return missingFields
     }
 }

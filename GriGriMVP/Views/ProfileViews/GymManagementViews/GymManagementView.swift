@@ -102,10 +102,11 @@ struct GymManagementView: View {
         if searchText.isEmpty {
             return viewModel.gyms
         } else {
-            return viewModel.gyms.filter { gym in
+            let filtered = viewModel.gyms.filter { gym in
                 gym.name.localizedCaseInsensitiveContains(searchText) ||
                 gym.location.address?.localizedCaseInsensitiveContains(searchText) == true
             }
+                return filtered
         }
     }
     

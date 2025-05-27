@@ -40,41 +40,80 @@ extension EventItem: FirestoreCodable {
     
     // Protocol-conforming initializer
     init?(firestoreData: [String: Any]) {
+        // Get ID or use empty string (will be replaced by document ID)
+        let id = firestoreData["id"] as? String ?? ""
+        
+        // Check for required IDs
         guard
-            let id = firestoreData["id"] as? String,
             let authorId = firestoreData["authorId"] as? String,
             let hostId = firestoreData["hostId"] as? String,
             let name = firestoreData["name"] as? String,
             let typeRawValue = firestoreData["type"] as? String,
-            let type = EventType(rawValue: typeRawValue),
             let location = firestoreData["location"] as? String,
-            let description = firestoreData["description"] as? String,
-            let createdAtTimestamp = firestoreData["createdAt"] as? Timestamp,
-            let eventDateTimestamp = firestoreData["eventDate"] as? Timestamp,
-            let isFeatured = firestoreData["isFeatured"] as? Bool,
-            let registrationRequired = firestoreData["registrationRequired"] as? Bool
+            let description = firestoreData["description"] as? String
         else {
             return nil
         }
         
+        // Handle event type
+        guard let type = EventType(rawValue: typeRawValue) else {
+            return nil
+        }
+        
+        // Handle timestamps
+        let createdAt: Date
+        if let timestamp = firestoreData["createdAt"] as? Timestamp {
+            createdAt = timestamp.dateValue()
+        } else {
+            createdAt = Date()
+        }
+        
+        let eventDate: Date
+        if let timestamp = firestoreData["eventDate"] as? Timestamp {
+            eventDate = timestamp.dateValue()
+        } else {
+            eventDate = Date().addingTimeInterval(24 * 60 * 60)
+        }
+        
+        // Handle boolean values that might be stored as integers
+        let isFeatured: Bool
+        if let featuredBool = firestoreData["isFeatured"] as? Bool {
+            isFeatured = featuredBool
+        } else if let featuredInt = firestoreData["isFeatured"] as? Int {
+            isFeatured = featuredInt != 0
+        } else {
+            isFeatured = false
+        }
+        
+        let registrationRequired: Bool
+        if let requiredBool = firestoreData["registrationRequired"] as? Bool {
+            registrationRequired = requiredBool
+        } else if let requiredInt = firestoreData["registrationRequired"] as? Int {
+            registrationRequired = requiredInt != 0
+        } else {
+            registrationRequired = false
+        }
+        
         // Create placeholder objects with minimal info
         let placeholderAuthor = User.placeholder(id: authorId)
-        let placeholderHost = Gym.placeholder(id: hostId)
+        let placeholderGym = Gym.placeholder(id: hostId)
         
+        // Optional fields
+        let registrationLink = firestoreData["registrationLink"] as? String
+        
+        // Assign all properties
         self.id = id
         self.author = placeholderAuthor
-        self.host = placeholderHost
+        self.host = placeholderGym
         self.name = name
         self.type = type
         self.location = location
         self.description = description
-        self.createdAt = createdAtTimestamp.dateValue
-        self.eventDate = eventDateTimestamp.dateValue
+        self.createdAt = createdAt
+        self.eventDate = eventDate
         self.isFeatured = isFeatured
         self.registrationRequired = registrationRequired
-        
-        // Handle optional properties
-        self.registrationLink = firestoreData["registrationLink"] as? String
+        self.registrationLink = registrationLink
         
         // Handle media items if they exist
         if let mediaItemsData = firestoreData["mediaItems"] as? [String: Any],
@@ -87,21 +126,48 @@ extension EventItem: FirestoreCodable {
     
     // Custom initializer with full object parameters
     init?(firestoreData: [String: Any], author: User, host: Gym) {
+        // Get id from the document ID or data
+        let id = firestoreData["id"] as? String ?? ""
+        
+        // Get required string fields
         guard
-            let id = firestoreData["id"] as? String,
             let name = firestoreData["name"] as? String,
             let typeRawValue = firestoreData["type"] as? String,
             let type = EventType(rawValue: typeRawValue),
             let location = firestoreData["location"] as? String,
-            let description = firestoreData["description"] as? String,
-            let createdAtTimestamp = firestoreData["createdAt"] as? Timestamp,
-            let eventDateTimestamp = firestoreData["eventDate"] as? Timestamp,
-            let isFeatured = firestoreData["isFeatured"] as? Bool,
-            let registrationRequired = firestoreData["registrationRequired"] as? Bool
+            let description = firestoreData["description"] as? String
         else {
             return nil
         }
         
+        // Handle timestamps
+        guard
+            let createdAtTimestamp = firestoreData["createdAt"] as? Timestamp,
+            let eventDateTimestamp = firestoreData["eventDate"] as? Timestamp
+        else {
+            return nil
+        }
+        
+        // Handle boolean values that might be stored as integers
+        let isFeatured: Bool
+        if let featuredBool = firestoreData["isFeatured"] as? Bool {
+            isFeatured = featuredBool
+        } else if let featuredInt = firestoreData["isFeatured"] as? Int {
+            isFeatured = featuredInt != 0
+        } else {
+            isFeatured = false
+        }
+        
+        let registrationRequired: Bool
+        if let requiredBool = firestoreData["registrationRequired"] as? Bool {
+            registrationRequired = requiredBool
+        } else if let requiredInt = firestoreData["registrationRequired"] as? Int {
+            registrationRequired = requiredInt != 0
+        } else {
+            registrationRequired = false
+        }
+        
+        // Assign properties
         self.id = id
         self.author = author
         self.host = host
@@ -109,24 +175,15 @@ extension EventItem: FirestoreCodable {
         self.type = type
         self.location = location
         self.description = description
-        self.createdAt = createdAtTimestamp.dateValue
-        self.eventDate = eventDateTimestamp.dateValue
+        self.createdAt = createdAtTimestamp.dateValue()
+        self.eventDate = eventDateTimestamp.dateValue()
         self.isFeatured = isFeatured
         self.registrationRequired = registrationRequired
-        
-        // Handle optional properties
         self.registrationLink = firestoreData["registrationLink"] as? String
-        
-        // Handle media items if they exist
-        if let mediaItemsData = firestoreData["mediaItems"] as? [String: Any],
-           let mediaItem = MediaItem(firestoreData: mediaItemsData) {
-            self.mediaItems = mediaItem
-        } else {
-            self.mediaItems = nil
-        }
+        self.mediaItems = nil // Handle media items if needed
     }
 }
-
+    
 // Implement the FirebaseEventRepository class
 class FirebaseEventRepository: EventRepositoryProtocol {
     private let db = Firestore.firestore()
@@ -302,20 +359,58 @@ class FirebaseEventRepository: EventRepositoryProtocol {
     
     // Helper method to decode an event document with related entities
     private func decodeEvent(_ document: DocumentSnapshot) async throws -> EventItem? {
-        guard
-            let data = document.data(),
-            let authorId = data["authorId"] as? String,
-            let hostId = data["hostId"] as? String,
-            let author = try await userRepository.getUser(id: authorId),
-            let host = try await gymRepository.getGym(id: hostId)
-        else {
+        guard var data = document.data() else {
+            print("DEBUG: Error: Document data is nil for \(document.documentID)")
             return nil
         }
         
         // Add the ID to the data
-        var eventData = data
-        eventData["id"] = document.documentID
+        data["id"] = document.documentID
         
-        return EventItem(firestoreData: eventData, author: author, host: host)
+        // Get required IDs for related entities
+        guard
+            let authorId = data["authorId"] as? String,
+            let hostId = data["hostId"] as? String
+        else {
+            print("DEBUG: Missing author or host ID in document \(document.documentID)")
+            return nil
+        }
+        
+        do {
+            // Fetch related entities with better error handling
+            let author: User?
+            let host: Gym?
+            
+            do {
+                author = try await userRepository.getUser(id: authorId)
+                if author == nil {
+                    print("DEBUG: Author not found with ID: \(authorId)")
+                }
+            } catch {
+                print("DEBUG: Error fetching author \(authorId): \(error.localizedDescription)")
+                author = nil
+            }
+            
+            do {
+                host = try await gymRepository.getGym(id: hostId)
+                if host == nil {
+                    print("DEBUG: Gym not found with ID: \(hostId)")
+                }
+            } catch {
+                print("DEBUG: Error fetching gym \(hostId): \(error.localizedDescription)")
+                host = nil
+            }
+            
+            if let author = author, let host = host {
+                return EventItem(firestoreData: data, author: author, host: host)
+            } else {
+                // Only log this if we're using the fallback
+                print("DEBUG: Using placeholder implementation for event \(document.documentID)")
+                return EventItem(firestoreData: data)
+            }
+        } catch {
+            print("DEBUG: Unexpected error in decodeEvent: \(error.localizedDescription)")
+            return EventItem(firestoreData: data)
+        }
     }
 }

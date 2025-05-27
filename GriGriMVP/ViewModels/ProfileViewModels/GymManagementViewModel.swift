@@ -29,16 +29,23 @@ class GymManagementViewModel: ObservableObject {
         do {
             // Get current user ID
             guard let currentUserId = userRepository.getCurrentAuthUser() else {
+                print("DEBUG: No current user ID found")
                 errorMessage = "You must be logged in to manage gyms"
                 isLoading = false
                 return
             }
             
+            print("DEBUG: Loading gyms for user ID: \(currentUserId)")
+            
             // Load only gyms that the current user can manage (owner or staff)
             let managedGyms = try await gymRepository.getGymsUserCanManage(userId: currentUserId)
+            print("DEBUG: Repository returned \(managedGyms.count) gyms")
+            
             gyms = managedGyms.sorted { $0.createdAt > $1.createdAt } // Most recent first
+            print("DEBUG: View model now has \(gyms.count) gyms")
             
         } catch {
+            print("DEBUG: Error loading gyms: \(error)")
             errorMessage = "Failed to load gyms: \(error.localizedDescription)"
         }
         
