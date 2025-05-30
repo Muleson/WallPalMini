@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 protocol EventRepositoryProtocol {
     /// Fetch all events
@@ -28,9 +29,12 @@ protocol EventRepositoryProtocol {
     
     /// Create a new event
     func createEvent(_ event: EventItem) async throws -> String
-    
+
     /// Update an existing event
-    func updateEvent(_ event: EventItem) async throws
+    func updateEvent(_ event: EventItem) async throws -> EventItem
+
+    /// Update an event image
+    func updateEventMedia(eventId: String, mediaItems: [MediaItem]?) async throws
     
     /// Delete an event
     func deleteEvent(id: String) async throws

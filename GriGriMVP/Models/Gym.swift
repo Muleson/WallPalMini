@@ -10,21 +10,21 @@ import FirebaseFirestore
 
 struct Gym: Identifiable, Equatable, Codable {
     var id: String
-    let email: String
-    let name: String
-    let description: String?
-    let location: LocationData
-    let climbingType: [ClimbingTypes]
-    let amenities: [String]
-    let events: [String]
-    let imageUrl: URL?
-    let createdAt: Date
+    var email: String
+    var name: String
+    var description: String?
+    var location: LocationData
+    var climbingType: [ClimbingTypes]
+    var amenities: [String]
+    var events: [String]
+    var profileImage: MediaItem?
+    var createdAt: Date
     
     // Simplified staff management
     let ownerId: String
     let staffUserIds: [String]
     
-    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [String], events: [String], imageUrl: URL?, createdAt: Date, ownerId: String, staffUserIds: [String] = []) {
+    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [String], events: [String], profileImage: MediaItem?, createdAt: Date, ownerId: String, staffUserIds: [String] = []) {
         self.id = id
         self.email = email
         self.name = name
@@ -33,7 +33,7 @@ struct Gym: Identifiable, Equatable, Codable {
         self.climbingType = climbingType
         self.amenities = amenities
         self.events = events
-        self.imageUrl = imageUrl
+        self.profileImage = profileImage
         self.createdAt = createdAt
         self.ownerId = ownerId
         self.staffUserIds = staffUserIds
@@ -70,7 +70,7 @@ struct Gym: Identifiable, Equatable, Codable {
         return Gym(
             id: id, email: email, name: name, description: description,
             location: location, climbingType: climbingType, amenities: amenities,
-            events: events, imageUrl: imageUrl, createdAt: createdAt,
+            events: events, profileImage: profileImage, createdAt: createdAt,
             ownerId: ownerId, staffUserIds: newStaffIds
         )
     }
@@ -81,7 +81,7 @@ struct Gym: Identifiable, Equatable, Codable {
         return Gym(
             id: id, email: email, name: name, description: description,
             location: location, climbingType: climbingType, amenities: amenities,
-            events: events, imageUrl: imageUrl, createdAt: createdAt,
+            events: events, profileImage: profileImage, createdAt: createdAt,
             ownerId: ownerId, staffUserIds: newStaffIds
         )
     }
@@ -152,7 +152,7 @@ extension Gym {
             climbingType: [],
             amenities: [],
             events: [],
-            imageUrl: nil,
+            profileImage: nil,
             createdAt: Date(),
             ownerId: "",
             staffUserIds: []

@@ -6,20 +6,26 @@
 //
 
 import Foundation
+import UIKit
 
 @MainActor
 class CreateEventViewModel: ObservableObject {
     // Published properties
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var selectedImages: [UIImage] = [] // Add this
+    @Published var isUploadingImages = false // Add this
     
     // Dependencies
     private let eventRepository: EventRepositoryProtocol
     private let userRepository: UserRepositoryProtocol
+    private let mediaRepository: MediaRepositoryProtocol // Add this
     
     init(eventRepository: EventRepositoryProtocol? = nil,
-         userRepository: UserRepositoryProtocol = FirebaseUserRepository()) {
+         userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
+         mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) { // Add this parameter
         self.userRepository = userRepository
+        self.mediaRepository = mediaRepository // Add this
         
         // Initialize event repository with dependencies
         if let eventRepository = eventRepository {
@@ -30,6 +36,21 @@ class CreateEventViewModel: ObservableObject {
                 gymRepository: FirebaseGymRepository()
             )
         }
+    }
+    
+    // MARK: - Image Management Methods (Add these)
+    
+    func addImage(_ image: UIImage) {
+        selectedImages.append(image)
+    }
+    
+    func removeImage(at index: Int) {
+        guard index < selectedImages.count else { return }
+        selectedImages.remove(at: index)
+    }
+    
+    func clearImages() {
+        selectedImages.removeAll()
     }
     
     // MARK: - Public Methods
@@ -71,6 +92,25 @@ class CreateEventViewModel: ObservableObject {
         errorMessage = nil
         
         do {
+            // Upload images first if any are selected
+            var mediaItems: [MediaItem]? = nil
+            
+            if !selectedImages.isEmpty {
+                isUploadingImages = true
+                mediaItems = []
+                
+                for image in selectedImages {
+                    let mediaItem = try await mediaRepository.uploadImage(
+                        image,
+                        ownerId: currentUser.id,
+                        compressionQuality: 0.8
+                    )
+                    mediaItems?.append(mediaItem)
+                }
+                
+                isUploadingImages = false
+            }
+            
             // Create the event object
             let event = EventItem(
                 id: UUID().uuidString,
@@ -80,7 +120,7 @@ class CreateEventViewModel: ObservableObject {
                 type: eventType,
                 location: location,
                 description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-                mediaItems: nil, // No media upload in this version
+                mediaItems: mediaItems, // Include uploaded media
                 registrationLink: registrationLink,
                 createdAt: Date(),
                 eventDate: eventDate,
@@ -93,6 +133,7 @@ class CreateEventViewModel: ObservableObject {
             
             await MainActor.run {
                 self.isLoading = false
+                self.clearImages() // Clear selected images after successful creation
                 // Success - errorMessage remains nil
                 print("Event created successfully with ID: \(eventId)")
             }
@@ -100,6 +141,7 @@ class CreateEventViewModel: ObservableObject {
         } catch {
             await MainActor.run {
                 self.isLoading = false
+                self.isUploadingImages = false
                 self.errorMessage = "Failed to create event: \(error.localizedDescription)"
             }
         }

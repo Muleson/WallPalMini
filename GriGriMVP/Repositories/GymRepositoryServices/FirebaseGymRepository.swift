@@ -11,6 +11,14 @@ import FirebaseFirestore
 class FirebaseGymRepository: GymRepositoryProtocol {
     private let db = Firestore.firestore()
     private let gymsCollection = "gyms"
+    private let usersCollection = "users"
+    private let mediaRepository: MediaRepositoryProtocol
+    
+    init(mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) {
+        self.mediaRepository = mediaRepository
+    }
+    
+    // MARK: - Fetch Methods
     
     func fetchAllGyms() async throws -> [Gym] {
         let snapshot = try await db.collection(gymsCollection).getDocuments()
@@ -114,38 +122,102 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         ])
     }
     
+    // MARK: - Create Methods
+    
     func createGym(_ gym: Gym) async throws -> Gym {
-         var gymToCreate = gym
-         
-         // Convert gym to Firestore data
-         let gymData = gymToCreate.toFirestoreData()
-         
-         // Add to Firestore
-         let documentRef = try await db.collection(gymsCollection).addDocument(data: gymData)
-         
-         // Update the gym with the generated ID
-         gymToCreate.id = documentRef.documentID
-         
-         return gymToCreate
-     }
-     
-     func updateGym(_ gym: Gym) async throws -> Gym {
-         let gymData = gym.toFirestoreData()
-         
-         try await db.collection(gymsCollection).document(gym.id).setData(gymData, merge: true)
-         
-         return gym
-     }
-     
-     func deleteGym(id: String) async throws {
-         try await db.collection(gymsCollection).document(id).delete()
-     }
-}
-
-// MARK: - Staff management extension
-
-extension FirebaseGymRepository {
+        var gymToCreate = gym
         
+        // Convert gym to Firestore data
+        let gymData = gymToCreate.toFirestoreData()
+        
+        // Add to Firestore
+        let documentRef = try await db.collection(gymsCollection).addDocument(data: gymData)
+        
+        // Update the gym with the generated ID
+        gymToCreate.id = documentRef.documentID
+        
+        return gymToCreate
+    }
+    
+    
+    // MARK: - Update Methods
+     
+    func updateGym(_ gym: Gym) async throws -> Gym {
+        let gymData = gym.toFirestoreData()
+        
+        try await db.collection(gymsCollection).document(gym.id).setData(gymData, merge: true)
+        
+        return gym
+    }
+    
+    func updateGymImage(gymId: String, image: UIImage) async throws -> URL {
+        guard let gym = try await getGym(id: gymId) else {
+            throw NSError(domain: "GymRepository", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "Gym not found"
+            ])
+        }
+        
+        // Delete old image if exists
+        if let oldImage = gym.profileImage {
+            try? await mediaRepository.deleteMedia(oldImage)
+        }
+        
+        // Upload new image
+        let mediaItem = try await mediaRepository.uploadImage(
+            image,
+            ownerId: "gym_\(gymId)",
+            compressionQuality: 0.8
+        )
+        
+        // Update gym with new MediaItem
+        try await db.collection(gymsCollection).document(gymId).updateData([
+            "image": [
+                "id": mediaItem.id,
+                "url": mediaItem.url.absoluteString,
+                "type": mediaItem.type.rawValue,
+                "uploadedAt": mediaItem.uploadedAt.firestoreTimestamp,
+                "ownerId": mediaItem.ownerId
+            ]
+        ])
+        
+        return mediaItem.url
+    }
+    
+    func deleteGymImage(gymId: String) async throws {
+        guard let gym = try await getGym(id: gymId) else {
+            throw NSError(domain: "GymRepository", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "Gym not found"
+            ])
+        }
+        
+        guard let profileImage = gym.profileImage else {
+            return // No image to delete
+        }
+        
+        try await mediaRepository.deleteMedia(profileImage)
+        
+        // Update gym to remove image
+        try await db.collection(gymsCollection).document(gymId).updateData([
+            "profileImage": FieldValue.delete()
+        ])
+    }
+    
+    // MARK: - Delete Methods
+     
+    func deleteGym(id: String) async throws {
+        // Get gym to check for image
+        if let gym = try await getGym(id: id),
+           let profileImage = gym.profileImage {
+            // Delete associated image
+            try? await mediaRepository.deleteMedia(profileImage)
+        }
+        
+        // Delete gym document
+        try await db.collection(gymsCollection).document(id).delete()
+    }
+    
+    // MARK: - Staff Management Methods
+    
     func addStaffMember(to gymId: String, userId: String) async throws {
         let gymRef = db.collection(gymsCollection).document(gymId)
         
@@ -271,7 +343,7 @@ extension FirebaseGymRepository {
         var missingFields: [String] = []
         
         // Add all required fields for a Gym object
-        let requiredFields = ["name", "address", "description", "ownerId"]
+        let requiredFields = ["name", "email", "location", "ownerId"]
         
         for field in requiredFields {
             if data[field] == nil {

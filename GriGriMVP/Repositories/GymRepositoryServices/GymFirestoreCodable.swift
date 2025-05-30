@@ -31,8 +31,14 @@ extension Gym: FirestoreCodable {
             data["description"] = description
         }
         
-        if let imageUrl = imageUrl {
-            data["imageUrl"] = imageUrl.absoluteString
+        if let profileImage = profileImage {
+            data["profileImage"] = [
+                "id": profileImage.id,
+                "url": profileImage.url.absoluteString,
+                "type": profileImage.type.rawValue,
+                "uploadedAt": profileImage.uploadedAt.firestoreTimestamp,
+                "ownerId": profileImage.ownerId
+            ]
         }
         
         return data
@@ -60,12 +66,32 @@ extension Gym: FirestoreCodable {
         // Handle optional description
         let description = firestoreData["description"] as? String
         
-        // Handle optional image URL
-        let imageUrl: URL?
-        if let imageUrlString = firestoreData["imageUrl"] as? String, !imageUrlString.isEmpty {
-            imageUrl = URL(string: imageUrlString)
+        // Parse MediaItem from nested data
+        let profileImage: MediaItem?
+        if let imageData = firestoreData["profileImage"] as? [String: Any],
+           let imageId = imageData["id"] as? String,
+           let imageUrlString = imageData["url"] as? String,
+           let imageUrl = URL(string: imageUrlString),
+           let imageTypeString = imageData["type"] as? String,
+           let imageType = MediaType(rawValue: imageTypeString),
+           let imageOwnerId = imageData["ownerId"] as? String {
+            
+            let uploadedAt: Date
+            if let timestamp = imageData["uploadedAt"] as? Timestamp {
+                uploadedAt = timestamp.dateValue
+            } else {
+                uploadedAt = Date()
+            }
+            
+            profileImage = MediaItem(
+                id: imageId,
+                url: imageUrl,
+                type: imageType,
+                uploadedAt: uploadedAt,
+                ownerId: imageOwnerId
+            )
         } else {
-            imageUrl = nil
+            profileImage = nil
         }
         
         // Handle staff user IDs array (default to empty if missing)
@@ -100,7 +126,7 @@ extension Gym: FirestoreCodable {
             climbingType: climbingTypes,
             amenities: amenities,
             events: events,
-            imageUrl: imageUrl,
+            profileImage: profileImage,
             createdAt: createdAt,
             ownerId: ownerId,
             staffUserIds: staffUserIds,

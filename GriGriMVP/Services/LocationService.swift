@@ -7,11 +7,41 @@
 
 import Foundation
 import CoreLocation
+import SwiftUI
 
-class LocationService {
+@MainActor
+class LocationService: NSObject, ObservableObject {
     static let shared = LocationService()
     
-    private init() {}
+    // Published properties for UI binding
+    @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
+    @Published var isLocationServicesEnabled: Bool = false
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String?
+    
+    private let locationManager = CLLocationManager()
+    private let geocoder = CLGeocoder()
+    private var locationCompletion: ((Result<CLLocation, Error>) -> Void)?
+    private var locationTimer: Timer?
+    
+    // Configuration
+    private let locationTimeout: TimeInterval = 30.0
+    private let desiredAccuracy: CLLocationAccuracy = kCLLocationAccuracyNearestTenMeters
+    private let maximumLocationAge: TimeInterval = 300.0 // 5 minutes
+    
+    override init() {
+        super.init()
+        setupLocationManager()
+    }
+    
+    private func setupLocationManager() {
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = desiredAccuracy
+        locationManager.distanceFilter = 10.0
+        
+        isLocationServicesEnabled = CLLocationManager.locationServicesEnabled()
+        authorizationStatus = locationManager.authorizationStatus
+    }
     
     // MARK: - Basic Location Operations
     
@@ -75,12 +105,282 @@ class LocationService {
         return distance(from: userLocation, to: locationData)
     }
     
-    // MARK: - Address Geocoding
+    // MARK: - New Location Acquisition Methods
     
-    /// Convert address to coordinates (placeholder for future implementation)
+    func requestCurrentLocation() async throws -> CLLocation {
+        return try await withCheckedThrowingContinuation { continuation in
+            requestCurrentLocation { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
+    
+    func requestCurrentLocation(completion: @escaping (Result<CLLocation, Error>) -> Void) {
+        guard isLocationServicesEnabled else {
+            completion(.failure(LocationError.servicesDisabled))
+            return
+        }
+        
+        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+            if authorizationStatus == .notDetermined {
+                locationCompletion = completion
+                locationManager.requestWhenInUseAuthorization()
+                return
+            } else {
+                completion(.failure(LocationError.permissionDenied))
+                return
+            }
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        locationCompletion = completion
+        
+        locationManager.startUpdatingLocation()
+        
+        // Set timeout timer
+        locationTimer = Timer.scheduledTimer(withTimeInterval: locationTimeout, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleLocationTimeout()
+            }
+        }
+    }
+    
+    // Updated geocode method (replacing your placeholder)
+    func geocode(address: String) async throws -> LocationData {
+        let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAddress.isEmpty else {
+            throw LocationError.invalidAddress
+        }
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            geocoder.geocodeAddressString(trimmedAddress) { placemarks, error in
+                if let error = error {
+                    continuation.resume(throwing: self.mapGeocodingError(error))
+                } else if let location = placemarks?.first?.location {
+                    let locationData = LocationData(
+                        latitude: location.coordinate.latitude,
+                        longitude: location.coordinate.longitude,
+                        address: trimmedAddress
+                    )
+                    continuation.resume(returning: locationData)
+                } else {
+                    continuation.resume(throwing: LocationError.geocodingFailed)
+                }
+            }
+        }
+    }
+    
+    // Legacy method for backward compatibility
     func geocode(address: String, completion: @escaping (LocationData?) -> Void) {
-        // In a real implementation, you would use CLGeocoder to convert string address to coordinates
-        // For now, we'll just call the completion with nil
-        completion(nil)
+        Task {
+            do {
+                let locationData = try await geocode(address: address)
+                completion(locationData)
+            } catch {
+                completion(nil)
+            }
+        }
+    }
+    
+    func reverseGeocode(_ location: CLLocation) async throws -> String {
+        return try await withCheckedThrowingContinuation { continuation in
+            geocoder.reverseGeocodeLocation(location) { placemarks, error in
+                if let error = error {
+                    continuation.resume(throwing: self.mapGeocodingError(error))
+                } else if let placemark = placemarks?.first {
+                    let address = self.formatAddress(from: placemark)
+                    continuation.resume(returning: address)
+                } else {
+                    continuation.resume(throwing: LocationError.reverseGeocodingFailed)
+                }
+            }
+        }
+    }
+    
+    func openLocationSettings() {
+        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(settingsUrl)
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    private func handleLocationTimeout() {
+        guard isLoading else { return }
+        
+        locationManager.stopUpdatingLocation()
+        isLoading = false
+        locationTimer?.invalidate()
+        locationTimer = nil
+        
+        locationCompletion?(.failure(LocationError.timeout))
+        locationCompletion = nil
+    }
+    
+    private func formatAddress(from placemark: CLPlacemark) -> String {
+        var components: [String] = []
+        
+        if let streetNumber = placemark.subThoroughfare {
+            components.append(streetNumber)
+        }
+        if let streetName = placemark.thoroughfare {
+            components.append(streetName)
+        }
+        if let subLocality = placemark.subLocality {
+            components.append(subLocality)
+        }
+        if let city = placemark.locality {
+            components.append(city)
+        }
+        if let state = placemark.administrativeArea {
+            components.append(state)
+        }
+        if let postalCode = placemark.postalCode {
+            components.append(postalCode)
+        }
+        if let country = placemark.country {
+            components.append(country)
+        }
+        
+        return components.joined(separator: ", ")
+    }
+    
+    private func mapGeocodingError(_ error: Error) -> LocationError {
+        if let clError = error as? CLError {
+            switch clError.code {
+            case .network:
+                return .networkError
+            case .geocodeFoundNoResult:
+                return .geocodingFailed
+            case .geocodeFoundPartialResult:
+                return .partialResult
+            case .geocodeCanceled:
+                return .cancelled
+            default:
+                return .unknown(clError.localizedDescription)
+            }
+        }
+        return .unknown(error.localizedDescription)
+    }
+}
+
+// MARK: - CLLocationManagerDelegate
+
+extension LocationService: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        
+        // Validate location quality
+        let locationAge = -location.timestamp.timeIntervalSinceNow
+        guard locationAge < maximumLocationAge,
+              location.horizontalAccuracy <= 100.0,
+              location.horizontalAccuracy > 0 else {
+            return
+        }
+        
+        isLoading = false
+        locationManager.stopUpdatingLocation()
+        locationTimer?.invalidate()
+        locationTimer = nil
+        
+        locationCompletion?(.success(location))
+        locationCompletion = nil
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        isLoading = false
+        locationManager.stopUpdatingLocation()
+        locationTimer?.invalidate()
+        locationTimer = nil
+        
+        let locationError = mapLocationError(error)
+        errorMessage = locationError.localizedDescription
+        
+        locationCompletion?(.failure(locationError))
+        locationCompletion = nil
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        authorizationStatus = status
+        
+        switch status {
+        case .authorizedWhenInUse, .authorizedAlways:
+            if let completion = locationCompletion {
+                requestCurrentLocation(completion: completion)
+            }
+        case .denied, .restricted:
+            isLoading = false
+            errorMessage = LocationError.permissionDenied.localizedDescription
+            locationCompletion?(.failure(LocationError.permissionDenied))
+            locationCompletion = nil
+        case .notDetermined:
+            break
+        @unknown default:
+            isLoading = false
+            let error = LocationError.unknown("Unknown authorization status")
+            errorMessage = error.localizedDescription
+            locationCompletion?(.failure(error))
+            locationCompletion = nil
+        }
+    }
+    
+    private func mapLocationError(_ error: Error) -> LocationError {
+        if let clError = error as? CLError {
+            switch clError.code {
+            case .denied:
+                return .permissionDenied
+            case .locationUnknown:
+                return .locationUnknown
+            case .network:
+                return .networkError
+            default:
+                return .unknown(clError.localizedDescription)
+            }
+        }
+        return .unknown(error.localizedDescription)
+    }
+}
+
+// MARK: - LocationError
+
+enum LocationError: LocalizedError {
+    case servicesDisabled
+    case permissionDenied
+    case locationUnknown
+    case networkError
+    case timeout
+    case invalidAddress
+    case geocodingFailed
+    case reverseGeocodingFailed
+    case partialResult
+    case cancelled
+    case unknown(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .servicesDisabled:
+            return "Location services are disabled. Please enable them in Settings."
+        case .permissionDenied:
+            return "Location access denied. Please enable location access in Settings."
+        case .locationUnknown:
+            return "Unable to determine location. Please try again."
+        case .networkError:
+            return "Network error. Please check your internet connection."
+        case .timeout:
+            return "Location request timed out. Please try again."
+        case .invalidAddress:
+            return "Please enter a valid address."
+        case .geocodingFailed:
+            return "Could not find location for the provided address."
+        case .reverseGeocodingFailed:
+            return "Could not determine address for location."
+        case .partialResult:
+            return "Only partial location results found."
+        case .cancelled:
+            return "Location request was cancelled."
+        case .unknown(let message):
+            return message
+        }
     }
 }

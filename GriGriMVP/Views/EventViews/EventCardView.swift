@@ -16,8 +16,9 @@ struct EventCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Media display
             ZStack(alignment: .topTrailing) {
-                if let media = event.mediaItems {
-                    AsyncImage(url: media.url) { image in
+                if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
+                    // Show the first image from the media array
+                    AsyncImage(url: mediaItems[0].url) { image in
                         image
                             .resizable()
                             .scaledToFill()
@@ -26,6 +27,7 @@ struct EventCardView: View {
                             .fill(Color.gray.opacity(0.3))
                     }
                     .frame(height: 150)
+                    .clipped()
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
@@ -66,7 +68,7 @@ struct EventCardView: View {
             // Info box at bottom
             VStack {
                 HStack {
-                    // Gym name or event title if gym is nil
+                    // Event name
                     Text(event.name)
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -81,25 +83,26 @@ struct EventCardView: View {
                 }
                 HStack {
                     // Gym profile picture
-                    if let imageUrl = event.host.imageUrl {
-                            AsyncImage(url: imageUrl) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 20, height: 20)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 20, height: 20)
-                            }
-                        } else {
-                            Image(systemName: "building.2")
+                    if let profileImage = event.host.profileImage {
+                        AsyncImage(url: profileImage.url) { image in
+                            image
                                 .resizable()
-                                .aspectRatio(contentMode: .fit)
+                                .aspectRatio(contentMode: .fill)
                                 .frame(width: 20, height: 20)
-                                .foregroundColor(.gray)
+                                .clipShape(Circle())
+                        } placeholder: {
+                            Circle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 20, height: 20)
                         }
+                    } else {
+                        Image(systemName: "building.2")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                            .foregroundColor(.gray)
+                    }
+                    
                     // Gym name text
                     Text(event.host.name)
                         .font(.caption)

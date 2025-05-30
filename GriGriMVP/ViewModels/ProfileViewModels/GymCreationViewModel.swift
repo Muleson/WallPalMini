@@ -37,18 +37,17 @@ class GymCreationViewModel: ObservableObject {
     
     private let userRepository: UserRepositoryProtocol
     private let gymRepository: GymRepositoryProtocol
-    private let locationManager = CLLocationManager()
+    private let locationService = LocationService.shared
+    private var geocodingTask: Task<Void, Never>?
     
-    init(userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
-         gymRepository: GymRepositoryProtocol = FirebaseGymRepository())
-    {
-        self.userRepository = userRepository
-        self.gymRepository = gymRepository
-        setupLocationManager()
+    init() {
+        self.userRepository = FirebaseUserRepository()
+        self.gymRepository = FirebaseGymRepository()
     }
     
-    private func setupLocationManager() {
-        locationManager.requestWhenInUseAuthorization()
+    init(userRepository: UserRepositoryProtocol, gymRepository: GymRepositoryProtocol) {
+        self.userRepository = userRepository
+        self.gymRepository = gymRepository
     }
     
     // MARK: - Validation
@@ -61,97 +60,89 @@ class GymCreationViewModel: ObservableObject {
         (!address.isEmpty || (latitude != 0.0 && longitude != 0.0))
     }
     
+    var locationPermissionGranted: Bool {
+        locationService.authorizationStatus == .authorizedWhenInUse || 
+        locationService.authorizationStatus == .authorizedAlways
+    }
+    
     // MARK: - Location Methods
     
     func getCurrentLocation() {
-        isLocationLoading = true
         errorMessage = nil
+        isLocationLoading = true
         
-        guard CLLocationManager.locationServicesEnabled() else {
-            errorMessage = "Location services are not enabled"
-            isLocationLoading = false
-            return
-        }
-        
-        switch locationManager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways:
-            if let location = locationManager.location {
-                latitude = location.coordinate.latitude
-                longitude = location.coordinate.longitude
-                useCurrentLocation = true
-                isLocationLoading = false
+        Task {
+            do {
+                let location = try await locationService.requestCurrentLocation()
                 
-                // Reverse geocode to get address
-                reverseGeocodeLocation(location)
-            } else {
-                errorMessage = "Unable to get current location"
-                isLocationLoading = false
-            }
-        case .denied, .restricted:
-            errorMessage = "Location access denied. Please enable in Settings."
-            isLocationLoading = false
-        case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
-            isLocationLoading = false
-        @unknown default:
-            errorMessage = "Unknown location authorization status"
-            isLocationLoading = false
-        }
-    }
-    
-    private func reverseGeocodeLocation(_ location: CLLocation) {
-        let geocoder = CLGeocoder()
-        geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    self?.errorMessage = "Failed to get address: \(error.localizedDescription)"
-                    return
+                self.latitude = location.coordinate.latitude
+                self.longitude = location.coordinate.longitude
+                self.useCurrentLocation = true
+                self.isLocationLoading = false
+                
+                // Get address for the location
+                do {
+                    let address = try await locationService.reverseGeocode(location)
+                    self.address = address
+                } catch {
+                    // Don't fail the whole operation if reverse geocoding fails
+                    print("Failed to get address: \(error)")
                 }
                 
-                if let placemark = placemarks?.first {
-                    var addressComponents: [String] = []
-                    
-                    if let streetNumber = placemark.subThoroughfare {
-                        addressComponents.append(streetNumber)
-                    }
-                    if let streetName = placemark.thoroughfare {
-                        addressComponents.append(streetName)
-                    }
-                    if let city = placemark.locality {
-                        addressComponents.append(city)
-                    }
-                    if let postalCode = placemark.postalCode {
-                        addressComponents.append(postalCode)
-                    }
-                    
-                    self?.address = addressComponents.joined(separator: ", ")
+            } catch {
+                self.isLocationLoading = false
+                if let locationError = error as? LocationError {
+                    self.errorMessage = locationError.localizedDescription
+                } else {
+                    self.errorMessage = "Failed to get location: \(error.localizedDescription)"
                 }
             }
         }
     }
     
     func geocodeAddress() {
-        guard !address.isEmpty else { return }
+        let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAddress.isEmpty else { return }
         
-        isLocationLoading = true
-        let geocoder = CLGeocoder()
+        // Cancel any pending geocoding
+        geocodingTask?.cancel()
         
-        geocoder.geocodeAddressString(address) { [weak self] placemarks, error in
-            DispatchQueue.main.async {
-                self?.isLocationLoading = false
+        geocodingTask = Task {
+            // Debounce the geocoding request
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run {
+                self.isLocationLoading = true
+            }
+            
+            do {
+                let locationData = try await locationService.geocode(address: trimmedAddress)
                 
-                if let error = error {
-                    self?.errorMessage = "Failed to find location: \(error.localizedDescription)"
-                    return
+                await MainActor.run {
+                    self.latitude = locationData.latitude
+                    self.longitude = locationData.longitude
+                    self.useCurrentLocation = false
+                    self.isLocationLoading = false
+                    self.errorMessage = nil
                 }
                 
-                if let location = placemarks?.first?.location {
-                    self?.latitude = location.coordinate.latitude
-                    self?.longitude = location.coordinate.longitude
-                    self?.useCurrentLocation = false
+            } catch {
+                await MainActor.run {
+                    self.isLocationLoading = false
+                    if let locationError = error as? LocationError {
+                        self.errorMessage = locationError.localizedDescription
+                    } else {
+                        self.errorMessage = "Failed to find location: \(error.localizedDescription)"
+                    }
                 }
             }
         }
+    }
+    
+    func openLocationSettings() {
+        locationService.openLocationSettings()
     }
     
     // MARK: - Amenities Management
@@ -186,7 +177,6 @@ class GymCreationViewModel: ObservableObject {
                 address: address.isEmpty ? nil : address
             )
             
-            // Get the current user ID - replace with your actual authentication code
             guard let currentUserId = userRepository.getCurrentAuthUser() else {
                 throw NSError(domain: "GymCreation", code: 401, userInfo: [NSLocalizedDescriptionKey: "You must be signed in to create a gym"])
             }
@@ -200,13 +190,12 @@ class GymCreationViewModel: ObservableObject {
                 climbingType: Array(selectedClimbingTypes),
                 amenities: amenities,
                 events: [],
-                imageUrl: nil,
+                profileImage: nil,
                 createdAt: Date(),
                 ownerId: currentUserId,
                 staffUserIds: []
             )
             
-            // Actually call the repository to create the gym
             _ = try await gymRepository.createGym(gym)
             
             await MainActor.run {
@@ -235,5 +224,13 @@ class GymCreationViewModel: ObservableObject {
         amenities.removeAll()
         newAmenity = ""
         errorMessage = nil
+        
+        // Cancel any pending geocoding
+        geocodingTask?.cancel()
+        geocodingTask = nil
+    }
+    
+    deinit {
+        geocodingTask?.cancel()
     }
 }

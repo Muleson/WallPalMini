@@ -6,11 +6,13 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct EventManagementView: View {
     let gym: Gym
     @StateObject private var viewModel: EventManagementViewModel
     @State private var showingCreateEvent = false
+    @State private var editingEvent: EventItem?
     
     init(gym: Gym) {
         self.gym = gym
@@ -51,7 +53,8 @@ struct EventManagementView: View {
                     List {
                         ForEach(viewModel.gymEvents) { event in
                             EventRowView(event: event) {
-                                // Edit event (future feature)
+                                // Edit event functionality
+                                editingEvent = event
                             } onDelete: {
                                 Task {
                                     await viewModel.deleteEvent(event.id)
@@ -176,6 +179,12 @@ struct CreateEventView: View {
     @State private var registrationRequired = false
     @State private var registrationLink = ""
     
+    // Image selection states
+    @State private var selectedImage: UIImage?
+    @State private var showImagePicker = false
+    @State private var imageSourceType: UIImagePickerController.SourceType = .photoLibrary
+    @State private var showImageSourceSelection = false
+    
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -196,6 +205,48 @@ struct CreateEventView: View {
                     }
                 }
                 
+                Section("Event Image") {
+                    if let image = selectedImage {
+                        VStack {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 200)
+                                .cornerRadius(8)
+                            
+                            HStack {
+                                Button("Change Image") {
+                                    showImageSourceSelection = true
+                                }
+                                .foregroundColor(.blue)
+                                
+                                Spacer()
+                                
+                                Button("Remove") {
+                                    selectedImage = nil
+                                }
+                                .foregroundColor(.red)
+                            }
+                            .font(.caption)
+                        }
+                    } else {
+                        Button(action: {
+                            showImageSourceSelection = true
+                        }) {
+                            HStack {
+                                Image(systemName: "photo.badge.plus")
+                                    .font(.title2)
+                                Text("Add Event Image")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                
                 Section("Location") {
                     TextField("Location (optional)", text: $location)
                         .placeholder(when: location.isEmpty) {
@@ -210,16 +261,18 @@ struct CreateEventView: View {
                     if registrationRequired {
                         TextField("Registration Link (optional)", text: $registrationLink)
                             .textInputAutocapitalization(.never)
+                            .keyboardType(.URL)
                     }
                 }
                 
                 Section("Preview") {
-                    EventPreviewView(
+                    EventPreviewCardView(
                         name: name,
                         description: description,
                         eventDate: eventDate,
                         eventType: eventType,
-                        gymName: gym.name
+                        gymName: gym.name,
+                        image: selectedImage
                     )
                 }
             }
@@ -235,25 +288,31 @@ struct CreateEventView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Create") {
                         Task {
-                            await viewModel.createEvent(
-                                name: name,
-                                description: description,
-                                eventDate: eventDate,
-                                eventType: eventType,
-                                location: location.isEmpty ? gym.name : location,
-                                registrationRequired: registrationRequired,
-                                registrationLink: registrationLink.isEmpty ? nil : registrationLink,
-                                gym: gym
-                            )
-                            
-                            if viewModel.errorMessage == nil {
-                                onEventCreated()
-                                dismiss()
-                            }
+                            await createEvent()
                         }
                     }
                     .disabled(!isFormValid || viewModel.isLoading)
                 }
+            }
+            .confirmationDialog("Select Image Source", isPresented: $showImageSourceSelection) {
+                Button("Take Photo") {
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        imageSourceType = .camera
+                        showImagePicker = true
+                    }
+                }
+                Button("Choose from Library") {
+                    imageSourceType = .photoLibrary
+                    showImagePicker = true
+                }
+                Button("Cancel", role: .cancel) {}
+            }
+            .sheet(isPresented: $showImagePicker) {
+                ImagePicker(
+                    selectedImage: $selectedImage,
+                    sourceType: imageSourceType,
+                    allowsEditing: true
+                )
             }
             .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("OK") {
@@ -270,11 +329,22 @@ struct CreateEventView: View {
                         Color.black.opacity(0.3)
                             .ignoresSafeArea()
                         
-                        ProgressView("Creating event...")
-                            .padding(32)
-                            .background(Color(.systemBackground))
-                            .cornerRadius(16)
-                            .shadow(radius: 10)
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("Creating event...")
+                                .font(.headline)
+                            
+                            if selectedImage != nil {
+                                Text("Uploading image...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(32)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(16)
+                        .shadow(radius: 10)
                     }
                 }
             }
@@ -286,68 +356,123 @@ struct CreateEventView: View {
         !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         eventDate > Date()
     }
+    
+    private func createEvent() async {
+        // Add selected image to viewModel
+        if let image = selectedImage {
+            viewModel.addImage(image)
+        }
+        
+        // Use the viewModel's createEvent method
+        await viewModel.createEvent(
+            name: name,
+            description: description,
+            eventDate: eventDate,
+            eventType: eventType,
+            location: location.isEmpty ? gym.name : location,
+            registrationRequired: registrationRequired,
+            registrationLink: registrationLink.isEmpty ? nil : registrationLink,
+            gym: gym
+        )
+        
+        // Check if creation was successful
+        if viewModel.errorMessage == nil {
+            await MainActor.run {
+                onEventCreated()
+                dismiss()
+            }
+        }
+    }
 }
 
-struct EventPreviewView: View {
+// MARK: - Event Preview Card with Image
+struct EventPreviewCardView: View {
     let name: String
     let description: String
     let eventDate: Date
     let eventType: EventType
     let gymName: String
+    let image: UIImage?
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(name.isEmpty ? "Event Name" : name)
-                    .font(.headline)
-                    .foregroundColor(name.isEmpty ? .secondary : .primary)
-                
-                Spacer()
-                
-                Text(eventType.rawValue.capitalized)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(AppTheme.appAccent.opacity(0.2))
-                    .foregroundColor(AppTheme.appAccent)
-                    .cornerRadius(4)
+        VStack(alignment: .leading, spacing: 0) {
+            // Event image or placeholder
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 150)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 150)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray.opacity(0.5))
+                    )
             }
             
-            Text(eventDate.formatted(date: .abbreviated, time: .shortened))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            Text(description.isEmpty ? "Event description..." : description)
-                .font(.body)
-                .foregroundColor(description.isEmpty ? .secondary : .primary)
-                .lineLimit(3)
-            
-            HStack {
-                Image(systemName: "location")
+            // Event details
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(name.isEmpty ? "Event Name" : name)
+                        .font(.headline)
+                        .foregroundColor(name.isEmpty ? .secondary : .primary)
+                    
+                    Spacer()
+                    
+                    Text(eventType.rawValue.capitalized)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(AppTheme.appAccent.opacity(0.2))
+                        .foregroundColor(AppTheme.appAccent)
+                        .cornerRadius(4)
+                }
+                
+                Text(eventDate.formatted(date: .abbreviated, time: .shortened))
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
-                Text(gymName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                
+                Text(description.isEmpty ? "Event description..." : description)
+                    .font(.body)
+                    .foregroundColor(description.isEmpty ? .secondary : .primary)
+                    .lineLimit(2)
+                
+                HStack {
+                    Image(systemName: "location")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                    Text(gymName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
+            .padding()
         }
-        .padding()
         .background(Color(.systemGray6))
-        .cornerRadius(8)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
     }
 }
 
-// Helper view extension for placeholder
+// Helper extension for placeholder modifier
 extension View {
     func placeholder<Content: View>(
         when shouldShow: Bool,
         alignment: Alignment = .leading,
         @ViewBuilder placeholder: () -> Content) -> some View {
-        
-        ZStack(alignment: alignment) {
-            placeholder().opacity(shouldShow ? 1 : 0)
-            self
+            
+            ZStack(alignment: alignment) {
+                placeholder().opacity(shouldShow ? 1 : 0)
+                self
+            }
         }
-    }
 }
 
 #Preview {

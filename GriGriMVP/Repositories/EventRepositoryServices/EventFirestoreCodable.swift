@@ -20,15 +20,21 @@ extension EventItem: FirestoreCodable {
             "eventDate": eventDate.firestoreTimestamp,
             "isFeatured": isFeatured,
             "registrationRequired": registrationRequired,
-            // We'll store IDs for these objects and fetch them separately
             "authorId": author.id,
             "hostId": host.id
         ]
         
-        // Add optional fields if they exist
-        if let mediaItems = mediaItems {
-            // Assuming MediaItem has a toFirestoreData method as well
-            data["mediaItems"] = mediaItems.toFirestoreData()
+        // Convert MediaItems array to Firestore format
+        if let mediaItems = mediaItems, !mediaItems.isEmpty {
+            data["mediaItems"] = mediaItems.map { mediaItem in
+                return [
+                    "id": mediaItem.id,
+                    "url": mediaItem.url.absoluteString,
+                    "type": mediaItem.type.rawValue,
+                    "uploadedAt": mediaItem.uploadedAt.firestoreTimestamp,
+                    "ownerId": mediaItem.ownerId
+                ]
+            }
         }
         
         if let registrationLink = registrationLink {
@@ -116,9 +122,14 @@ extension EventItem: FirestoreCodable {
         self.registrationLink = registrationLink
         
         // Handle media items if they exist
-        if let mediaItemsData = firestoreData["mediaItems"] as? [String: Any],
-           let mediaItem = MediaItem(firestoreData: mediaItemsData) {
-            self.mediaItems = mediaItem
+        if let mediaItemsData = firestoreData["mediaItems"] as? [[String: Any]] {
+            var mediaItemsArray: [MediaItem] = []
+            for mediaItemData in mediaItemsData {
+                if let mediaItem = MediaItem(firestoreData: mediaItemData) {
+                    mediaItemsArray.append(mediaItem)
+                }
+            }
+            self.mediaItems = mediaItemsArray
         } else {
             self.mediaItems = nil
         }
@@ -146,6 +157,42 @@ extension EventItem: FirestoreCodable {
             let eventDateTimestamp = firestoreData["eventDate"] as? Timestamp
         else {
             return nil
+        }
+        
+        // Handle media items
+        if let mediaItemsData = firestoreData["mediaItems"] as? [[String: Any]] {
+            var mediaItemsArray: [MediaItem] = []
+            for mediaItemData in mediaItemsData {
+                guard
+                    let id = mediaItemData["id"] as? String,
+                    let urlString = mediaItemData["url"] as? String,
+                    let url = URL(string: urlString),
+                    let typeString = mediaItemData["type"] as? String,
+                    let type = MediaType(rawValue: typeString),
+                    let ownerId = mediaItemData["ownerId"] as? String
+                else {
+                    continue
+                }
+                
+                let uploadedAt: Date
+                if let timestamp = mediaItemData["uploadedAt"] as? Timestamp {
+                    uploadedAt = timestamp.dateValue()
+                } else {
+                    uploadedAt = Date()
+                }
+                
+                let mediaItem = MediaItem(
+                    id: id,
+                    url: url,
+                    type: type,
+                    uploadedAt: uploadedAt,
+                    ownerId: ownerId
+                )
+                mediaItemsArray.append(mediaItem)
+            }
+            self.mediaItems = mediaItemsArray.isEmpty ? nil : mediaItemsArray
+        } else {
+            self.mediaItems = nil
         }
         
         // Handle boolean values that might be stored as integers
@@ -180,11 +227,11 @@ extension EventItem: FirestoreCodable {
         self.isFeatured = isFeatured
         self.registrationRequired = registrationRequired
         self.registrationLink = firestoreData["registrationLink"] as? String
-        self.mediaItems = nil // Handle media items if needed
     }
 }
     
-// Implement the FirebaseEventRepository class
+// MARK: - Firebase Event Repository Implementation
+
 class FirebaseEventRepository: EventRepositoryProtocol {
     private let db = Firestore.firestore()
     private let eventsCollection = "events"
@@ -193,11 +240,17 @@ class FirebaseEventRepository: EventRepositoryProtocol {
     
     private let userRepository: UserRepositoryProtocol
     private let gymRepository: GymRepositoryProtocol
+    private let mediaRepository: MediaRepositoryProtocol
     
-    init(userRepository: UserRepositoryProtocol, gymRepository: GymRepositoryProtocol) {
+    init(userRepository: UserRepositoryProtocol,
+         gymRepository: GymRepositoryProtocol,
+         mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
+        self.mediaRepository = mediaRepository
     }
+    
+    // MARK: - Fetch Methods
     
     func fetchAllEvents() async throws -> [EventItem] {
         let snapshot = try await db.collection(eventsCollection).getDocuments()
@@ -338,6 +391,8 @@ class FirebaseEventRepository: EventRepositoryProtocol {
         return nil
     }
     
+    // MARK: - Create Methods
+    
     func createEvent(_ event: EventItem) async throws -> String {
         var eventData = event.toFirestoreData()
         
@@ -348,16 +403,52 @@ class FirebaseEventRepository: EventRepositoryProtocol {
         return documentReference.documentID
     }
     
-    func updateEvent(_ event: EventItem) async throws {
+    // MARK: - Update Methods
+    
+    func updateEvent(_ event: EventItem) async throws -> EventItem {
         let eventData = event.toFirestoreData()
         try await db.collection(eventsCollection).document(event.id).updateData(eventData)
+        return event 
     }
     
+    func updateEventMedia(eventId: String, mediaItems: [MediaItem]?) async throws {
+        var updateData: [String: Any] = [:]
+        
+        if let mediaItems = mediaItems, !mediaItems.isEmpty {
+            updateData["mediaItems"] = mediaItems.map { mediaItem in
+                return [
+                    "id": mediaItem.id,
+                    "url": mediaItem.url.absoluteString,
+                    "type": mediaItem.type.rawValue,
+                    "uploadedAt": mediaItem.uploadedAt.firestoreTimestamp,
+                    "ownerId": mediaItem.ownerId
+                ]
+            }
+        } else {
+            updateData["mediaItems"] = FieldValue.delete()
+        }
+        
+        try await db.collection(eventsCollection).document(eventId).updateData(updateData)
+    }
+    
+    // MARK: - Delete Methods
+    
     func deleteEvent(id: String) async throws {
+        // Get event to check for media
+        if let event = try await getEvent(id: id),
+           let mediaItems = event.mediaItems {
+            // Delete associated media items individually
+            for mediaItem in mediaItems {
+                try? await mediaRepository.deleteMedia(mediaItem)
+            }
+        }
+        
+        // Delete event document
         try await db.collection(eventsCollection).document(id).delete()
     }
     
-    // Helper method to decode an event document with related entities
+    // MARK: - Helper Methods
+    
     private func decodeEvent(_ document: DocumentSnapshot) async throws -> EventItem? {
         guard var data = document.data() else {
             print("DEBUG: Error: Document data is nil for \(document.documentID)")

@@ -281,7 +281,9 @@
 				DEVELOPMENT_TEAM = 9TT62U5XV9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to scan your passes";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WallPal needs location access to help you find climbing facilities near you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -313,7 +315,9 @@
 				DEVELOPMENT_TEAM = 9TT62U5XV9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to scan your passes";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WallPal needs location access to help you find climbing facilities near you.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

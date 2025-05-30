@@ -55,8 +55,8 @@ struct GymProfileView: View {
     private var coverPhotoView: some View {
         ZStack(alignment: .bottomTrailing) {
             // Cover photo
-            if let imageUrl = viewModel.gym.imageUrl {
-                AsyncImage(url: imageUrl) { image in
+            if let profileImage = viewModel.gym.profileImage {
+                AsyncImage(url: profileImage.url) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -276,8 +276,8 @@ struct GymProfileView: View {
             VStack(alignment: .leading, spacing: 8) {
                 ZStack(alignment: .topTrailing) {
                     // Event image
-                    if let imageUrl = event.mediaItems?.url {
-                        AsyncImage(url: imageUrl) { image in
+                    if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
+                        AsyncImage(url: mediaItems[0].url) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)

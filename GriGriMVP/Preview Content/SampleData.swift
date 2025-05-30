@@ -58,7 +58,67 @@ struct SampleData {
         )
     ]
     
-    // MARK: - Gyms with Simplified Staff Management
+    // MARK: - Media Items
+    static let mediaItems = [
+        MediaItem(
+            id: "media1",
+            url: URL(string: "https://images.unsplash.com/photo-1522163182402-834f871fd851")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1645000000),
+            ownerId: "gym1"
+        ),
+        MediaItem(
+            id: "media2",
+            url: URL(string: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1646000000),
+            ownerId: "gym2"
+        ),
+        MediaItem(
+            id: "media3",
+            url: URL(string: "https://images.unsplash.com/photo-1564769662533-4f00a87b4056")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1647000000),
+            ownerId: "gym3"
+        ),
+        MediaItem(
+            id: "media4",
+            url: URL(string: "https://images.unsplash.com/photo-1507034589631-9433cc6bc453")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1648000000),
+            ownerId: "event1"
+        ),
+        MediaItem(
+            id: "media5",
+            url: URL(string: "https://images.unsplash.com/photo-1519904981063-b0cf448d479e")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1649000000),
+            ownerId: "event2"
+        ),
+        MediaItem(
+            id: "media6",
+            url: URL(string: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1650000000),
+            ownerId: "event4"
+        ),
+        MediaItem(
+            id: "media7",
+            url: URL(string: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1651000000),
+            ownerId: "event1"
+        ),
+        MediaItem(
+            id: "media8",
+            url: URL(string: "https://images.unsplash.com/photo-1544551763-46a013bb70d5")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1652000000),
+            ownerId: "event2"
+        )
+    ]
+    
+    // MARK: - Gyms with MediaItem Profile Images
     static let gyms = [
         Gym(
             id: "gym1",
@@ -73,10 +133,10 @@ struct SampleData {
             climbingType: [.bouldering, .topRope],
             amenities: ["Cafe", "Training Area", "Changing Rooms", "Showers"],
             events: ["event1", "event3"],
-            imageUrl: URL(string: "https://images.unsplash.com/photo-1522163182402-834f871fd851"),
+            profileImage: mediaItems[0], // Uses media1
             createdAt: Date(timeIntervalSince1970: 1610000000),
             ownerId: "user1", // John Doe is the owner
-            staffUserIds: ["user2", "user4"], // Jane and Sarah are staff
+            staffUserIds: ["user2", "user4"] // Jane and Sarah are staff
         ),
         Gym(
             id: "gym2",
@@ -91,10 +151,10 @@ struct SampleData {
             climbingType: [.lead, .topRope],
             amenities: ["Pro Shop", "Gym", "Sauna"],
             events: ["event2"],
-            imageUrl: URL(string: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4"),
+            profileImage: mediaItems[1], // Uses media2
             createdAt: Date(timeIntervalSince1970: 1615000000),
             ownerId: "user2", // Jane Smith is the owner
-            staffUserIds: ["user3", "user5"], // Alex and Mike are staff
+            staffUserIds: ["user3", "user5"] // Alex and Mike are staff
         ),
         Gym(
             id: "gym3",
@@ -109,53 +169,14 @@ struct SampleData {
             climbingType: [.bouldering, .lead, .topRope],
             amenities: ["Kids Area", "Coaching", "Birthday Packages"],
             events: [],
-            imageUrl: URL(string: "https://images.unsplash.com/photo-1522163182402-834f871fd851"),
+            profileImage: mediaItems[2], // Uses media3
             createdAt: Date(timeIntervalSince1970: 1620000000),
             ownerId: "user3", // Alex Wilson is the owner
-            staffUserIds: [], // No staff yet
+            staffUserIds: [] // No staff yet
         )
     ]
     
-    // MARK: - Media Items
-    static let mediaItems = [
-        MediaItem(
-            id: "media1",
-            url: URL(string: "https://images.unsplash.com/photo-1522163182402-834f871fd851")!,
-            type: .image,
-            uploadedAt: Date(timeIntervalSince1970: 1645000000),
-            ownerId: "user1"
-        ),
-        MediaItem(
-            id: "media2",
-            url: URL(string: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4")!,
-            type: .image,
-            uploadedAt: Date(timeIntervalSince1970: 1646000000),
-            ownerId: "gym1"
-        ),
-        MediaItem(
-            id: "media3",
-            url: URL(string: "https://images.unsplash.com/photo-1564769662533-4f00a87b4056")!,
-            type: .image,
-            uploadedAt: Date(timeIntervalSince1970: 1647000000),
-            ownerId: "gym2"
-        ),
-        MediaItem(
-            id: "media4",
-            url: URL(string: "https://images.unsplash.com/photo-1507034589631-9433cc6bc453")!,
-            type: .image,
-            uploadedAt: Date(timeIntervalSince1970: 1648000000),
-            ownerId: "user2"
-        ),
-        MediaItem(
-            id: "media5",
-            url: URL(string: "https://images.unsplash.com/photo-1519904981063-b0cf448d479e")!,
-            type: .image,
-            uploadedAt: Date(timeIntervalSince1970: 1649000000),
-            ownerId: "gym3"
-        )
-    ]
-    
-    // MARK: - Events (Updated to reflect new staff structure)
+    // MARK: - Events with MediaItem Arrays
     static let events = [
         EventItem(
             id: "event1",
@@ -165,7 +186,7 @@ struct SampleData {
             type: .competition,
             location: "Boulder World, Main Hall",
             description: "Annual bouldering competition with categories for all levels. Cash prizes for top finishers!",
-            mediaItems: mediaItems[0],
+            mediaItems: [mediaItems[3], mediaItems[6]], // Multiple images for this event
             registrationLink: "https://example.com/register-summer-send",
             createdAt: Date(timeIntervalSince1970: 1650000000),
             eventDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!,
@@ -180,7 +201,7 @@ struct SampleData {
             type: .openDay,
             location: "Vertical Edge, Training Area",
             description: "Learn the basics of climbing in this introductory session. Equipment provided.",
-            mediaItems: mediaItems[1],
+            mediaItems: [mediaItems[4], mediaItems[7]], // Multiple images for this event
             registrationLink: "https://example.com/register-workshop",
             createdAt: Date(timeIntervalSince1970: 1655000000),
             eventDate: Calendar.current.date(byAdding: .hour, value: 3, to: Date())!,
@@ -195,7 +216,7 @@ struct SampleData {
             type: .settingTaster,
             location: "Boulder World",
             description: "Come see our new routes and boulder problems set by guest setter Alex Megos!",
-            mediaItems: nil,
+            mediaItems: nil, // No images for this event
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1660000000),
             eventDate: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
@@ -210,7 +231,7 @@ struct SampleData {
             type: .opening,
             location: "Crag Climb",
             description: "Join us for the grand opening of our new facility! Free climbing all day and prizes.",
-            mediaItems: mediaItems[2],
+            mediaItems: [mediaItems[5]], // Single image for this event
             registrationLink: "https://example.com/grand-opening",
             createdAt: Date(timeIntervalSince1970: 1665000000),
             eventDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!,
@@ -225,7 +246,7 @@ struct SampleData {
             type: .social,
             location: "Vertical Edge",
             description: "Weekly climbing sessions for young climbers aged 8-16. Build skills and make friends!",
-            mediaItems: nil,
+            mediaItems: nil, // No images for this event
             registrationLink: "https://example.com/youth-club",
             createdAt: Date(timeIntervalSince1970: 1670000000),
             eventDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!,
@@ -280,5 +301,27 @@ struct SampleData {
     /// Get events for a specific gym
     static func getEventsForGym(gymId: String) -> [EventItem] {
         return events.filter { $0.host.id == gymId }
+    }
+    
+    /// Get all media items for a specific event
+    static func getMediaForEvent(eventId: String) -> [MediaItem] {
+        guard let event = events.first(where: { $0.id == eventId }) else { return [] }
+        return event.mediaItems ?? []
+    }
+    
+    /// Get profile image for a specific gym
+    static func getGymProfileImage(gymId: String) -> MediaItem? {
+        guard let gym = gyms.first(where: { $0.id == gymId }) else { return nil }
+        return gym.profileImage
+    }
+    
+    /// Get events with media
+    static func getEventsWithMedia() -> [EventItem] {
+        return events.filter { $0.mediaItems != nil && !$0.mediaItems!.isEmpty }
+    }
+    
+    /// Get gyms with profile images
+    static func getGymsWithImages() -> [Gym] {
+        return gyms.filter { $0.profileImage != nil }
     }
 }
