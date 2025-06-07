@@ -45,7 +45,7 @@ struct GymManagementView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(AppTheme.appAccent)
+                            .background(AppTheme.appPrimary)
                             .foregroundColor(.white)
                             .cornerRadius(12)
                         }
@@ -75,7 +75,7 @@ struct GymManagementView: View {
                     }) {
                         Image(systemName: "plus")
                     }
-                    .foregroundStyle(AppTheme.appAccent)
+                    .foregroundStyle(AppTheme.appPrimary)
                 }
             }
             .sheet(isPresented: $showingCreateGym) {
@@ -162,8 +162,8 @@ struct GymRowView: View {
                         .font(.caption)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(AppTheme.appAccent.opacity(0.2))
-                        .foregroundColor(AppTheme.appAccent)
+                        .background(AppTheme.appPrimary.opacity(0.2))
+                        .foregroundColor(AppTheme.appPrimary)
                         .cornerRadius(4)
                 }
                 

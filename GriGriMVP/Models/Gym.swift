@@ -20,7 +20,7 @@ struct Gym: Identifiable, Equatable, Codable {
     var profileImage: MediaItem?
     var createdAt: Date
     
-    // Simplified staff management
+    // staff management
     let ownerId: String
     let staffUserIds: [String]
     

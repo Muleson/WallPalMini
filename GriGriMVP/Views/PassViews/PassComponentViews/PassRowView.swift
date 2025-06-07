@@ -50,7 +50,7 @@ struct PassRowView: View {
                 Label("Make Primary", systemImage: "star")
                     .labelStyle(.titleAndIcon)
             }
-            .tint(AppTheme.appAccent)
+            .tint(AppTheme.appPrimary)
         }
     }
 }

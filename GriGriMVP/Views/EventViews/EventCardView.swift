@@ -13,109 +13,117 @@ struct EventCardView: View {
     let isFavorite: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Media display
-            ZStack(alignment: .topTrailing) {
-                if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
-                    // Show the first image from the media array
-                    AsyncImage(url: mediaItems[0].url) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(height: 150)
-                    .clipped()
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(height: 150)
-                        .overlay(
-                            Image(systemName: "calendar.badge.clock")
-                                .font(.system(size: 30))
-                                .foregroundColor(.white)
-                        )
-                }
-                
-                // Register button overlay if required
-                if event.registrationRequired {
-                    Button(action: {}) {
-                        Text("Register")
-                            .font(.appSubheadline)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.appAccent)
-                            .foregroundColor(.white)
-                            .clipShape(Capsule())
-                    }
-                    .padding(8)
-                }
-                
-                // Favorite button
-                Button(action: onFavorite) {
-                    Image(systemName: isFavorite ? "heart.fill" : "heart")
-                        .foregroundColor(isFavorite ? .red : .white)
-                        .font(.system(size: 22))
-                        .padding(8)
-                        .shadow(radius: 2)
-                }
-                .padding([.top, .trailing], 8)
-            }
-
-            // Info box at bottom
-            VStack {
-                HStack {
-                    // Event name
-                    Text(event.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                    
-                    // Time relative to current date
-                    Text(timeUntilEvent(event.eventDate))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                HStack {
-                    // Gym profile picture
-                    if let profileImage = event.host.profileImage {
-                        AsyncImage(url: profileImage.url) { image in
+        NavigationLink(destination: EventPageView(event: event)) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Media display
+                ZStack(alignment: .topTrailing) {
+                    if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
+                        // Show the first image from the media array
+                        AsyncImage(url: mediaItems[0].url) { image in
                             image
                                 .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 20, height: 20)
-                                .clipShape(Circle())
+                                .scaledToFill()
                         } placeholder: {
-                            Circle()
+                            Rectangle()
                                 .fill(Color.gray.opacity(0.3))
-                                .frame(width: 20, height: 20)
                         }
+                        .frame(width: 200, height: 250)
+                        .clipped()
                     } else {
-                        Image(systemName: "building.2")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
-                            .foregroundColor(.gray)
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 200, height: 250)
+                            .overlay(
+                                Image(systemName: "calendar.badge.clock")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.white)
+                            )
                     }
                     
-                    // Gym name text
-                    Text(event.host.name)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    // Register button overlay if required
+                    if event.registrationRequired {
+                        Button(action: {}) {
+                            Text("Register")
+                                .font(.appSubheadline)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(AppTheme.appPrimary)
+                                .foregroundColor(.white)
+                                .clipShape(Capsule())
+                        }
+                        .padding(8)
+                    }
                     
-                    Spacer()
+                    // Favorite button
+                    Button(action: onFavorite) {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .foregroundColor(isFavorite ? .red : .white)
+                            .font(.system(size: 22))
+                            .padding(8)
+                            .shadow(radius: 2)
+                    }
+                    .padding([.top, .trailing], 8)
                 }
+
+                // Info box at bottom
+                VStack(spacing: 8) {
+                    // Event name
+                    HStack {
+                        Text(event.name)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .lineLimit(2)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                    }
+                    
+                    // Gym info and time on same line
+                    HStack {
+                        // Gym profile picture
+                        if let profileImage = event.host.profileImage {
+                            AsyncImage(url: profileImage.url) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 20, height: 20)
+                                    .clipShape(Circle())
+                            } placeholder: {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 20, height: 20)
+                            }
+                        } else {
+                            Image(systemName: "building.2")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        // Gym name text
+                        Text(event.host.name)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        // Time relative to current date
+                        Text(timeUntilEvent(event.eventDate))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(8)
+                .background(Color.white)
             }
-            .padding(8)
-            .background(Color.white)
+            .frame(width: 200, height: 316)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 4)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .buttonStyle(PlainButtonStyle()) // Prevents the NavigationLink from interfering with button interactions
     }
     
     // Helper function to calculate relative time until event

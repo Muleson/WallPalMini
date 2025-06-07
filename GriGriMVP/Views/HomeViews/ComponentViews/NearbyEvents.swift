@@ -39,6 +39,7 @@ struct NearbyEventsSection: View {
                         }
                     }
                     .padding(.horizontal)
+                    .padding(.vertical, 8)
                 }
             }
         }

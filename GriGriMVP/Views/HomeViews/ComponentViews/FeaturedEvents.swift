@@ -36,10 +36,10 @@ struct FeaturedEventsSection: View {
                                 onFavorite: { viewModel.toggleFavorite(for: event) },
                                 isFavorite: viewModel.isEventFavorited(event)
                             )
-                            .frame(width: 250)
                         }
                     }
                     .padding(.horizontal)
+                    .padding(.vertical, 8)
                 }
             }
         }

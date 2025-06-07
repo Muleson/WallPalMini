@@ -120,8 +120,8 @@ struct EventRowView: View {
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(AppTheme.appAccent.opacity(0.2))
-                        .foregroundColor(AppTheme.appAccent)
+                        .background(AppTheme.appContentBG.opacity(0.2))
+                        .foregroundColor(AppTheme.appPrimary)
                         .cornerRadius(4)
                 }
                 
@@ -191,7 +191,26 @@ struct CreateEventView: View {
         NavigationStack {
             Form {
                 Section("Event Details") {
-                    TextField("Event Name", text: $name)
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("Event Name", text: $name)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(name.count > 26 ? Color.red : Color.clear, lineWidth: 2)
+                            )
+                            .onChange(of: name) { oldValue, newValue in
+                                if newValue.count > 26 {
+                                    name = String(newValue.prefix(26))
+                                }
+                            }
+                        
+                        HStack {
+                            Spacer()
+                            Text("\(name.count)/26")
+                                .font(.caption2)
+                                .foregroundColor(name.count > 26 ? .red : .secondary)
+                        }
+                    }
                     
                     TextField("Description", text: $description, axis: .vertical)
                         .lineLimit(3...6)
@@ -210,8 +229,9 @@ struct CreateEventView: View {
                         VStack {
                             Image(uiImage: image)
                                 .resizable()
-                                .scaledToFit()
-                                .frame(maxHeight: 200)
+                                .scaledToFill()
+                                .frame(width: 180, height: 224)
+                                .clipped()
                                 .cornerRadius(8)
                             
                             HStack {
@@ -238,8 +258,7 @@ struct CreateEventView: View {
                                     .font(.title2)
                                 Text("Add Event Image")
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding()
+                            .frame(width: 180, height: 224)
                             .background(Color.gray.opacity(0.1))
                             .cornerRadius(8)
                         }
@@ -266,7 +285,7 @@ struct CreateEventView: View {
                 }
                 
                 Section("Preview") {
-                    EventPreviewCardView(
+                    EventCardPreviewView(
                         name: name,
                         description: description,
                         eventDate: eventDate,
@@ -385,8 +404,8 @@ struct CreateEventView: View {
     }
 }
 
-// MARK: - Event Preview Card with Image
-struct EventPreviewCardView: View {
+// MARK: - Event Card Preview matching EventCardView format
+struct EventCardPreviewView: View {
     let name: String
     let description: String
     let eventDate: Date
@@ -396,68 +415,96 @@ struct EventPreviewCardView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Event image or placeholder
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 150)
-                    .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 150)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray.opacity(0.5))
-                    )
+            // Media display (matching EventCardView)
+            ZStack(alignment: .topTrailing) {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 180, height: 224)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 180, height: 224)
+                        .overlay(
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.system(size: 30))
+                                .foregroundColor(.white)
+                        )
+                }
+                
+                // Favorite button (disabled for preview)
+                Image(systemName: "heart")
+                    .foregroundColor(.white)
+                    .font(.system(size: 22))
+                    .padding(8)
+                    .shadow(radius: 2)
+                    .padding([.top, .trailing], 8)
             }
-            
-            // Event details
-            VStack(alignment: .leading, spacing: 8) {
+
+            // Info box at bottom (matching EventCardView)
+            VStack(spacing: 8) {
+                // Event name
                 HStack {
                     Text(name.isEmpty ? "Event Name" : name)
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(2)
                         .foregroundColor(name.isEmpty ? .secondary : .primary)
                     
                     Spacer()
-                    
-                    Text(eventType.rawValue.capitalized)
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(AppTheme.appAccent.opacity(0.2))
-                        .foregroundColor(AppTheme.appAccent)
-                        .cornerRadius(4)
                 }
                 
-                Text(eventDate.formatted(date: .abbreviated, time: .shortened))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Text(description.isEmpty ? "Event description..." : description)
-                    .font(.body)
-                    .foregroundColor(description.isEmpty ? .secondary : .primary)
-                    .lineLimit(2)
-                
+                // Gym info and time on same line
                 HStack {
-                    Image(systemName: "location")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
+                    // Gym profile picture placeholder
+                    Image(systemName: "building.2")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                        .foregroundColor(.gray)
+                    
+                    // Gym name text
                     Text(gymName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                    
+                    // Time relative to current date
+                    Text(timeUntilEvent(eventDate))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
-            .padding()
+            .padding(8)
+            .background(Color.white)
         }
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-        )
+        .frame(width: 180, height: 284)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 4)
+    }
+    
+    // Helper function to calculate relative time until event
+    private func timeUntilEvent(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if date < now {
+            return "Ended"
+        }
+        
+        let components = calendar.dateComponents([.day, .hour], from: now, to: date)
+        
+        if let days = components.day, days > 0 {
+            return days == 1 ? "Tomorrow" : "\(days) days"
+        } else if let hours = components.hour, hours > 0 {
+            return "\(hours) hours"
+        } else {
+            return "Soon"
+        }
     }
 }
 

@@ -65,7 +65,7 @@ struct PassesRootView: View {
                 }) {
                     Image(systemName: "plus")
                 }
-                .foregroundStyle(AppTheme.appAccent)
+                .foregroundStyle(AppTheme.appPrimary)
             }
         }
         .sheet(isPresented: $gymSelectionIsPresented) {
@@ -90,7 +90,7 @@ struct PassesRootView: View {
             
             Image(systemName: "ticket.fill")
                 .font(.system(size: 60))
-                .foregroundColor(AppTheme.appAccent)
+                .foregroundColor(AppTheme.appPrimary)
                 .padding(.bottom, 10)
             
             Text("No Passes Added Yet")
@@ -112,7 +112,7 @@ struct PassesRootView: View {
                 }
                 .padding()
                 .foregroundColor(.white)
-                .background(AppTheme.appAccent)
+                .background(AppTheme.appPrimary)
                 .cornerRadius(10)
             }
             .padding(.top, 20)

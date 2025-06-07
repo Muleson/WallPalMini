@@ -81,7 +81,7 @@ struct SignUpView: View {
                     Text("Create Account")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(AppTheme.appAccent)
+                        .background(AppTheme.appPrimary)
                         .foregroundColor(AppTheme.appTextButton)
                         .cornerRadius(15)
                 }
@@ -151,7 +151,7 @@ struct SignInView: View {
                     Text("Sign In")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(AppTheme.appAccent)
+                        .background(AppTheme.appPrimary)
                         .foregroundColor(AppTheme.appTextButton)
                         .cornerRadius(15)
                 }

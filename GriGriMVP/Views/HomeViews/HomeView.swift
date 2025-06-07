@@ -16,7 +16,17 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .center) {
+                    // Personalized greeting
+                    HStack {
+                        Text("Hello, \(appState.user?.firstName ?? "")")
+                            .font(.appHeadline)
+                            .foregroundColor(AppTheme.appTextPrimary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    
                     // Quick action button
                     QuickActionButton()
                     
@@ -34,7 +44,30 @@ struct HomeView: View {
                     .padding(.vertical)
                 }
             }
-            .navigationTitle("Hello, \(appState.user?.firstName ?? "")")
+            .background(Color(AppTheme.appBackgroundBG))
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    HStack(spacing: -8,) {
+                        Image("AppLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 56, height: 56)
+                            .foregroundStyle(AppTheme.appPrimary)
+                        
+                        Text("WallPal")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                    }
+                }
+            }
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color(AppTheme.appBackgroundBG), for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(height: 1)
+                    .shadow(color: Color.black.opacity(0.15), radius: 1, x: 0, y: 1)
+            }
             .navigationDestination(isPresented: $navigateToPasses) {
                 PassesRootView()
             }

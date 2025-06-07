@@ -35,7 +35,7 @@ struct MainTabView: View {
                 Label("Gyms", systemImage: "building.2")
             }
         }
-        .tint(AppTheme.appAccent)
+        .tint(AppTheme.appPrimary)
     }
 }
 

@@ -133,8 +133,8 @@ struct GymProfileView: View {
                             .font(.subheadline)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(AppTheme.appAccent.opacity(0.2))
-                            .foregroundColor(AppTheme.appAccent)
+                            .background(AppTheme.appPrimary.opacity(0.2))
+                            .foregroundColor(AppTheme.appPrimary)
                             .cornerRadius(20)
                     }
                 }
@@ -159,7 +159,7 @@ struct GymProfileView: View {
                     ForEach(viewModel.gym.amenities, id: \.self) { amenity in
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(AppTheme.appAccent)
+                                .foregroundColor(AppTheme.appPrimary)
                             Text(amenity)
                                 .font(.subheadline)
                             Spacer()
@@ -189,7 +189,7 @@ struct GymProfileView: View {
             if let address = viewModel.gym.location.address {
                 HStack {
                     Image(systemName: "mappin.circle.fill")
-                        .foregroundColor(AppTheme.appAccent)
+                        .foregroundColor(AppTheme.appPrimary)
                     Text(address)
                         .font(.subheadline)
                 }

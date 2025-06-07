@@ -109,7 +109,7 @@ struct GymSelectionView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(passViewModel.selectedGym == nil ? Color.gray : AppTheme.appAccent)
+                        .background(passViewModel.selectedGym == nil ? Color.gray : AppTheme.appPrimary)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                         .opacity(passViewModel.selectedGym == nil ? 0.6 : 1.0)
