@@ -39,22 +39,7 @@ struct EventCardView: View {
                                     .foregroundColor(.white)
                             )
                     }
-                    
-                    // Register button overlay if required
-                    if event.registrationRequired {
-                        Button(action: {}) {
-                            Text("Register")
-                                .font(.appSubheadline)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(AppTheme.appPrimary)
-                                .foregroundColor(.white)
-                                .clipShape(Capsule())
-                        }
-                        .padding(8)
-                    }
-                    
+        
                     // Favorite button
                     Button(action: onFavorite) {
                         Image(systemName: isFavorite ? "heart.fill" : "heart")

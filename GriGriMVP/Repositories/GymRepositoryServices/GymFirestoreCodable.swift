@@ -20,7 +20,7 @@ extension Gym: FirestoreCodable {
                 "address": location.address ?? ""
             ],
             "climbingType": climbingType.map { $0.rawValue },
-            "amenities": amenities,
+            "amenities": amenities.map { $0.rawValue },
             "events": events,
             "createdAt": createdAt.firestoreTimestamp,
             "ownerId": ownerId,
@@ -53,7 +53,7 @@ extension Gym: FirestoreCodable {
             let latitude = locationData["latitude"] as? Double,
             let longitude = locationData["longitude"] as? Double,
             let climbingTypeStrings = firestoreData["climbingType"] as? [String],
-            let amenities = firestoreData["amenities"] as? [String],
+            let amenitiesStrings = firestoreData["amenities"] as? [String],
             let events = firestoreData["events"] as? [String],
             let ownerId = firestoreData["ownerId"] as? String
         else {
@@ -62,6 +62,9 @@ extension Gym: FirestoreCodable {
         
         // Convert climbing type strings back to enum
         let climbingTypes = climbingTypeStrings.compactMap { ClimbingTypes(rawValue: $0) }
+        
+        // Convert amenities strings back to enum
+        let amenities = amenitiesStrings.compactMap { Amenities(rawValue: $0) }
         
         // Handle optional description
         let description = firestoreData["description"] as? String

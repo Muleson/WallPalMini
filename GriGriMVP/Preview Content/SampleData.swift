@@ -130,8 +130,8 @@ struct SampleData {
                 longitude: -0.1278,
                 address: "123 Climb Street, London"
             ),
-            climbingType: [.bouldering, .topRope],
-            amenities: ["Cafe", "Training Area", "Changing Rooms", "Showers"],
+            climbingType: [.bouldering, .sport],
+            amenities: [.cafe, .changingRooms, .showers],
             events: ["event1", "event3"],
             profileImage: mediaItems[0], // Uses media1
             createdAt: Date(timeIntervalSince1970: 1610000000),
@@ -148,8 +148,8 @@ struct SampleData {
                 longitude: -2.2426,
                 address: "456 Rock Avenue, Manchester"
             ),
-            climbingType: [.lead, .topRope],
-            amenities: ["Pro Shop", "Gym", "Sauna"],
+            climbingType: [.sport, .gym],
+            amenities: [.shop, .lockers, .showers],
             events: ["event2"],
             profileImage: mediaItems[1], // Uses media2
             createdAt: Date(timeIntervalSince1970: 1615000000),
@@ -166,8 +166,8 @@ struct SampleData {
                 longitude: -2.5879,
                 address: "789 Chalk Road, Bristol"
             ),
-            climbingType: [.bouldering, .lead, .topRope],
-            amenities: ["Kids Area", "Coaching", "Birthday Packages"],
+            climbingType: [.bouldering, .gym],
+            amenities: [.changingRooms, .food, .bathrooms],
             events: [],
             profileImage: mediaItems[2], // Uses media3
             createdAt: Date(timeIntervalSince1970: 1620000000),

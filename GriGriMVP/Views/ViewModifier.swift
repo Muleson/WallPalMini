@@ -36,3 +36,55 @@ extension Font {
     static let appProfileButton = Font.system(size: 13, weight: .regular, design: .rounded)
     static let appBody = Font.system(size: 13, weight: .light, design: .rounded)
 }
+
+// MARK: - Icons
+
+struct AppIcons {
+    
+    static let boulder = Image("Boulder")
+    static let sport = Image("Sport")
+    static let board = Image("Board")
+    static let gym = Image("Gym")
+}
+
+struct AmmenitiesIcons {
+    static let showers = Image(systemName: "shower.fill")
+    static let lockers = Image(systemName: "lock.fill")
+    static let bar = Image(systemName: "wineglass.fill")
+    static let food = Image(systemName: "fork.knife")
+    static let changingRooms = Image(systemName: "door.right.hand.closed")
+    static let bathrooms = Image(systemName: "sink.fill")
+    static let cafe = Image(systemName: "cup.and.saucer.fill")
+    static let bikeStorage = Image(systemName: "bicycle")
+    static let workSpace = Image(systemName: "desktopcomputer")
+    static let shop = Image(systemName: "storefront.fill")
+    static let wifi = Image(systemName: "wifi")
+    
+    // Method to get icon for amenity
+    static func icon(for amenity: Amenities) -> Image {
+        switch amenity {
+        case .showers:
+            return showers
+        case .lockers:
+            return lockers
+        case .bar:
+            return bar
+        case .food:
+            return food
+        case .changingRooms:
+            return changingRooms
+        case .bathrooms:
+            return bathrooms
+        case .cafe:
+            return cafe
+        case .bikeStorage:
+            return bikeStorage
+        case .workSpace:
+            return workSpace
+        case .shop:
+            return shop
+        case .wifi:
+            return wifi
+        }
+    }
+}

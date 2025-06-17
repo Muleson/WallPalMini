@@ -160,10 +160,12 @@ class GymProfileViewModel: ObservableObject {
         switch type {
         case .bouldering:
             return "Bouldering"
-        case .lead:
-            return "Lead Climbing"
-        case .topRope:
-            return "Top Rope"
+        case .sport:
+            return "Sport"
+        case .board:
+            return "Board"
+        case .gym:
+            return "Gym"
         }
     }
 }

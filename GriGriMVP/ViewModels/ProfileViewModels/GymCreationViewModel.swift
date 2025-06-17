@@ -8,6 +8,7 @@
 import Foundation
 import CoreLocation
 import SwiftUI
+import UIKit
 
 @MainActor
 class GymCreationViewModel: ObservableObject {
@@ -16,6 +17,10 @@ class GymCreationViewModel: ObservableObject {
     @Published var email: String = ""
     @Published var description: String = ""
     @Published var address: String = ""
+    
+    // Profile image
+    @Published var selectedProfileImage: UIImage?
+    @Published var isUploadingImage: Bool = false
     
     // Location data
     @Published var latitude: Double = 0.0
@@ -26,8 +31,7 @@ class GymCreationViewModel: ObservableObject {
     @Published var selectedClimbingTypes: Set<ClimbingTypes> = []
     
     // Amenities
-    @Published var amenities: [String] = []
-    @Published var newAmenity: String = ""
+    @Published var selectedAmenities: Set<Amenities> = []
     
     // State management
     @Published var isLoading: Bool = false
@@ -35,19 +39,27 @@ class GymCreationViewModel: ObservableObject {
     @Published var showSuccessAlert: Bool = false
     @Published var isLocationLoading: Bool = false
     
+    // Address search - consolidated
+    @Published var addressSuggestions: [AddressSuggestion] = []
+    @Published var showAddressSuggestions: Bool = false
+    @Published var isSearchingAddresses: Bool = false
+    
     private let userRepository: UserRepositoryProtocol
     private let gymRepository: GymRepositoryProtocol
+    private let mediaRepository: MediaRepositoryProtocol
     private let locationService = LocationService.shared
     private var geocodingTask: Task<Void, Never>?
     
     init() {
         self.userRepository = FirebaseUserRepository()
         self.gymRepository = FirebaseGymRepository()
+        self.mediaRepository = FirebaseMediaRepository()
     }
     
-    init(userRepository: UserRepositoryProtocol, gymRepository: GymRepositoryProtocol) {
+    init(userRepository: UserRepositoryProtocol, gymRepository: GymRepositoryProtocol, mediaRepository: MediaRepositoryProtocol) {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
+        self.mediaRepository = mediaRepository
     }
     
     // MARK: - Validation
@@ -65,11 +77,58 @@ class GymCreationViewModel: ObservableObject {
         locationService.authorizationStatus == .authorizedAlways
     }
     
+    // MARK: - Image Management - Simplified
+    
+    func handleImageSelected(_ image: UIImage) {
+        selectedProfileImage = image
+    }
+    
+    // MARK: - Climbing Types Management
+    
+    func toggleClimbingType(_ type: ClimbingTypes) {
+        if selectedClimbingTypes.contains(type) {
+            selectedClimbingTypes.remove(type)
+        } else {
+            selectedClimbingTypes.insert(type)
+        }
+    }
+    
+    func isClimbingTypeSelected(_ type: ClimbingTypes) -> Bool {
+        selectedClimbingTypes.contains(type)
+    }
+    
+    func climbingTypeIcon(for type: ClimbingTypes) -> Image {
+        switch type {
+        case .bouldering:
+            return AppIcons.boulder
+        case .sport:
+            return AppIcons.sport
+        case .board:
+            return AppIcons.board
+        case .gym:
+            return AppIcons.gym
+        }
+    }
+    
+    func formatClimbingType(_ type: ClimbingTypes) -> String {
+        switch type {
+        case .bouldering:
+            return "Boulder"
+        case .sport:
+            return "Sport"
+        case .board:
+            return "Board"
+        case .gym:
+            return "Gym"
+        }
+    }
+    
     // MARK: - Location Methods
     
     func getCurrentLocation() {
         errorMessage = nil
         isLocationLoading = true
+        hideAddressSuggestions()
         
         Task {
             do {
@@ -100,63 +159,70 @@ class GymCreationViewModel: ObservableObject {
         }
     }
     
-    func geocodeAddress() {
+    func searchAddresses() {
         let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedAddress.isEmpty else { return }
         
-        // Cancel any pending geocoding
+        guard trimmedAddress.count >= 3 else {
+            hideAddressSuggestions()
+            return
+        }
+        
         geocodingTask?.cancel()
         
         geocodingTask = Task {
-            // Debounce the geocoding request
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            try? await Task.sleep(nanoseconds: 800_000_000)
             
             guard !Task.isCancelled else { return }
             
             await MainActor.run {
-                self.isLocationLoading = true
+                self.isSearchingAddresses = true
+                self.errorMessage = nil
             }
             
             do {
-                let locationData = try await locationService.geocode(address: trimmedAddress)
+                let suggestions = try await locationService.searchAddresses(trimmedAddress)
                 
                 await MainActor.run {
-                    self.latitude = locationData.latitude
-                    self.longitude = locationData.longitude
-                    self.useCurrentLocation = false
-                    self.isLocationLoading = false
-                    self.errorMessage = nil
+                    self.addressSuggestions = suggestions
+                    self.showAddressSuggestions = !suggestions.isEmpty
+                    self.isSearchingAddresses = false
                 }
                 
             } catch {
                 await MainActor.run {
-                    self.isLocationLoading = false
-                    if let locationError = error as? LocationError {
-                        self.errorMessage = locationError.localizedDescription
-                    } else {
-                        self.errorMessage = "Failed to find location: \(error.localizedDescription)"
-                    }
+                    self.isSearchingAddresses = false
+                    self.hideAddressSuggestions()
+                    print("Address search error: \(error)")
                 }
             }
         }
     }
     
-    func openLocationSettings() {
-        locationService.openLocationSettings()
+    func selectAddressSuggestion(_ suggestion: AddressSuggestion) {
+        address = suggestion.displayAddress
+        latitude = suggestion.locationData.latitude
+        longitude = suggestion.locationData.longitude
+        useCurrentLocation = false
+        hideAddressSuggestions()
+    }
+    
+    private func hideAddressSuggestions() {
+        showAddressSuggestions = false
+        addressSuggestions = []
     }
     
     // MARK: - Amenities Management
     
-    func addAmenity() {
-        let trimmed = newAmenity.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty && !amenities.contains(trimmed) else { return }
-        
-        amenities.append(trimmed)
-        newAmenity = ""
+    func toggleAmenity(_ amenity: Amenities) {
+        if selectedAmenities.contains(amenity) {
+            selectedAmenities.remove(amenity)
+        } else {
+            selectedAmenities.insert(amenity)
+        }
     }
     
-    func removeAmenity(_ amenity: String) {
-        amenities.removeAll { $0 == amenity }
+    func isAmenitySelected(_ amenity: Amenities) -> Bool {
+        selectedAmenities.contains(amenity)
     }
     
     // MARK: - Gym Creation
@@ -181,6 +247,25 @@ class GymCreationViewModel: ObservableObject {
                 throw NSError(domain: "GymCreation", code: 401, userInfo: [NSLocalizedDescriptionKey: "You must be signed in to create a gym"])
             }
             
+            // Upload profile image if selected
+            var profileImageMedia: MediaItem?
+            if let profileImage = selectedProfileImage {
+                isUploadingImage = true
+                do {
+                    profileImageMedia = try await mediaRepository.uploadImage(
+                        profileImage,
+                        ownerId: currentUserId,
+                        compressionQuality: 0.8
+                    )
+                } catch {
+                    isUploadingImage = false
+                    self.errorMessage = "Failed to upload profile image: \(error.localizedDescription)"
+                    self.isLoading = false
+                    return
+                }
+                isUploadingImage = false
+            }
+            
             let gym = Gym(
                 id: UUID().uuidString,
                 email: email.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -188,9 +273,9 @@ class GymCreationViewModel: ObservableObject {
                 description: description.isEmpty ? nil : description,
                 location: locationData,
                 climbingType: Array(selectedClimbingTypes),
-                amenities: amenities,
+                amenities: Array(selectedAmenities),
                 events: [],
-                profileImage: nil,
+                profileImage: profileImageMedia,
                 createdAt: Date(),
                 ownerId: currentUserId,
                 staffUserIds: []
@@ -221,9 +306,10 @@ class GymCreationViewModel: ObservableObject {
         longitude = 0.0
         useCurrentLocation = false
         selectedClimbingTypes.removeAll()
-        amenities.removeAll()
-        newAmenity = ""
+        selectedAmenities.removeAll()
+        selectedProfileImage = nil
         errorMessage = nil
+        hideAddressSuggestions()
         
         // Cancel any pending geocoding
         geocodingTask?.cancel()

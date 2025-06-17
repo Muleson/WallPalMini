@@ -16,28 +16,40 @@ struct GymProfileView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // Cover photo with floating favorite button
-                coverPhotoView
+            VStack(alignment: .center, spacing: 16) {
+                // Profile Image
+                profileImageView
                 
-                // Gym profile section
-                profileSection
+                // Gym Name
+                Text(viewModel.gym.name)
+                    .font(.appHeadline)
+                    .foregroundStyle(AppTheme.appTextPrimary)
                 
-                // Climbing types
-                climbingTypesSection
+                // Gym Location
+                locationView
                 
-                // Amenities section
+                // Climbing Types Icons
+                climbingTypesIconsView
+                
+                // Action Buttons (Favorite & Visit)
+                actionButtonsView
+                
+                // Divider
+                Rectangle()
+                    .fill(AppTheme.appSecondary)
+                    .frame(height: 1)
+                    .padding(.horizontal, 24)
+                
+                // Upcoming Events Section
+                upcomingEventsSection
+                
+                // Amenities Section
                 amenitiesSection
-                
-                // Location section
-                locationSection
-                
-                // Events section grouped by type
-                eventsSection
             }
+            .padding()
         }
-        .edgesIgnoringSafeArea(.top) // Make cover photo edge-to-edge
         .navigationBarTitleDisplayMode(.inline)
+        .background(AppTheme.appBackgroundBG)
         .refreshable {
             viewModel.refreshGymDetails()
             viewModel.loadGymEvents()
@@ -52,178 +64,128 @@ struct GymProfileView: View {
         }
     }
     
-    private var coverPhotoView: some View {
-        ZStack(alignment: .bottomTrailing) {
-            // Cover photo
+    private var profileImageView: some View {
+        Group {
             if let profileImage = viewModel.gym.profileImage {
                 AsyncImage(url: profileImage.url) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
-                    Rectangle().fill(Color.gray.opacity(0.3))
+                    Circle().fill(Color.gray.opacity(0.3))
+                        .overlay(
+                            Image(systemName: "building.2")
+                                .font(.system(size: 40))
+                                .foregroundColor(.white)
+                        )
                 }
-                .frame(height: 250)
-                .frame(maxWidth: .infinity)
-                .clipped()
+                .frame(width: 128, height: 128)
+                .clipShape(Circle())
             } else {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
-                    .frame(height: 250)
-                    .frame(maxWidth: .infinity)
+                    .frame(width: 150, height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         Image(systemName: "building.2")
-                            .font(.system(size: 60))
+                            .font(.system(size: 40))
                             .foregroundColor(.white)
                     )
             }
-            
-            // Floating favorite button
+        }
+    }
+    
+    private var locationView: some View {
+        HStack {
+            Text(viewModel.gym.location.formattedAddress)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+    
+    private var climbingTypesIconsView: some View {
+        HStack(spacing: 36) {
+            ForEach(viewModel.gym.climbingType, id: \.self) { type in
+                VStack(spacing: -4) {
+                    climbingTypeIcon(for: type)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 48, height: 48)
+                        .foregroundColor(AppTheme.appPrimary)
+                    
+                    Text(viewModel.formatClimbingType(type))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+    
+    private func climbingTypeIcon(for type: ClimbingTypes) -> Image {
+        switch type {
+        case .bouldering:
+            return AppIcons.boulder
+        case .sport:
+            return AppIcons.sport
+        case .board:
+            return AppIcons.board
+        case .gym:
+            return AppIcons.gym
+        }
+    }
+    
+    private var actionButtonsView: some View {
+        HStack(spacing: 8) {
+            // Favorite Button
             Button(action: {
-                // Toggle favorite status
                 viewModel.toggleFavorite()
             }) {
-                Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
-                    .font(.system(size: 22))
-                    .foregroundColor(viewModel.isFavorite ? .red : .white)
-                    .padding(12)
-                    .background(
-                        Circle()
-                            .fill(Color.white.opacity(0.8))
-                            .shadow(radius: 3)
-                    )
-            }
-            .padding(16)
-        }
-    }
-    
-    private var profileSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Gym name
-            Text(viewModel.gym.name)
-                .font(.title2)
-                .fontWeight(.bold)
-                .padding(.horizontal)
-                .padding(.top, 16)
-            
-            // Description (if available)
-            if let description = viewModel.gym.description, !description.isEmpty {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
-            }
-            
-            Divider()
-                .padding(.horizontal)
-        }
-    }
-    
-    private var climbingTypesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Climbing Styles")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top, 8)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(viewModel.gym.climbingType, id: \.self) { type in
-                        Text(viewModel.formatClimbingType(type))
-                            .font(.subheadline)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(AppTheme.appPrimary.opacity(0.2))
-                            .foregroundColor(AppTheme.appPrimary)
-                            .cornerRadius(20)
-                    }
+                HStack(spacing: 4) {
+                    Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+                    Text("Favourite")
+                        .font(.appButtonPrimary)
+
                 }
-                .padding(.horizontal)
-            }
-            
-            Divider()
-                .padding(.horizontal)
-                .padding(.top, 8)
-        }
-    }
-    
-    private var amenitiesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if !viewModel.gym.amenities.isEmpty {
-                Text("Amenities")
-                    .font(.headline)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 12) {
-                    ForEach(viewModel.gym.amenities, id: \.self) { amenity in
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(AppTheme.appPrimary)
-                            Text(amenity)
-                                .font(.subheadline)
-                            Spacer()
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                    }
-                }
-                .padding(.horizontal)
-                
-                Divider()
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-            }
-        }
-    }
-    
-    private var locationSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Location")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top, 8)
-            
-            if let address = viewModel.gym.location.address {
-                HStack {
-                    Image(systemName: "mappin.circle.fill")
-                        .foregroundColor(AppTheme.appPrimary)
-                    Text(address)
-                        .font(.subheadline)
-                }
-                .padding(.horizontal)
-            } else {
-                Text("Coordinates: \(viewModel.gym.location.latitude), \(viewModel.gym.location.longitude)")
-                    .font(.subheadline)
-                    .padding(.horizontal)
-            }
-            
-            // Map placeholder
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .frame(height: 180)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .foregroundColor(viewModel.isFavorite ? AppTheme.appSecondary : AppTheme.appTextButton)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(viewModel.isFavorite ? Color.clear : AppTheme.appSecondary)
                 .overlay(
-                    Image(systemName: "map")
-                        .font(.system(size: 30))
-                        .foregroundColor(.white)
+                    viewModel.isFavorite ? 
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(AppTheme.appSecondary, lineWidth: 1) : nil
                 )
-                .padding(.horizontal)
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+            }
             
-            Divider()
-                .padding(.horizontal)
-                .padding(.top, 8)
+            // Visit Button (Placeholder)
+            Button(action: {
+                // Placeholder action
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "location")
+                    Text("Visit")
+                        .font(.appButtonPrimary)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(AppTheme.appPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+            }
         }
+        .padding(.horizontal, 24)
     }
     
-    private var eventsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Events")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top, 8)
+    private var upcomingEventsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Upcoming Events")
+                    .font(.appSubheadline)
+                    .foregroundStyle(AppTheme.appTextPrimary)
+                Spacer()
+            }
             
             if viewModel.isLoadingEvents {
                 ProgressView()
@@ -236,99 +198,51 @@ struct GymProfileView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else {
-                // Group events by type
-                ForEach(viewModel.groupedEvents.keys.sorted(), id: \.self) { category in
-                    eventCategorySection(category: category, events: viewModel.groupedEvents[category] ?? [])
-                }
-            }
-        }
-    }
-    
-    private func eventCategorySection(category: String, events: [EventItem]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(category)
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top, 4)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(events) { event in
-                        EventCardCompactView(
-                            event: event,
-                            onFavorite: { viewModel.toggleEventFavorite(event: event) },
-                            isFavorite: viewModel.isEventFavorited(event: event)
-                        )
-                    }
-                }
-                .padding(.horizontal)
-            }
-        }
-    }
-    
-    // A compact event card for horizontal scrolling
-    struct EventCardCompactView: View {
-        let event: EventItem
-        var onFavorite: () -> Void
-        var isFavorite: Bool
-        
-        var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                ZStack(alignment: .topTrailing) {
-                    // Event image
-                    if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
-                        AsyncImage(url: mediaItems[0].url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Rectangle().fill(Color.gray.opacity(0.3))
-                        }
-                        .frame(width: 200, height: 120)
-                        .cornerRadius(12)
-                    } else {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 200, height: 120)
-                            .cornerRadius(12)
-                            .overlay(
-                                Image(systemName: "calendar")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.white)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(viewModel.gymEvents.prefix(5)) { event in
+                            EventCardView(
+                                event: event,
+                                onFavorite: { viewModel.toggleEventFavorite(event: event) },
+                                isFavorite: viewModel.isEventFavorited(event: event)
                             )
+                        }
                     }
-                    
-                    // Favorite button
-                    Button(action: onFavorite) {
-                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                            .foregroundColor(isFavorite ? .red : .white)
-                            .padding(8)
-                            .background(Circle().fill(Color.black.opacity(0.3)))
-                    }
-                    .padding(8)
+                    .padding(.horizontal)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private var amenitiesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !viewModel.gym.amenities.isEmpty {
+                HStack {
+                    Text("Amenities")
+                        .font(.appSubheadline)
+                        .foregroundStyle(AppTheme.appTextPrimary)
+                    Spacer()
                 }
                 
-                // Event details
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(event.name)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .lineLimit(1)
-                    
-                    Text(formattedDate(event.eventDate))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 12) {
+                    ForEach(viewModel.gym.amenities, id: \.self) { amenity in
+                        HStack(spacing: 8) {
+                            AmmenitiesIcons.icon(for: amenity)
+                                .foregroundColor(AppTheme.appPrimary)
+                            Text(amenity.rawValue)
+                                .font(.appBody)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(8)
+                    }
                 }
-                .frame(width: 200, alignment: .leading)
             }
         }
-        
-        private func formattedDate(_ date: Date) -> String {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

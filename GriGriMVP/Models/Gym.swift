@@ -15,7 +15,7 @@ struct Gym: Identifiable, Equatable, Codable {
     var description: String?
     var location: LocationData
     var climbingType: [ClimbingTypes]
-    var amenities: [String]
+    var amenities: [Amenities]
     var events: [String]
     var profileImage: MediaItem?
     var createdAt: Date
@@ -24,7 +24,7 @@ struct Gym: Identifiable, Equatable, Codable {
     let ownerId: String
     let staffUserIds: [String]
     
-    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [String], events: [String], profileImage: MediaItem?, createdAt: Date, ownerId: String, staffUserIds: [String] = []) {
+    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [Amenities], events: [String], profileImage: MediaItem?, createdAt: Date, ownerId: String, staffUserIds: [String] = []) {
         self.id = id
         self.email = email
         self.name = name
@@ -104,8 +104,23 @@ struct GymAdministrator: Identifiable, Codable {
 
 enum ClimbingTypes: String, Codable, CaseIterable {
     case bouldering
-    case lead
-    case topRope
+    case sport
+    case board
+    case gym
+}
+
+enum Amenities: String, Codable, CaseIterable {
+    case showers = "Showers"
+    case lockers = "Lockers"
+    case bar = "Bar"
+    case food = "Food"
+    case changingRooms = "Changing Rooms"
+    case bathrooms = "Bathrooms"
+    case cafe = "Cafe"
+    case bikeStorage = "Bike Storage"
+    case workSpace = "Work Space"
+    case shop = "Gear Shop"
+    case wifi = "Wifi"
 }
 
 
@@ -116,12 +131,6 @@ struct GymFavorite: Identifiable, Codable, Equatable {
     var id: String {
         return "\(userId)-\(gymId)"
     }
-}
-
-struct LocationData: Codable, Equatable, Hashable {
-    let latitude: Double
-    let longitude: Double
-    let address: String?
 }
 
 // Simple staff info for display purposes

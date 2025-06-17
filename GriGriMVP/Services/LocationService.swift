@@ -157,28 +157,17 @@ class LocationService: NSObject, ObservableObject {
             geocoder.geocodeAddressString(trimmedAddress) { placemarks, error in
                 if let error = error {
                     continuation.resume(throwing: self.mapGeocodingError(error))
-                } else if let location = placemarks?.first?.location {
+                } else if let placemark = placemarks?.first,
+                          let location = placemark.location {
                     let locationData = LocationData(
                         latitude: location.coordinate.latitude,
                         longitude: location.coordinate.longitude,
-                        address: trimmedAddress
+                        address: self.formatAddress(from: placemark)
                     )
                     continuation.resume(returning: locationData)
                 } else {
                     continuation.resume(throwing: LocationError.geocodingFailed)
                 }
-            }
-        }
-    }
-    
-    // Legacy method for backward compatibility
-    func geocode(address: String, completion: @escaping (LocationData?) -> Void) {
-        Task {
-            do {
-                let locationData = try await geocode(address: address)
-                completion(locationData)
-            } catch {
-                completion(nil)
             }
         }
     }
@@ -201,6 +190,44 @@ class LocationService: NSObject, ObservableObject {
     func openLocationSettings() {
         if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsUrl)
+        }
+    }
+    
+    // MARK: - Address Search & Suggestions
+    
+    func searchAddresses(_ query: String) async throws -> [AddressSuggestion] {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedQuery.count >= 3 else {
+            return []
+        }
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            geocoder.geocodeAddressString(trimmedQuery) { placemarks, error in
+                if let error = error {
+                    if let clError = error as? CLError, clError.code == .geocodeFoundNoResult {
+                        continuation.resume(returning: [])
+                    } else {
+                        continuation.resume(throwing: self.mapGeocodingError(error))
+                    }
+                } else if let placemarks = placemarks {
+                    let suggestions = placemarks.compactMap { placemark -> AddressSuggestion? in
+                        guard let location = placemark.location else { return nil }
+                        
+                        return AddressSuggestion(
+                            id: UUID().uuidString, // Add the missing id parameter
+                            displayAddress: self.formatAddress(from: placemark),
+                            locationData: LocationData(
+                                latitude: location.coordinate.latitude,
+                                longitude: location.coordinate.longitude,
+                                address: self.formatAddress(from: placemark)
+                            )
+                        )
+                    }
+                    continuation.resume(returning: suggestions)
+                } else {
+                    continuation.resume(returning: [])
+                }
+            }
         }
     }
     
@@ -269,59 +296,65 @@ class LocationService: NSObject, ObservableObject {
 
 extension LocationService: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-        
-        // Validate location quality
-        let locationAge = -location.timestamp.timeIntervalSinceNow
-        guard locationAge < maximumLocationAge,
-              location.horizontalAccuracy <= 100.0,
-              location.horizontalAccuracy > 0 else {
-            return
+        Task { @MainActor in
+            guard let location = locations.last else { return }
+            
+            // Validate location quality
+            let locationAge = -location.timestamp.timeIntervalSinceNow
+            guard locationAge < maximumLocationAge,
+                  location.horizontalAccuracy <= 100.0,
+                  location.horizontalAccuracy > 0 else {
+                return
+            }
+            
+            isLoading = false
+            locationManager.stopUpdatingLocation()
+            locationTimer?.invalidate()
+            locationTimer = nil
+            
+            locationCompletion?(.success(location))
+            locationCompletion = nil
         }
-        
-        isLoading = false
-        locationManager.stopUpdatingLocation()
-        locationTimer?.invalidate()
-        locationTimer = nil
-        
-        locationCompletion?(.success(location))
-        locationCompletion = nil
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        isLoading = false
-        locationManager.stopUpdatingLocation()
-        locationTimer?.invalidate()
-        locationTimer = nil
-        
-        let locationError = mapLocationError(error)
-        errorMessage = locationError.localizedDescription
-        
-        locationCompletion?(.failure(locationError))
-        locationCompletion = nil
+        Task { @MainActor in
+            isLoading = false
+            locationManager.stopUpdatingLocation()
+            locationTimer?.invalidate()
+            locationTimer = nil
+            
+            let locationError = mapLocationError(error)
+            errorMessage = locationError.localizedDescription
+            
+            locationCompletion?(.failure(locationError))
+            locationCompletion = nil
+        }
     }
     
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        authorizationStatus = status
-        
-        switch status {
-        case .authorizedWhenInUse, .authorizedAlways:
-            if let completion = locationCompletion {
-                requestCurrentLocation(completion: completion)
+        Task { @MainActor in
+            authorizationStatus = status
+            
+            switch status {
+            case .authorizedWhenInUse, .authorizedAlways:
+                if let completion = locationCompletion {
+                    requestCurrentLocation(completion: completion)
+                }
+            case .denied, .restricted:
+                isLoading = false
+                errorMessage = LocationError.permissionDenied.localizedDescription
+                locationCompletion?(.failure(LocationError.permissionDenied))
+                locationCompletion = nil
+            case .notDetermined:
+                break
+            @unknown default:
+                isLoading = false
+                let error = LocationError.unknown("Unknown authorization status")
+                errorMessage = error.localizedDescription
+                locationCompletion?(.failure(error))
+                locationCompletion = nil
             }
-        case .denied, .restricted:
-            isLoading = false
-            errorMessage = LocationError.permissionDenied.localizedDescription
-            locationCompletion?(.failure(LocationError.permissionDenied))
-            locationCompletion = nil
-        case .notDetermined:
-            break
-        @unknown default:
-            isLoading = false
-            let error = LocationError.unknown("Unknown authorization status")
-            errorMessage = error.localizedDescription
-            locationCompletion?(.failure(error))
-            locationCompletion = nil
         }
     }
     

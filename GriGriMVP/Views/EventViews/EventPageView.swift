@@ -99,29 +99,22 @@ struct EventPageView: View {
                 
                 // Event media section
                 if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Event Media")
-                            .font(.appSubheadline)
-                            .foregroundStyle(AppTheme.appPrimary)
-                            .padding(.horizontal)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(mediaItems, id: \.id) { mediaItem in
-                                    AsyncImage(url: mediaItem.url) { image in
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                    } placeholder: {
-                                        Rectangle()
-                                            .fill(Color.gray.opacity(0.3))
-                                    }
-                                    .frame(width: 200, height: 150)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(mediaItems, id: \.id) { mediaItem in
+                                AsyncImage(url: mediaItem.url) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.3))
                                 }
+                                .frame(width: 200, height: 150)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
-                            .padding(.horizontal)
                         }
+                        .padding(.horizontal)
                     }
                     .padding(.vertical, 16)
                     
