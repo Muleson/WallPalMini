@@ -31,13 +31,19 @@ class GymProfileViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let gymRepository: GymRepositoryProtocol
     private let userRepository: UserRepositoryProtocol
+    private let eventRepository: EventRepositoryProtocol
     
     init(gym: Gym, 
          gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
-         userRepository: UserRepositoryProtocol = FirebaseUserRepository()) {
+         userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
+         eventRepository: EventRepositoryProtocol = FirebaseEventRepository(
+             userRepository: FirebaseUserRepository(),
+             gymRepository: FirebaseGymRepository()
+         )) {
         self.gym = gym
         self.gymRepository = gymRepository
         self.userRepository = userRepository
+        self.eventRepository = eventRepository
         
         loadGymEvents()
         loadUserAndCheckFavorite()
@@ -64,13 +70,11 @@ class GymProfileViewModel: ObservableObject {
         
         Task {
             do {
-                // Simulate network delay
-                try await Task.sleep(nanoseconds: 1_000_000_000)
+                // Fetch events from Firestore for this gym
+                let events = try await eventRepository.fetchEventsForGym(gymId: gym.id)
                 
-                // Get events from sample data for now
-                // In production, you would use a repository to fetch from Firestore
                 await MainActor.run {
-                    self.gymEvents = SampleData.events.filter { $0.host.id == self.gym.id }
+                    self.gymEvents = events
                     self.isLoadingEvents = false
                 }
             } catch {

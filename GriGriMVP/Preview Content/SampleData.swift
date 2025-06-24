@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 struct SampleData {
     
@@ -323,5 +324,168 @@ struct SampleData {
     /// Get gyms with profile images
     static func getGymsWithImages() -> [Gym] {
         return gyms.filter { $0.profileImage != nil }
+    }
+}
+
+// MARK: - Mock Repositories for Previews
+extension SampleData {
+    
+    class MockGymRepository: GymRepositoryProtocol {
+        private var gyms: [Gym]
+        
+        init(gyms: [Gym] = SampleData.gyms) {
+            self.gyms = gyms
+        }
+        
+        func fetchAllGyms() async throws -> [Gym] {
+            // Simulate network delay
+            try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            return gyms
+        }
+        
+        func searchGyms(query: String) async throws -> [Gym] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return gyms.filter { 
+                $0.name.localizedCaseInsensitiveContains(query) ||
+                $0.location.address!.localizedCaseInsensitiveContains(query)
+            }
+        }
+        
+        func getGym(id: String) async throws -> Gym? {
+            try await Task.sleep(nanoseconds: 200_000_000)
+            return gyms.first { $0.id == id }
+        }
+        
+        func updateUserFavoriteGyms(userId: String, favoritedGymIds: [String]) async throws {
+            // Mock implementation - would update user's favorites in real app
+            try await Task.sleep(nanoseconds: 300_000_000)
+        }
+        
+        func createGym(_ gym: Gym) async throws -> Gym {
+            try await Task.sleep(nanoseconds: 500_000_000)
+            gyms.append(gym)
+            return gym
+        }
+        
+        func updateGym(_ gym: Gym) async throws -> Gym {
+            try await Task.sleep(nanoseconds: 400_000_000)
+            if let index = gyms.firstIndex(where: { $0.id == gym.id }) {
+                gyms[index] = gym
+            }
+            return gym
+        }
+        
+        func updateGymImage(gymId: String, image: UIImage) async throws -> URL {
+            try await Task.sleep(nanoseconds: 600_000_000)
+            // Return a mock URL
+            return URL(string: "https://example.com/gym-\(gymId)-image.jpg")!
+        }
+        
+        func deleteGym(id: String) async throws {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            gyms.removeAll { $0.id == id }
+        }
+        
+        func getStaffMembers(for gymId: String) async throws -> [StaffMember] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return SampleData.getStaffMembers(for: gymId)
+        }
+        
+        func removeStaffMember(from gymId: String, userId: String) async throws {
+            try await Task.sleep(nanoseconds: 400_000_000)
+            // Mock implementation - would remove staff member in real app
+        }
+        
+        func searchUsers(query: String) async throws -> [User] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return SampleData.users.filter {
+                $0.firstName.localizedCaseInsensitiveContains(query) ||
+                $0.lastName.localizedCaseInsensitiveContains(query) ||
+                $0.email.localizedCaseInsensitiveContains(query)
+            }
+        }
+        
+        func addStaffMember(to gymId: String, userId: String) async throws {
+            try await Task.sleep(nanoseconds: 400_000_000)
+            // Mock implementation - would add staff member in real app
+        }
+        
+        func getGymsUserCanManage(userId: String) async throws -> [Gym] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return SampleData.getGymsForUser(userId: userId)
+        }
+    }
+    
+    class MockEventRepository: EventRepositoryProtocol {
+        private var events: [EventItem]
+        
+        init(events: [EventItem] = SampleData.events) {
+            self.events = events
+        }
+        
+        func fetchAllEvents() async throws -> [EventItem] {
+            try await Task.sleep(nanoseconds: 400_000_000)
+            return events
+        }
+        
+        func fetchEventsForGym(gymId: String) async throws -> [EventItem] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return events.filter { $0.host.id == gymId }
+        }
+        
+        func fetchEventsCreatedByUser(userId: String) async throws -> [EventItem] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return events.filter { $0.author.id == userId }
+        }
+        
+        func fetchFavoriteEvents(userId: String) async throws -> [EventItem] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            // Get user's favorite event IDs
+            guard let user = SampleData.users.first(where: { $0.id == userId }),
+                  let favoriteEventIds = user.favoriteEvents else {
+                return []
+            }
+            return events.filter { favoriteEventIds.contains($0.id) }
+        }
+        
+        func searchEvents(query: String) async throws -> [EventItem] {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return events.filter {
+                $0.name.localizedCaseInsensitiveContains(query) ||
+                $0.description.localizedCaseInsensitiveContains(query)
+            }
+        }
+        
+        func getEvent(id: String) async throws -> EventItem? {
+            try await Task.sleep(nanoseconds: 200_000_000)
+            return events.first { $0.id == id }
+        }
+        
+        func createEvent(_ event: EventItem) async throws -> String {
+            try await Task.sleep(nanoseconds: 500_000_000)
+            events.append(event)
+            return event.id
+        }
+        
+        func updateEvent(_ event: EventItem) async throws -> EventItem {
+            try await Task.sleep(nanoseconds: 400_000_000)
+            if let index = events.firstIndex(where: { $0.id == event.id }) {
+                events[index] = event
+            }
+            return event
+        }
+        
+        func updateEventMedia(eventId: String, mediaItems: [MediaItem]?) async throws {
+            try await Task.sleep(nanoseconds: 500_000_000)
+            if let index = events.firstIndex(where: { $0.id == eventId }) {
+                // In a real implementation, you'd update the event's media items
+                // For mock, we'll just simulate the operation
+            }
+        }
+        
+        func deleteEvent(id: String) async throws {
+            try await Task.sleep(nanoseconds: 300_000_000)
+            events.removeAll { $0.id == id }
+        }
     }
 }

@@ -11,20 +11,21 @@ import FirebaseFirestore
 extension User: FirestoreCodable {
     func toFirestoreData() -> [String: Any] {
         var data: [String: Any] = [
-            "id": id,
             "email": email,
             "firstName": firstName,
             "lastName": lastName,
             "createdAt": createdAt.firestoreTimestamp
         ]
         
+        // Note: Don't include 'id' in the data - Firestore handles document IDs separately
+        
         // Add optional fields if they exist
-        if let favouriteGyms = favoriteGyms {
-            data["favouriteGyms"] = favouriteGyms
+        if let favoriteGyms = favoriteGyms {
+            data["favouriteGyms"] = favoriteGyms
         }
         
-        if let favouriteEvents = favoriteEvents {
-            data["favouriteEvents"] = favouriteEvents
+        if let favoriteEvents = favoriteEvents {
+            data["favouriteEvents"] = favoriteEvents
         }
         
         return data
@@ -37,6 +38,8 @@ extension User: FirestoreCodable {
             let firstName = firestoreData["firstName"] as? String,
             let lastName = firestoreData["lastName"] as? String
         else {
+            print("DEBUG: Failed to decode required User fields")
+            print("DEBUG: Available keys: \(firestoreData.keys.sorted())")
             return nil
         }
         
@@ -48,28 +51,30 @@ extension User: FirestoreCodable {
             createdAt = Date()
         }
         
-        // Handle optional properties
-        let favouriteGyms = firestoreData["favouriteGyms"] as? [String]
-        let favouriteEvents = firestoreData["favouriteEvents"] as? [String]
+        // Handle optional properties (note the spelling difference)
+        let favoriteGyms = firestoreData["favouriteGyms"] as? [String]
+        let favoriteEvents = firestoreData["favouriteEvents"] as? [String]
         
-        self.id = id
-        self.email = email
-        self.firstName = firstName
-        self.lastName = lastName
-        self.createdAt = createdAt
-        self.favoriteGyms = favouriteGyms
-        self.favoriteEvents = favouriteEvents
+        self.init(
+            id: id,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            createdAt: createdAt,
+            favoriteGyms: favoriteGyms,
+            favoriteEvents: favoriteEvents
+        )
     }
 }
 
 extension UserFavorite: FirestoreCodable {
     func toFirestoreData() -> [String: Any] {
         return [
-            "id": id,
             "userId": userId,
             "eventId": eventId,
             "dateAdded": dateAdded.firestoreTimestamp
         ]
+        // Note: Don't include 'id' in the data - Firestore handles document IDs separately
     }
     
     init?(firestoreData: [String: Any]) {
@@ -78,19 +83,22 @@ extension UserFavorite: FirestoreCodable {
             let userId = firestoreData["userId"] as? String,
             let eventId = firestoreData["eventId"] as? String
         else {
+            print("DEBUG: Failed to decode required UserFavorite fields")
             return nil
         }
         
         let dateAdded: Date
         if let timestamp = firestoreData["dateAdded"] as? Timestamp {
-            dateAdded = timestamp.dateValue
+            dateAdded = timestamp.dateValue()
         } else {
             dateAdded = Date()
         }
         
-        self.id = id
-        self.userId = userId
-        self.eventId = eventId
-        self.dateAdded = dateAdded
+        self.init(
+            id: id,
+            userId: userId,
+            eventId: eventId,
+            dateAdded: dateAdded
+        )
     }
 }

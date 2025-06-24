@@ -64,7 +64,18 @@ class FirebaseUserRepository: UserRepositoryProtocol {
             return nil
         }
         
-        return User(firestoreData: documentSnapshot.data() ?? [:])
+        // Add the document ID to the data before decoding
+        var userData = documentSnapshot.data() ?? [:]
+        userData["id"] = documentSnapshot.documentID
+        
+        let user = User(firestoreData: userData)
+        
+        if user == nil {
+            print("DEBUG: Failed to decode user with ID: \(id)")
+            print("DEBUG: Document data keys: \(userData.keys.sorted())")
+        }
+        
+        return user
     }
     
     func getCurrentUser() async throws -> User? {

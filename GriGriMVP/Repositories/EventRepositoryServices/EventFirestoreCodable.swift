@@ -8,7 +8,6 @@
 import Foundation
 import FirebaseFirestore
 
-// Implement the FirestoreCodable extension for EventItem
 extension EventItem: FirestoreCodable {
     func toFirestoreData() -> [String: Any] {
         var data: [String: Any] = [
@@ -24,17 +23,9 @@ extension EventItem: FirestoreCodable {
             "hostId": host.id
         ]
         
-        // Convert MediaItems array to Firestore format
+        // Add optional fields
         if let mediaItems = mediaItems, !mediaItems.isEmpty {
-            data["mediaItems"] = mediaItems.map { mediaItem in
-                return [
-                    "id": mediaItem.id,
-                    "url": mediaItem.url.absoluteString,
-                    "type": mediaItem.type.rawValue,
-                    "uploadedAt": mediaItem.uploadedAt.firestoreTimestamp,
-                    "ownerId": mediaItem.ownerId
-                ]
-            }
+            data["mediaItems"] = mediaItems.map { $0.toFirestoreData() }
         }
         
         if let registrationLink = registrationLink {
@@ -44,25 +35,19 @@ extension EventItem: FirestoreCodable {
         return data
     }
     
-    // Protocol-conforming initializer
     init?(firestoreData: [String: Any]) {
-        // Get ID or use empty string (will be replaced by document ID)
-        let id = firestoreData["id"] as? String ?? ""
-        
-        // Check for required IDs
         guard
+            let id = firestoreData["id"] as? String,
             let authorId = firestoreData["authorId"] as? String,
             let hostId = firestoreData["hostId"] as? String,
             let name = firestoreData["name"] as? String,
             let typeRawValue = firestoreData["type"] as? String,
+            let type = EventType(rawValue: typeRawValue),
             let location = firestoreData["location"] as? String,
             let description = firestoreData["description"] as? String
         else {
-            return nil
-        }
-        
-        // Handle event type
-        guard let type = EventType(rawValue: typeRawValue) else {
+            print("DEBUG: Failed to decode required EventItem fields")
+            print("DEBUG: Available keys: \(firestoreData.keys.sorted())")
             return nil
         }
         
@@ -78,155 +63,43 @@ extension EventItem: FirestoreCodable {
         if let timestamp = firestoreData["eventDate"] as? Timestamp {
             eventDate = timestamp.dateValue()
         } else {
-            eventDate = Date().addingTimeInterval(24 * 60 * 60)
+            eventDate = Date().addingTimeInterval(24 * 60 * 60) // Default to tomorrow
         }
         
-        // Handle boolean values that might be stored as integers
-        let isFeatured: Bool
-        if let featuredBool = firestoreData["isFeatured"] as? Bool {
-            isFeatured = featuredBool
-        } else if let featuredInt = firestoreData["isFeatured"] as? Int {
-            isFeatured = featuredInt != 0
-        } else {
-            isFeatured = false
-        }
+        // Handle boolean values
+        let isFeatured = firestoreData["isFeatured"] as? Bool ?? false
+        let registrationRequired = firestoreData["registrationRequired"] as? Bool ?? false
         
-        let registrationRequired: Bool
-        if let requiredBool = firestoreData["registrationRequired"] as? Bool {
-            registrationRequired = requiredBool
-        } else if let requiredInt = firestoreData["registrationRequired"] as? Int {
-            registrationRequired = requiredInt != 0
-        } else {
-            registrationRequired = false
-        }
-        
-        // Create placeholder objects with minimal info
-        let placeholderAuthor = User.placeholder(id: authorId)
-        let placeholderGym = Gym.placeholder(id: hostId)
-        
-        // Optional fields
+        // Handle optional fields
         let registrationLink = firestoreData["registrationLink"] as? String
         
-        // Assign all properties
-        self.id = id
-        self.author = placeholderAuthor
-        self.host = placeholderGym
-        self.name = name
-        self.type = type
-        self.location = location
-        self.description = description
-        self.createdAt = createdAt
-        self.eventDate = eventDate
-        self.isFeatured = isFeatured
-        self.registrationRequired = registrationRequired
-        self.registrationLink = registrationLink
-        
-        // Handle media items if they exist
-        if let mediaItemsData = firestoreData["mediaItems"] as? [[String: Any]] {
-            var mediaItemsArray: [MediaItem] = []
-            for mediaItemData in mediaItemsData {
-                if let mediaItem = MediaItem(firestoreData: mediaItemData) {
-                    mediaItemsArray.append(mediaItem)
-                }
-            }
-            self.mediaItems = mediaItemsArray
-        } else {
-            self.mediaItems = nil
-        }
-    }
-    
-    // Custom initializer with full object parameters
-    init?(firestoreData: [String: Any], author: User, host: Gym) {
-        // Get id from the document ID or data
-        let id = firestoreData["id"] as? String ?? ""
-        
-        // Get required string fields
-        guard
-            let name = firestoreData["name"] as? String,
-            let typeRawValue = firestoreData["type"] as? String,
-            let type = EventType(rawValue: typeRawValue),
-            let location = firestoreData["location"] as? String,
-            let description = firestoreData["description"] as? String
-        else {
-            return nil
-        }
-        
-        // Handle timestamps
-        guard
-            let createdAtTimestamp = firestoreData["createdAt"] as? Timestamp,
-            let eventDateTimestamp = firestoreData["eventDate"] as? Timestamp
-        else {
-            return nil
-        }
-        
         // Handle media items
+        var mediaItems: [MediaItem]?
         if let mediaItemsData = firestoreData["mediaItems"] as? [[String: Any]] {
-            var mediaItemsArray: [MediaItem] = []
-            for mediaItemData in mediaItemsData {
-                guard
-                    let id = mediaItemData["id"] as? String,
-                    let urlString = mediaItemData["url"] as? String,
-                    let url = URL(string: urlString),
-                    let typeString = mediaItemData["type"] as? String,
-                    let type = MediaType(rawValue: typeString),
-                    let ownerId = mediaItemData["ownerId"] as? String
-                else {
-                    continue
-                }
-                
-                let uploadedAt: Date
-                if let timestamp = mediaItemData["uploadedAt"] as? Timestamp {
-                    uploadedAt = timestamp.dateValue()
-                } else {
-                    uploadedAt = Date()
-                }
-                
-                let mediaItem = MediaItem(
-                    id: id,
-                    url: url,
-                    type: type,
-                    uploadedAt: uploadedAt,
-                    ownerId: ownerId
-                )
-                mediaItemsArray.append(mediaItem)
-            }
-            self.mediaItems = mediaItemsArray.isEmpty ? nil : mediaItemsArray
-        } else {
-            self.mediaItems = nil
+            let decodedMediaItems = mediaItemsData.compactMap { MediaItem(firestoreData: $0) }
+            mediaItems = decodedMediaItems.isEmpty ? nil : decodedMediaItems
         }
         
-        // Handle boolean values that might be stored as integers
-        let isFeatured: Bool
-        if let featuredBool = firestoreData["isFeatured"] as? Bool {
-            isFeatured = featuredBool
-        } else if let featuredInt = firestoreData["isFeatured"] as? Int {
-            isFeatured = featuredInt != 0
-        } else {
-            isFeatured = false
-        }
+        // Create placeholder objects for author and host
+        // These will be replaced with actual objects by the repository
+        let placeholderAuthor = User.placeholder(id: authorId)
+        let placeholderHost = Gym.placeholder(id: hostId)
         
-        let registrationRequired: Bool
-        if let requiredBool = firestoreData["registrationRequired"] as? Bool {
-            registrationRequired = requiredBool
-        } else if let requiredInt = firestoreData["registrationRequired"] as? Int {
-            registrationRequired = requiredInt != 0
-        } else {
-            registrationRequired = false
-        }
-        
-        // Assign properties
-        self.id = id
-        self.author = author
-        self.host = host
-        self.name = name
-        self.type = type
-        self.location = location
-        self.description = description
-        self.createdAt = createdAtTimestamp.dateValue()
-        self.eventDate = eventDateTimestamp.dateValue()
-        self.isFeatured = isFeatured
-        self.registrationRequired = registrationRequired
-        self.registrationLink = firestoreData["registrationLink"] as? String
+        self.init(
+            id: id,
+            author: placeholderAuthor,
+            host: placeholderHost,
+            name: name,
+            type: type,
+            location: location,
+            description: description,
+            mediaItems: mediaItems,
+            registrationLink: registrationLink,
+            createdAt: createdAt,
+            eventDate: eventDate,
+            isFeatured: isFeatured,
+            registrationRequired: registrationRequired
+        )
     }
 }
     
@@ -242,8 +115,8 @@ class FirebaseEventRepository: EventRepositoryProtocol {
     private let gymRepository: GymRepositoryProtocol
     private let mediaRepository: MediaRepositoryProtocol
     
-    init(userRepository: UserRepositoryProtocol,
-         gymRepository: GymRepositoryProtocol,
+    init(userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
+         gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
          mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
@@ -493,7 +366,7 @@ class FirebaseEventRepository: EventRepositoryProtocol {
             }
             
             if let author = author, let host = host {
-                return EventItem(firestoreData: data, author: author, host: host)
+                return EventItem(firestoreData: data)
             } else {
                 // Only log this if we're using the fallback
                 print("DEBUG: Using placeholder implementation for event \(document.documentID)")

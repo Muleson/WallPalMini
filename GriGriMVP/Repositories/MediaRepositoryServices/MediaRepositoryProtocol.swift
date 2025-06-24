@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import FirebaseFirestore
+import UIKit
 
 protocol MediaRepositoryProtocol {
     /// Upload an image to Firebase Storage and save metadata to Firestore

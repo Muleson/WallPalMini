@@ -8,7 +8,7 @@
 import Foundation
 import FirebaseFirestore
 
-struct Gym: Identifiable, Equatable, Codable {
+struct Gym: Identifiable, Equatable {
     var id: String
     var email: String
     var name: String

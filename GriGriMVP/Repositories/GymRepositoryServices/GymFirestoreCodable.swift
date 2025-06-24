@@ -12,33 +12,24 @@ extension Gym: FirestoreCodable {
     // Convert Gym to Firestore data dictionary
     func toFirestoreData() -> [String: Any] {
         var data: [String: Any] = [
-            "email": email,
             "name": name,
-            "location": [
-                "latitude": location.latitude,
-                "longitude": location.longitude,
-                "address": location.address ?? ""
-            ],
+            "email": email,
+            "location": location.toFirestoreData(),
             "climbingType": climbingType.map { $0.rawValue },
             "amenities": amenities.map { $0.rawValue },
             "events": events,
-            "createdAt": createdAt.firestoreTimestamp,
             "ownerId": ownerId,
             "staffUserIds": staffUserIds,
+            "createdAt": createdAt.firestoreTimestamp
         ]
         
+        // Add optional fields if they exist
         if let description = description {
             data["description"] = description
         }
         
         if let profileImage = profileImage {
-            data["profileImage"] = [
-                "id": profileImage.id,
-                "url": profileImage.url.absoluteString,
-                "type": profileImage.type.rawValue,
-                "uploadedAt": profileImage.uploadedAt.firestoreTimestamp,
-                "ownerId": profileImage.ownerId
-            ]
+            data["profileImage"] = profileImage.toFirestoreData()
         }
         
         return data
@@ -47,92 +38,63 @@ extension Gym: FirestoreCodable {
     // Initialize a Gym from Firestore data
     init?(firestoreData: [String: Any]) {
         guard
-            let email = firestoreData["email"] as? String,
+            let id = firestoreData["id"] as? String,
             let name = firestoreData["name"] as? String,
-            let locationData = firestoreData["location"] as? [String: Any],
-            let latitude = locationData["latitude"] as? Double,
-            let longitude = locationData["longitude"] as? Double,
-            let climbingTypeStrings = firestoreData["climbingType"] as? [String],
-            let amenitiesStrings = firestoreData["amenities"] as? [String],
-            let events = firestoreData["events"] as? [String],
-            let ownerId = firestoreData["ownerId"] as? String
+            let email = firestoreData["email"] as? String,
+            let ownerId = firestoreData["ownerId"] as? String,
+            let locationData = firestoreData["location"] as? [String: Any]
         else {
+            print("DEBUG: Failed to decode required Gym fields")
+            print("DEBUG: Available keys: \(firestoreData.keys.sorted())")
             return nil
         }
         
-        // Convert climbing type strings back to enum
-        let climbingTypes = climbingTypeStrings.compactMap { ClimbingTypes(rawValue: $0) }
-        
-        // Convert amenities strings back to enum
-        let amenities = amenitiesStrings.compactMap { Amenities(rawValue: $0) }
-        
-        // Handle optional description
-        let description = firestoreData["description"] as? String
-        
-        // Parse MediaItem from nested data
-        let profileImage: MediaItem?
-        if let imageData = firestoreData["profileImage"] as? [String: Any],
-           let imageId = imageData["id"] as? String,
-           let imageUrlString = imageData["url"] as? String,
-           let imageUrl = URL(string: imageUrlString),
-           let imageTypeString = imageData["type"] as? String,
-           let imageType = MediaType(rawValue: imageTypeString),
-           let imageOwnerId = imageData["ownerId"] as? String {
-            
-            let uploadedAt: Date
-            if let timestamp = imageData["uploadedAt"] as? Timestamp {
-                uploadedAt = timestamp.dateValue
-            } else {
-                uploadedAt = Date()
-            }
-            
-            profileImage = MediaItem(
-                id: imageId,
-                url: imageUrl,
-                type: imageType,
-                uploadedAt: uploadedAt,
-                ownerId: imageOwnerId
-            )
-        } else {
-            profileImage = nil
+        // Handle location
+        guard let location = LocationData(firestoreData: locationData) else {
+            print("DEBUG: Failed to decode location data")
+            return nil
         }
-        
-        // Handle staff user IDs array (default to empty if missing)
-        let staffUserIds = firestoreData["staffUserIds"] as? [String] ?? []
-        
         
         // Handle createdAt timestamp
         let createdAt: Date
         if let timestamp = firestoreData["createdAt"] as? Timestamp {
-            createdAt = timestamp.dateValue
+            createdAt = timestamp.dateValue()
         } else {
             createdAt = Date()
         }
         
-        // Handle optional address (check for empty string too)
-        let address = locationData["address"] as? String
-        let finalAddress = (address?.isEmpty == true) ? nil : address
+        // Handle climbing types
+        let climbingTypeStrings = firestoreData["climbingType"] as? [String] ?? []
+        let climbingType = climbingTypeStrings.compactMap { ClimbingTypes(rawValue: $0) }
         
-        let location = LocationData(
-            latitude: latitude,
-            longitude: longitude,
-            address: finalAddress
-        )
+        // Handle amenities
+        let amenityStrings = firestoreData["amenities"] as? [String] ?? []
+        let amenities = amenityStrings.compactMap { Amenities(rawValue: $0) }
         
-        // Initialize Gym with a temporary ID (will be set by repository)
+        // Handle other fields
+        let description = firestoreData["description"] as? String
+        let events = firestoreData["events"] as? [String] ?? []
+        let staffUserIds = firestoreData["staffUserIds"] as? [String] ?? []
+        
+        // Handle profile image
+        var profileImage: MediaItem?
+        if let imageData = firestoreData["profileImage"] as? [String: Any] {
+            profileImage = MediaItem(firestoreData: imageData)
+        }
+        
         self.init(
-            id: UUID().uuidString,
+            id: id,
             email: email,
             name: name,
             description: description,
             location: location,
-            climbingType: climbingTypes,
+            climbingType: climbingType,
             amenities: amenities,
             events: events,
             profileImage: profileImage,
             createdAt: createdAt,
             ownerId: ownerId,
-            staffUserIds: staffUserIds,
+            staffUserIds: staffUserIds
         )
     }
 }

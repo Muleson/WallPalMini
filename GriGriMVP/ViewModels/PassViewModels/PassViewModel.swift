@@ -59,10 +59,7 @@ class PassViewModel: ObservableObject {
     func loadPasses() {
         passes = passManager.passes
         primaryPass = passes.first(where: { $0.isActive })
-        
-        //DEBUG
-        print("PassViewModel: Loaded passes count: \(passes.count)")
-        print("PassViewModel: Primary pass exists: \(primaryPass != nil)")
+
     }
     
     // Loads available gyms to which a pass can be assigned
@@ -146,8 +143,6 @@ class PassViewModel: ObservableObject {
             duplicatePassName = ""
         }
         
-        // Debug output
-        print("PassViewModel: Scanned barcode - code: \(code), type: \(codeType)")
     }
     
     // Saves scanned barcode with raw values to lastScannedPass
@@ -166,9 +161,7 @@ class PassViewModel: ObservableObject {
         let pass = Pass(mainInformation: mainInfo,
                         barcodeData: barcodeData,
                         isActive: primaryStatus)
-        
-        print("PassViewModel: Saving pass with gym: \(gym.name), code: \(code), type: \(codeType), primary: \(primaryStatus)")
-        
+                
         let success = passManager.addPass(pass)
         
         if success {
@@ -186,7 +179,6 @@ class PassViewModel: ObservableObject {
     // Save lastScannedPass to passes with gym information and primary status
     func savePassWithGym(primaryStatus: Bool = false) -> Bool {
         guard var pass = lastScannedPass else {
-            print("PassViewModel: Cannot save pass - no scanned pass available")
             return false
         }
         
@@ -204,8 +196,6 @@ class PassViewModel: ObservableObject {
                 date: pass.mainInformation.date
             )
         } else {
-            // No title available
-            print("PassViewModel: Cannot save pass - no title available")
             return false
         }
         
@@ -218,9 +208,7 @@ class PassViewModel: ObservableObject {
             duplicatePassAlert = true
             return false
         }
-        
-        print("PassViewModel: Saving pass with title: \(pass.mainInformation.title), primary status: \(primaryStatus)")
-        
+                
         let success = passManager.addPass(pass)
         
         if success {
@@ -338,43 +326,22 @@ class PassViewModel: ObservableObject {
      
      func generateBarcodeImage(from pass: Pass) -> UIImage? {
          
-         //DEBUG
-            print("Generating barcode for pass: \(pass.id)")
-            print("Barcode code: \(pass.barcodeData.code)")
-            print("Barcode type: \(pass.barcodeData.codeType)")
-         
          guard let filter = getCIFilter(for: pass.barcodeData.codeType) else {
-             
-             //DEBUG
-             print("Failed to get filter for type: \(pass.barcodeData.codeType)")
-             
              return nil
          }
 
          // Convert string to data
          guard let barcodeData = pass.barcodeData.code.data(using: .ascii) else {
-             
-             //DEBUG
-             print("Failed to convert barcode code to ASCII data")
-             
              return nil
          }
-         
-         //DEBUG
-         print("Successfully created barcode data of length: \(barcodeData.count)")
          
          // Configure the filter based on its type
          configureFilter(filter, withData: barcodeData)
          
          // Get the output image
          guard let outputImage = filter.outputImage else {
-             //DEBUG
-             print("Filter failed to generate output image")
              return nil
          }
-         
-         //DEBUG
-         print("Successfully generated CIImage")
 
          
          // Scale the image
@@ -384,7 +351,6 @@ class PassViewModel: ObservableObject {
          // Create context and generate UIImage
          let context = CIContext()
          guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else {
-             print("Failed to create CGImage from scaled image")
              return nil
          }
          

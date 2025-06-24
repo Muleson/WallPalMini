@@ -22,15 +22,15 @@ class FirebaseGymRepository: GymRepositoryProtocol {
     
     func fetchAllGyms() async throws -> [Gym] {
         let snapshot = try await db.collection(gymsCollection).getDocuments()
-        return try snapshot.documents.compactMap { document -> Gym? in
-            do {
-                var gym = try document.data(as: Gym.self)
-                gym.id = document.documentID
-                return gym
-            } catch {
-                print("Error decoding gym: \(error)")
-                return nil
+        return snapshot.documents.compactMap { document -> Gym? in
+            var data = document.data()
+            data["id"] = document.documentID  // Add document ID to data
+            
+            let gym = Gym(firestoreData: data)
+            if gym == nil {
+                print("Error decoding gym with ID: \(document.documentID)")
             }
+            return gym
         }
     }
     
@@ -49,8 +49,8 @@ class FirebaseGymRepository: GymRepositoryProtocol {
             .whereField("name", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
         
         let locationQuery = db.collection(gymsCollection)
-            .whereField("location", isGreaterThanOrEqualTo: lowercaseQuery)
-            .whereField("location", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
+            .whereField("location.address", isGreaterThanOrEqualTo: lowercaseQuery)
+            .whereField("location.address", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
         
         // Execute both queries
         async let nameSnapshot = nameQuery.getDocuments()
@@ -62,12 +62,13 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         
         // Process name results
         for document in nameResults.documents {
-            do {
-                var gym = try document.data(as: Gym.self)
-                gym.id = document.documentID
+            var data = document.data()
+            data["id"] = document.documentID
+            
+            if let gym = Gym(firestoreData: data) {
                 uniqueGyms[document.documentID] = gym
-            } catch {
-                print("Error decoding gym from name search: \(error)")
+            } else {
+                print("Error decoding gym from name search with ID: \(document.documentID)")
             }
         }
         
@@ -75,12 +76,13 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         for document in locationResults.documents {
             // Only add if not already in results
             if uniqueGyms[document.documentID] == nil {
-                do {
-                    var gym = try document.data(as: Gym.self)
-                    gym.id = document.documentID
+                var data = document.data()
+                data["id"] = document.documentID
+                
+                if let gym = Gym(firestoreData: data) {
                     uniqueGyms[document.documentID] = gym
-                } catch {
-                    print("Error decoding gym from location search: \(error)")
+                } else {
+                    print("Error decoding gym from location search with ID: \(document.documentID)")
                 }
             }
         }
@@ -96,22 +98,26 @@ class FirebaseGymRepository: GymRepositoryProtocol {
                 return nil // Document doesn't exist
             }
             
-            // Add more detailed logging
-            let missingFields = checkRequiredGymFields(data)
-            if !missingFields.isEmpty {
-                print("DEBUG: Gym document \(id) is missing fields: \(missingFields.joined(separator: ", "))")
-            }
-            
-            // Add the ID to the data
+            // Add the ID to the data before decoding
             var gymData = data
             gymData["id"] = document.documentID
             
-            // Use a more robust initializer
-            return Gym(firestoreData: gymData)
+            // Use FirestoreCodable initializer
+            let gym = Gym(firestoreData: gymData)
+            
+            if gym == nil {
+                print("DEBUG: Failed to decode gym with ID: \(id)")
+                print("DEBUG: Document data keys: \(gymData.keys.sorted())")
+                let missingFields = checkRequiredGymFields(gymData)
+                if !missingFields.isEmpty {
+                    print("DEBUG: Missing required fields: \(missingFields.joined(separator: ", "))")
+                }
+            }
+            
+            return gym
         } catch {
             print("DEBUG: Error in getGym(\(id)): \(error.localizedDescription)")
-            // Try to create a minimal placeholder instead of throwing
-            return Gym.placeholder(id: id)
+            throw error
         }
     }
     
@@ -125,20 +131,24 @@ class FirebaseGymRepository: GymRepositoryProtocol {
     // MARK: - Create Methods
     
     func createGym(_ gym: Gym) async throws -> Gym {
-        var gymToCreate = gym
-        
-        // Convert gym to Firestore data
-        let gymData = gymToCreate.toFirestoreData()
+        // Convert gym to Firestore data using FirestoreCodable
+        let gymData = gym.toFirestoreData()
         
         // Add to Firestore
         let documentRef = try await db.collection(gymsCollection).addDocument(data: gymData)
         
-        // Update the gym with the generated ID
-        gymToCreate.id = documentRef.documentID
+        // Create updated gym with the generated ID
+        var updatedGymData = gymData
+        updatedGymData["id"] = documentRef.documentID
         
-        return gymToCreate
+        guard let updatedGym = Gym(firestoreData: updatedGymData) else {
+            throw NSError(domain: "GymRepository", code: 500, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to create gym with generated ID"
+            ])
+        }
+        
+        return updatedGym
     }
-    
     
     // MARK: - Update Methods
      
@@ -169,15 +179,9 @@ class FirebaseGymRepository: GymRepositoryProtocol {
             compressionQuality: 0.8
         )
         
-        // Update gym with new MediaItem
+        // Update gym with new MediaItem using FirestoreCodable
         try await db.collection(gymsCollection).document(gymId).updateData([
-            "image": [
-                "id": mediaItem.id,
-                "url": mediaItem.url.absoluteString,
-                "type": mediaItem.type.rawValue,
-                "uploadedAt": mediaItem.uploadedAt.firestoreTimestamp,
-                "ownerId": mediaItem.ownerId
-            ]
+            "profileImage": mediaItem.toFirestoreData()
         ])
         
         return mediaItem.url
@@ -271,10 +275,11 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         
         var users: [User] = []
         for document in snapshot.documents {
-            if let user = User(firestoreData: document.data()) {
-                var userWithId = user
-                // Assuming User has mutable id or init with id
-                users.append(userWithId)
+            var userData = document.data()
+            userData["id"] = document.documentID
+            
+            if let user = User(firestoreData: userData) {
+                users.append(user)
             }
         }
         
@@ -302,25 +307,22 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         
         // Process owned gyms
         for document in ownerResults.documents {
-            if var firestoreData = document.data() as? [String: Any] {
-                // Create a gym using the FirestoreCodable initializer
-                if let gym = Gym(firestoreData: firestoreData) {
-                    var gymWithId = gym
-                    gymWithId.id = document.documentID // Set the ID from the document ID
-                    uniqueGyms[document.documentID] = gymWithId
-                }
+            var data = document.data()
+            data["id"] = document.documentID  // Add document ID to data
+            
+            if let gym = Gym(firestoreData: data) {
+                uniqueGyms[document.documentID] = gym
             }
         }
         
         // Process staff gyms
         for document in staffResults.documents {
             if uniqueGyms[document.documentID] == nil {
-                if var firestoreData = document.data() as? [String: Any] {
-                    if let gym = Gym(firestoreData: firestoreData) {
-                        var gymWithId = gym
-                        gymWithId.id = document.documentID
-                        uniqueGyms[document.documentID] = gymWithId
-                    }
+                var data = document.data()
+                data["id"] = document.documentID  // Add document ID to data
+                
+                if let gym = Gym(firestoreData: data) {
+                    uniqueGyms[document.documentID] = gym
                 }
             }
         }
@@ -333,9 +335,12 @@ class FirebaseGymRepository: GymRepositoryProtocol {
     private func getUserById(_ userId: String) async throws -> User? {
         let userDoc = try await db.collection("users").document(userId).getDocument()
         
-        guard userDoc.exists else { return nil }
+        guard userDoc.exists, let data = userDoc.data() else { return nil }
         
-        return User(firestoreData: userDoc.data() ?? [:])
+        var userData = data
+        userData["id"] = userDoc.documentID
+        
+        return User(firestoreData: userData)
     }
     
     // Helper function to check for missing fields
