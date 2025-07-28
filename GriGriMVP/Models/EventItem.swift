@@ -18,7 +18,8 @@ struct EventItem: Identifiable, Equatable {
     var mediaItems: [MediaItem]?
     var registrationLink: String?
     var createdAt: Date
-    var eventDate: Date
+    var startDate: Date
+    var endDate: Date
     var isFeatured: Bool
     var registrationRequired: Bool
     
@@ -33,7 +34,8 @@ struct EventItem: Identifiable, Equatable {
         mediaItems: [MediaItem]? = nil,
         registrationLink: String? = nil,
         createdAt: Date = Date(),
-        eventDate: Date,
+        startDate: Date,
+        endDate: Date,
         isFeatured: Bool = false,
         registrationRequired: Bool = false
     ) {
@@ -47,7 +49,8 @@ struct EventItem: Identifiable, Equatable {
         self.mediaItems = mediaItems
         self.registrationLink = registrationLink
         self.createdAt = createdAt
-        self.eventDate = eventDate
+        self.startDate = startDate
+        self.endDate = endDate
         self.isFeatured = isFeatured
         self.registrationRequired = registrationRequired
     }

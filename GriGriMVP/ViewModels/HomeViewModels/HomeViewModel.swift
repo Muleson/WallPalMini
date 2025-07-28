@@ -11,43 +11,68 @@ import Combine
 
 @MainActor
 class HomeViewModel: ObservableObject {
-    // Content items
+    // MARK: - Content Properties
     @Published var allEvents: [EventItem] = []
     @Published var featuredEvents: [EventItem] = []
-    @Published var favoriteGymEvents: [EventItem] = []
     @Published var nearbyEvents: [EventItem] = []
-    @Published var userFavoriteEvents: [EventItem] = []
+    
+    // Nearest gym functionality for redesigned home
+    @Published var nearestGym: Gym?
+    @Published var allGyms: [Gym] = []
+    
+    // MARK: - State Properties
+    @Published var isLoadingEvents = false
+    @Published var isLoadingGyms = false
+    @Published var isLocationLoading = false
     
     // Error handling
     @Published var errorMessage: String?
     @Published var hasError = false
-    
-    // Loading states
-    @Published var isLoadingEvents = false
-    @Published var isLoading = false
-    @Published var isLocationLoading = false
     
     // Location services
     @Published var userLocation: CLLocation?
     @Published var locationPermissionGranted = false
     @Published var canRequestLocation = true
     
+    // MARK: - Private Properties
     private let maxDistanceInMeters: Double = 10000
     private let locationService = LocationService.shared
+    private var cancellables = Set<AnyCancellable>()
     
     // Services and repositories
-    private var cancellables = Set<AnyCancellable>()
     private let userRepository: UserRepositoryProtocol
     private let eventRepository: EventRepositoryProtocol
+    private let gymRepository: GymRepositoryProtocol
     
     // Current user data
     private var currentUser: User?
     private var favoritedEventIds: Set<String> = []
     
+    // MARK: - Computed Properties
+    
+    /// Distance to nearest gym formatted for display
+    var distanceToNearestGym: String? {
+        guard let nearestGym = nearestGym,
+              let userLocation = userLocation else { return nil }
+        
+        let distance = locationService.distance(from: userLocation, to: nearestGym.location)
+        
+        if distance < 1000 {
+            return String(format: "%.0fm away", distance)
+        } else if distance < 10000 {
+            return String(format: "%.1fkm away", distance / 1000)
+        } else {
+            return String(format: "%.0fkm away", distance / 1000)
+        }
+    }
+    
+    // MARK: - Initialization
+    
     init(userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
          gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
          eventRepository: EventRepositoryProtocol? = nil) {
         self.userRepository = userRepository
+        self.gymRepository = gymRepository
         self.eventRepository = eventRepository ?? FirebaseEventRepository(
             userRepository: userRepository,
             gymRepository: gymRepository
@@ -98,12 +123,9 @@ class HomeViewModel: ObservableObject {
     }
     
     private func requestLocationIfNeeded() {
-        // Only request location if we have permission or it's not determined yet
-        if locationService.authorizationStatus == .authorizedWhenInUse || 
+        if locationService.authorizationStatus == .authorizedWhenInUse ||
            locationService.authorizationStatus == .authorizedAlways {
             requestUserLocation()
-        } else if locationService.authorizationStatus == .notDetermined {
-            // Will be handled automatically by LocationService when permission is requested
         }
     }
     
@@ -122,8 +144,9 @@ class HomeViewModel: ObservableObject {
                 self.errorMessage = nil
                 self.hasError = false
                 
-                // Re-filter events with new location
+                // Apply filters and find nearest gym with new location
                 self.applyFilters()
+                self.findNearestGym()
                 
             } catch {
                 if let locationError = error as? LocationError {
@@ -131,7 +154,6 @@ class HomeViewModel: ObservableObject {
                     case .permissionDenied:
                         self.locationPermissionGranted = false
                         self.canRequestLocation = false
-                        // Don't show error for permission denied - let UI handle this gracefully
                         break
                     case .servicesDisabled:
                         self.errorMessage = "Location services are disabled. Enable them in Settings to see nearby events."
@@ -153,7 +175,6 @@ class HomeViewModel: ObservableObject {
     
     private func handleLocationError(_ error: String) {
         // Only show location errors if they're not permission-related
-        // (Permission errors should be handled by UI prompts, not error messages)
         if !error.contains("denied") && !error.contains("permission") {
             errorMessage = error
             hasError = true
@@ -164,7 +185,26 @@ class HomeViewModel: ObservableObject {
         locationService.openLocationSettings()
     }
     
-    // MARK: - User and Favorites
+    // MARK: - Data Fetching
+    
+    func fetchEvents() {
+        isLoadingEvents = true
+        
+        Task {
+            do {
+                let events = try await eventRepository.fetchAllEvents()
+                
+                self.allEvents = events
+                self.isLoadingEvents = false
+                self.applyFilters()
+                
+            } catch {
+                self.errorMessage = "Failed to load events: \(error.localizedDescription)"
+                self.hasError = true
+                self.isLoadingEvents = false
+            }
+        }
+    }
     
     func fetchUserAndFavorites() {
         Task {
@@ -181,22 +221,45 @@ class HomeViewModel: ObservableObject {
         }
     }
     
-    private func updateFavoriteEvents() {
-        // Update the favorites collection based on IDs
-        self.userFavoriteEvents = self.allEvents.filter {
-            favoritedEventIds.contains($0.id)
-        }
+    func findNearestGym() {
+        guard let userLocation = userLocation else { return }
         
-        // Also update other filters that might depend on favorites
-        self.applyFilters()
+        isLoadingGyms = true
+        
+        Task {
+            do {
+                let gyms = try await gymRepository.fetchAllGyms()
+                self.allGyms = gyms
+                
+                // Find the nearest gym
+                let nearestGym = gyms.min { gym1, gym2 in
+                    let distance1 = locationService.distance(from: userLocation, to: gym1.location)
+                    let distance2 = locationService.distance(from: userLocation, to: gym2.location)
+                    return distance1 < distance2
+                }
+                
+                self.nearestGym = nearestGym
+                self.isLoadingGyms = false
+                
+            } catch {
+                print("Failed to fetch gyms: \(error.localizedDescription)")
+                self.isLoadingGyms = false
+                // Set a fallback gym or leave as nil
+            }
+        }
     }
     
-    // Check if an event is favorited
+    // MARK: - User Favorites Management
+    
+    private func updateFavoriteEvents() {
+        // Apply filters that depend on favorites
+        applyFilters()
+    }
+    
     func isEventFavorited(_ event: EventItem) -> Bool {
         return favoritedEventIds.contains(event.id)
     }
     
-    // Toggle favorite status
     func toggleFavorite(for event: EventItem) {
         Task {
             do {
@@ -225,50 +288,39 @@ class HomeViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Filter Methods
+    // MARK: - Filtering Logic
     
     func applyFilters() {
         filterFeaturedEvents()
-        filterFavoriteGymEvents()
         filterNearbyEvents()
+        
+        // Find nearest gym when applying filters if location available
+        if userLocation != nil && nearestGym == nil {
+            findNearestGym()
+        }
     }
     
-    // Filters events by featured status
     private func filterFeaturedEvents() {
         // Filter for featured events (events marked as featured by the system)
         featuredEvents = allEvents.filter { $0.isFeatured == true }
         
         // If no featured events, use most upcoming events as featured
         if featuredEvents.isEmpty {
-            let upcomingEvents = allEvents.filter { $0.eventDate > Date() }
-                .sorted(by: { $0.eventDate < $1.eventDate })
+            let upcomingEvents = allEvents.filter { $0.startDate > Date() }
+                .sorted(by: { $0.startDate < $1.startDate })
             featuredEvents = Array(upcomingEvents.prefix(3))
         }
     }
     
-    // Filters events by user favorite gyms
-    private func filterFavoriteGymEvents() {
-        // Filter events from user's favorite gyms
-        if let favoriteGymIds = currentUser?.favoriteGyms {
-            self.favoriteGymEvents = allEvents.filter { event in
-                return favoriteGymIds.contains(event.host.id)
-            }
-        } else {
-            favoriteGymEvents = []
-        }
-    }
-    
-    // Filters events by user location
     private func filterNearbyEvents() {
         // Get upcoming events only
-        let upcomingEvents = allEvents.filter { $0.eventDate > Date() }
+        let upcomingEvents = allEvents.filter { $0.startDate > Date() }
         
         guard let userLocation = userLocation, !upcomingEvents.isEmpty else {
             // No location or no events, sort by date
-            nearbyEvents = upcomingEvents
-                .sorted(by: { $0.eventDate < $1.eventDate })
-                .prefix(5)
-                .map { $0 }
+            nearbyEvents = Array(upcomingEvents
+                .sorted(by: { $0.startDate < $1.startDate })
+                .prefix(10))
             return
         }
         
@@ -296,7 +348,8 @@ class HomeViewModel: ObservableObject {
         nearbyEvents = Array(sortedEvents.prefix(10))
     }
     
-    // Get distance to a specific event (useful for UI display)
+    // MARK: - Utility Methods
+    
     func distanceToEvent(_ event: EventItem) -> Double? {
         guard let userLocation = userLocation else { return nil }
         
@@ -307,7 +360,6 @@ class HomeViewModel: ObservableObject {
         )
     }
     
-    // Format distance for display
     func formattedDistanceToEvent(_ event: EventItem) -> String? {
         guard let distance = distanceToEvent(event) else { return nil }
         
@@ -324,37 +376,8 @@ class HomeViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Event Fetching
+    // MARK: - Public Refresh Method
     
-    func fetchEvents() {
-        isLoadingEvents = true
-        
-        Task {
-            do {
-                let events = try await eventRepository.fetchAllEvents()
-                
-                // Debug logging for media items
-                for event in events {
-                    if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
-                        print("DEBUG: Event '\(event.name)' loaded with \(mediaItems.count) media items")
-                    } else {
-                        print("DEBUG: Event '\(event.name)' loaded with no media items")
-                    }
-                }
-                
-                self.allEvents = events
-                self.isLoadingEvents = false
-                self.applyFilters()
-                
-            } catch {
-                self.errorMessage = "Failed to load events: \(error.localizedDescription)"
-                self.hasError = true
-                self.isLoadingEvents = false
-            }
-        }
-    }
-    
-    // Refresh all data
     func refresh() {
         fetchUserAndFavorites()
         fetchEvents()
@@ -362,6 +385,9 @@ class HomeViewModel: ObservableObject {
         // Re-request location if we have permission but no location
         if locationPermissionGranted && userLocation == nil {
             requestUserLocation()
+        } else if userLocation != nil {
+            // If we already have location, just find nearest gym
+            findNearestGym()
         }
     }
 }

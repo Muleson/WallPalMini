@@ -15,7 +15,8 @@ struct CreateEventView: View {
     @StateObject private var viewModel = CreateEventViewModel()
     @State private var name = ""
     @State private var description = ""
-    @State private var eventDate = Date().addingTimeInterval(24 * 60 * 60) // Tomorrow
+    @State private var startDate = Date().addingTimeInterval(24 * 60 * 60) // Tomorrow
+    @State private var endDate: Date?
     @State private var eventType: EventType = .social
     @State private var location = ""
     @State private var registrationRequired = false
@@ -57,11 +58,34 @@ struct CreateEventView: View {
                     TextField("Description", text: $description, axis: .vertical)
                         .lineLimit(3...6)
                     
-                    DatePicker("Date & Time", selection: $eventDate, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Start Date & Time", selection: $startDate, displayedComponents: [.date, .hourAndMinute])
+                    
+                    // Optional end date
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Toggle("Set End Time", isOn: Binding(
+                                get: { endDate != nil },
+                                set: { isOn in
+                                    if isOn {
+                                        endDate = startDate.addingTimeInterval(2 * 3600) // Default 2 hours later
+                                    } else {
+                                        endDate = nil
+                                    }
+                                }
+                            ))
+                        }
+                        
+                        if endDate != nil {
+                            DatePicker("End Date & Time", selection: Binding(
+                                get: { endDate ?? startDate },
+                                set: { endDate = $0 }
+                            ), displayedComponents: [.date, .hourAndMinute])
+                        }
+                    }
                     
                     Picker("Event Type", selection: $eventType) {
                         ForEach([EventType.competition, .social, .openDay, .settingTaster], id: \.self) { type in
-                            Text(type.rawValue.capitalized).tag(type)
+                            Text(type.displayName).tag(type)
                         }
                     }
                 }
@@ -130,7 +154,8 @@ struct CreateEventView: View {
                     EventCardPreviewView(
                         name: name,
                         description: description,
-                        eventDate: eventDate,
+                        startDate: startDate,
+                        endDate: endDate,
                         eventType: eventType,
                         gymName: gym.name,
                         image: selectedImage
@@ -213,9 +238,12 @@ struct CreateEventView: View {
     }
     
     private var isFormValid: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        eventDate > Date()
+        let isNameValid = !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let isDescriptionValid = !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let isStartDateValid = startDate > Date()
+        let isEndDateValid = endDate == nil || endDate! >= startDate
+        
+        return isNameValid && isDescriptionValid && isStartDateValid && isEndDateValid
     }
     
     private func createEvent() async {
@@ -228,7 +256,8 @@ struct CreateEventView: View {
         await viewModel.createEvent(
             name: name,
             description: description,
-            eventDate: eventDate,
+            startDate: startDate,
+            endDate: endDate,
             eventType: eventType,
             location: location.isEmpty ? gym.name : location,
             registrationRequired: registrationRequired,

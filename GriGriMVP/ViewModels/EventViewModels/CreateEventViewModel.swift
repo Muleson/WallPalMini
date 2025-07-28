@@ -59,7 +59,8 @@ class CreateEventViewModel: ObservableObject {
     func createEvent(
         name: String,
         description: String,
-        eventDate: Date,
+        startDate: Date,
+        endDate: Date? = nil,
         eventType: EventType,
         location: String,
         registrationRequired: Bool,
@@ -77,8 +78,14 @@ class CreateEventViewModel: ObservableObject {
             return
         }
         
-        guard eventDate > Date() else {
-            errorMessage = "Event date must be in the future"
+        guard startDate > Date() else {
+            errorMessage = "Event start date must be in the future"
+            return
+        }
+        
+        let finalEndDate = endDate ?? startDate
+        guard finalEndDate >= startDate else {
+            errorMessage = "Event end date must be after or equal to start date"
             return
         }
         
@@ -120,11 +127,12 @@ class CreateEventViewModel: ObservableObject {
                 type: eventType,
                 location: location,
                 description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-                mediaItems: mediaItems, // Include uploaded media
+                mediaItems: mediaItems,
                 registrationLink: registrationLink,
                 createdAt: Date(),
-                eventDate: eventDate,
-                isFeatured: false, // Events are not featured by default
+                startDate: startDate,
+                endDate: finalEndDate,
+                isFeatured: false,
                 registrationRequired: registrationRequired
             )
             
@@ -133,7 +141,7 @@ class CreateEventViewModel: ObservableObject {
             
             await MainActor.run {
                 self.isLoading = false
-                self.clearImages() // Clear selected images after successful creation
+                self.clearImages()
                 // Success - errorMessage remains nil
                 print("Event created successfully with ID: \(eventId)")
             }
@@ -151,7 +159,8 @@ class CreateEventViewModel: ObservableObject {
     func validateEventData(
         name: String,
         description: String,
-        eventDate: Date,
+        startDate: Date,
+        endDate: Date? = nil,
         registrationRequired: Bool,
         registrationLink: String?
     ) -> String? {
@@ -164,9 +173,13 @@ class CreateEventViewModel: ObservableObject {
             return "Event description is required"
         }
         
-        // Check event date
-        if eventDate <= Date() {
-            return "Event date must be in the future"
+        // Check event dates
+        if startDate <= Date() {
+            return "Event start date must be in the future"
+        }
+        
+        if let endDate = endDate, endDate < startDate {
+            return "Event end date must be after or equal to start date"
         }
         
         // Check registration link if registration is required

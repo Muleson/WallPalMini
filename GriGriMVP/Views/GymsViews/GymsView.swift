@@ -24,7 +24,7 @@ struct GymsView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     // Favourite Gyms Section

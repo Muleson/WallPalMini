@@ -25,14 +25,35 @@ struct EventPageView: View {
                     .frame(height: 1)
                     .padding(.horizontal, 24)
                 
-                // Event date
+                // Event date and time section
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(formatEventDate(event.eventDate))
+                    Text(formatEventDate(event.startDate))
                         .font(.appSubheadline)
                         .foregroundStyle(AppTheme.appTextPrimary)
-                    Text(formatEventTime(event.eventDate))
-                        .font(.appUnderline)
-                        .foregroundColor(AppTheme.appTextLight)
+                    
+                    HStack {
+                        Text(formatEventTime(event.startDate))
+                            .font(.appUnderline)
+                            .foregroundColor(AppTheme.appTextLight)
+                        
+                        // Show end time if different from start time
+                        if event.endDate != event.startDate {
+                            Text("–")
+                                .font(.appUnderline)
+                                .foregroundColor(AppTheme.appTextLight)
+                            
+                            Text(formatEventTime(event.endDate))
+                                .font(.appUnderline)
+                                .foregroundColor(AppTheme.appTextLight)
+                        }
+                    }
+                    
+                    // Show duration if it's a multi-day event or longer than 2 hours
+                    if shouldShowDuration() {
+                        Text(formatEventDuration())
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 16)
@@ -179,6 +200,25 @@ struct EventPageView: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+    
+    private func shouldShowDuration() -> Bool {
+        let duration = event.endDate.timeIntervalSince(event.startDate)
+        return duration > 2 * 3600 // Show if longer than 2 hours
+    }
+    
+    private func formatEventDuration() -> String {
+        let duration = event.endDate.timeIntervalSince(event.startDate)
+        let hours = Int(duration / 3600)
+        let minutes = Int((duration.truncatingRemainder(dividingBy: 3600)) / 60)
+        
+        if hours > 0 && minutes > 0 {
+            return "Duration: \(hours)h \(minutes)m"
+        } else if hours > 0 {
+            return "Duration: \(hours) hours"
+        } else {
+            return "Duration: \(minutes) minutes"
+        }
     }
 }
 

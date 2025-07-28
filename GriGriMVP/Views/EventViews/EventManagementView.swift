@@ -112,7 +112,7 @@ struct EventRowView: View {
                     Text(event.name)
                         .font(.headline)
                     
-                    Text(event.eventDate.formatted(date: .abbreviated, time: .shortened))
+                    Text(event.startDate.formatted(date: .abbreviated, time: .shortened))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
@@ -166,13 +166,12 @@ struct EventRowView: View {
     }
 }
 
-
-
 // MARK: - Event Card Preview matching EventCardView format
 struct EventCardPreviewView: View {
     let name: String
     let description: String
-    let eventDate: Date
+    let startDate: Date
+    let endDate: Date?
     let eventType: EventType
     let gymName: String
     let image: UIImage?
@@ -238,7 +237,7 @@ struct EventCardPreviewView: View {
                     Spacer()
                     
                     // Time relative to current date
-                    Text(timeUntilEvent(eventDate))
+                    Text(timeUntilEvent(startDate))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

@@ -190,7 +190,8 @@ struct SampleData {
             mediaItems: [mediaItems[3], mediaItems[6]], // Multiple images for this event
             registrationLink: "https://example.com/register-summer-send",
             createdAt: Date(timeIntervalSince1970: 1650000000),
-            eventDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!,
+            startDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!.addingTimeInterval(8 * 3600), // 8 hours later
             isFeatured: true,
             registrationRequired: true
         ),
@@ -205,7 +206,8 @@ struct SampleData {
             mediaItems: [mediaItems[4], mediaItems[7]], // Multiple images for this event
             registrationLink: "https://example.com/register-workshop",
             createdAt: Date(timeIntervalSince1970: 1655000000),
-            eventDate: Calendar.current.date(byAdding: .hour, value: 3, to: Date())!,
+            startDate: Calendar.current.date(byAdding: .hour, value: 3, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .hour, value: 5, to: Date())!, // 2 hours later
             isFeatured: false,
             registrationRequired: false
         ),
@@ -220,7 +222,8 @@ struct SampleData {
             mediaItems: nil, // No images for this event
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1660000000),
-            eventDate: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
+            startDate: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: -1, to: Date())!.addingTimeInterval(4 * 3600), // 4 hours later
             isFeatured: true,
             registrationRequired: false
         ),
@@ -235,7 +238,8 @@ struct SampleData {
             mediaItems: [mediaItems[5]], // Single image for this event
             registrationLink: "https://example.com/grand-opening",
             createdAt: Date(timeIntervalSince1970: 1665000000),
-            eventDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!,
+            startDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!.addingTimeInterval(12 * 3600), // All day event (12 hours)
             isFeatured: true,
             registrationRequired: true
         ),
@@ -250,7 +254,8 @@ struct SampleData {
             mediaItems: nil, // No images for this event
             registrationLink: "https://example.com/youth-club",
             createdAt: Date(timeIntervalSince1970: 1670000000),
-            eventDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!,
+            startDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!.addingTimeInterval(2 * 3600), // 2 hours later
             isFeatured: false,
             registrationRequired: true
         )

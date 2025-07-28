@@ -56,7 +56,7 @@ class EventManagementViewModel: ObservableObject {
             let events = try await eventRepository.fetchEventsForGym(gymId: gym.id)
             
             await MainActor.run {
-                self.gymEvents = events.sorted { $0.eventDate < $1.eventDate }
+                self.gymEvents = events.sorted { $0.startDate < $1.startDate }
                 self.isLoading = false
             }
         } catch {
@@ -96,7 +96,8 @@ class EventManagementViewModel: ObservableObject {
         eventId: String,
         name: String,
         description: String,
-        eventDate: Date,
+        startDate: Date,
+        endDate: Date? = nil,
         eventType: EventType,
         location: String,
         registrationRequired: Bool,
@@ -113,8 +114,14 @@ class EventManagementViewModel: ObservableObject {
             return
         }
         
-        guard eventDate > Date() else {
-            errorMessage = "Event date must be in the future"
+        guard startDate > Date() else {
+            errorMessage = "Event start date must be in the future"
+            return
+        }
+        
+        let finalEndDate = endDate ?? startDate
+        guard finalEndDate >= startDate else {
+            errorMessage = "Event end date must be after or equal to start date"
             return
         }
         
@@ -162,7 +169,8 @@ class EventManagementViewModel: ObservableObject {
                 mediaItems: updatedMediaItems,
                 registrationLink: registrationLink,
                 createdAt: existingEvent.createdAt,
-                eventDate: eventDate,
+                startDate: startDate,
+                endDate: finalEndDate,
                 isFeatured: existingEvent.isFeatured,
                 registrationRequired: registrationRequired
             )
@@ -174,7 +182,7 @@ class EventManagementViewModel: ObservableObject {
                 // Update local array
                 if let index = self.gymEvents.firstIndex(where: { $0.id == eventId }) {
                     self.gymEvents[index] = updatedEvent
-                    self.gymEvents.sort { $0.eventDate < $1.eventDate }
+                    self.gymEvents.sort { $0.startDate < $1.startDate }
                 }
                 
                 self.isEditingEvent = false
@@ -212,7 +220,8 @@ class EventManagementViewModel: ObservableObject {
     func validateEventData(
         name: String,
         description: String,
-        eventDate: Date,
+        startDate: Date,
+        endDate: Date? = nil,
         registrationRequired: Bool,
         registrationLink: String?
     ) -> String? {
@@ -225,9 +234,13 @@ class EventManagementViewModel: ObservableObject {
             return "Event description is required"
         }
         
-        // Check event date
-        if eventDate <= Date() {
-            return "Event date must be in the future"
+        // Check event dates
+        if startDate <= Date() {
+            return "Event start date must be in the future"
+        }
+        
+        if let endDate = endDate, endDate < startDate {
+            return "Event end date must be after or equal to start date"
         }
         
         // Check registration link if registration is required
@@ -249,6 +262,6 @@ class EventManagementViewModel: ObservableObject {
     private func loadSampleEvents() {
         // Filter sample events for this gym
         self.gymEvents = SampleData.events.filter { $0.host.id == gym.id }
-            .sorted { $0.eventDate < $1.eventDate }
+            .sorted { $0.startDate < $1.startDate }
     }
 }

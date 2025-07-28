@@ -12,12 +12,13 @@ struct GymCardView: View {
     let events: [EventItem]
     @ObservedObject var viewModel: GymsViewModel
     @State private var showingLocationOptions = false
+    @State private var navigateToGymProfile = false
     
     var upcomingEvents: [EventItem] {
         let now = Date()
         return events
-            .filter { $0.eventDate > now }
-            .sorted { $0.eventDate < $1.eventDate }
+            .filter { $0.startDate > now }
+            .sorted { $0.startDate < $1.startDate }
     }
     
     var isFavorited: Bool {
@@ -125,12 +126,14 @@ struct GymCardView: View {
                 viewModel.openGymInMaps(gym)
             }
             Button("View Gym Profile") {
-                // Navigate to gym profile
-                // This would typically use navigation
+                navigateToGymProfile = true
             }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("How would you like to visit \(gym.name)?")
+        }
+        .navigationDestination(isPresented: $navigateToGymProfile) {
+            GymProfileView(gym: gym)
         }
     }
 }
@@ -170,7 +173,7 @@ struct GymEventCardView: View {
                 }
                 
                 // Event date
-                Text(formatEventDate(event.eventDate))
+                Text(formatEventDate(event.startDate))
                     .font(.appUnderline)
                     .foregroundColor(AppTheme.appTextPrimary)
                     .padding(.bottom, 8)

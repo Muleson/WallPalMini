@@ -16,7 +16,8 @@ extension EventItem: FirestoreCodable {
             "location": location,
             "description": description,
             "createdAt": createdAt.firestoreTimestamp,
-            "eventDate": eventDate.firestoreTimestamp,
+            "startDate": startDate.firestoreTimestamp,
+            "endDate": endDate.firestoreTimestamp,
             "isFeatured": isFeatured,
             "registrationRequired": registrationRequired,
             "authorId": author.id,
@@ -59,11 +60,22 @@ extension EventItem: FirestoreCodable {
             createdAt = Date()
         }
         
-        let eventDate: Date
-        if let timestamp = firestoreData["eventDate"] as? Timestamp {
-            eventDate = timestamp.dateValue()
+        let startDate: Date
+        if let timestamp = firestoreData["startDate"] as? Timestamp {
+            startDate = timestamp.dateValue()
+        } else if let timestamp = firestoreData["eventDate"] as? Timestamp {
+            // Handle legacy eventDate field for backward compatibility
+            startDate = timestamp.dateValue()
         } else {
-            eventDate = Date().addingTimeInterval(24 * 60 * 60) // Default to tomorrow
+            startDate = Date().addingTimeInterval(24 * 60 * 60) // Default to tomorrow
+        }
+        
+        let endDate: Date
+        if let timestamp = firestoreData["endDate"] as? Timestamp {
+            endDate = timestamp.dateValue()
+        } else {
+            // Default endDate to be the same as startDate if not provided
+            endDate = startDate
         }
         
         // Handle boolean values
@@ -96,7 +108,8 @@ extension EventItem: FirestoreCodable {
             mediaItems: mediaItems,
             registrationLink: registrationLink,
             createdAt: createdAt,
-            eventDate: eventDate,
+            startDate: startDate,
+            endDate: endDate,
             isFeatured: isFeatured,
             registrationRequired: registrationRequired
         )

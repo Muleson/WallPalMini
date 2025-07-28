@@ -96,7 +96,7 @@ struct EventCardView: View {
                         Spacer()
                         
                         // Time relative to current date
-                        Text(timeUntilEvent(event.eventDate))
+                        Text(timeUntilEvent(event.startDate))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
