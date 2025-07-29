@@ -8,7 +8,7 @@
 import Foundation
 import FirebaseFirestore
 
-struct MediaItem: Identifiable, Equatable {
+struct MediaItem: Identifiable, Equatable, Hashable {
     let id: String
     let url: URL
     let type: MediaType

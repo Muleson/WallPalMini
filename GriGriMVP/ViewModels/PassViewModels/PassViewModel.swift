@@ -39,7 +39,7 @@ class PassViewModel: ObservableObject {
     var lastScannedPass: Pass?
     
     init(passManager: PassManager = PassManager(),
-         gymRepository: GymRepositoryProtocol = FirebaseGymRepository()) {
+         gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository()) {
         self.passManager = passManager
         self.gymRepository = gymRepository
         

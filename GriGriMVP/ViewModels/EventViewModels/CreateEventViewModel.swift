@@ -22,19 +22,16 @@ class CreateEventViewModel: ObservableObject {
     private let mediaRepository: MediaRepositoryProtocol // Add this
     
     init(eventRepository: EventRepositoryProtocol? = nil,
-         userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
-         mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) { // Add this parameter
+         userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
+         mediaRepository: MediaRepositoryProtocol = RepositoryFactory.createMediaRepository()) {
         self.userRepository = userRepository
-        self.mediaRepository = mediaRepository // Add this
+        self.mediaRepository = mediaRepository
         
         // Initialize event repository with dependencies
         if let eventRepository = eventRepository {
             self.eventRepository = eventRepository
         } else {
-            self.eventRepository = FirebaseEventRepository(
-                userRepository: userRepository,
-                gymRepository: FirebaseGymRepository()
-            )
+            self.eventRepository = RepositoryFactory.createEventRepository()
         }
     }
     

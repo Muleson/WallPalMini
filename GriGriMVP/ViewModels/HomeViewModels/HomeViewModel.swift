@@ -8,6 +8,7 @@
 import Foundation
 import CoreLocation
 import Combine
+import EventKit
 
 @MainActor
 class HomeViewModel: ObservableObject {
@@ -68,15 +69,12 @@ class HomeViewModel: ObservableObject {
     
     // MARK: - Initialization
     
-    init(userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
-         gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
+    init(userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
+         gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
          eventRepository: EventRepositoryProtocol? = nil) {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
-        self.eventRepository = eventRepository ?? FirebaseEventRepository(
-            userRepository: userRepository,
-            gymRepository: gymRepository
-        )
+        self.eventRepository = eventRepository ?? RepositoryFactory.createEventRepository()
         
         setupLocationObservers()
         fetchUserAndFavorites()
@@ -389,5 +387,46 @@ class HomeViewModel: ObservableObject {
             // If we already have location, just find nearest gym
             findNearestGym()
         }
+    }
+    
+    // MARK: - Calendar Management
+    
+    /// Add event to device calendar
+    func addEventToCalendar(_ event: EventItem) {
+        let eventStore = EKEventStore()
+        
+        eventStore.requestAccess(to: .event) { [weak self] granted, error in
+            DispatchQueue.main.async {
+                if granted && error == nil {
+                    self?.createCalendarEvent(event, in: eventStore)
+                } else {
+                    self?.errorMessage = "Calendar access denied. Please enable in Settings."
+                    self?.hasError = true
+                }
+            }
+        }
+    }
+    
+    private func createCalendarEvent(_ event: EventItem, in eventStore: EKEventStore) {
+        let calendarEvent = EKEvent(eventStore: eventStore)
+        calendarEvent.title = event.name
+        calendarEvent.startDate = event.startDate
+        calendarEvent.endDate = event.endDate
+        calendarEvent.location = "\(event.host.name), \(event.host.location.address)"
+        calendarEvent.notes = event.description
+        calendarEvent.calendar = eventStore.defaultCalendarForNewEvents
+        
+        do {
+            try eventStore.save(calendarEvent, span: .thisEvent)
+            // Show success message or feedback
+        } catch {
+            self.errorMessage = "Failed to add event to calendar: \(error.localizedDescription)"
+            self.hasError = true
+        }
+    }
+    
+    /// Check if an event requires registration
+    func requiresRegistration(_ event: EventItem) -> Bool {
+        return event.registrationRequired ?? true // Default to true if not specified
     }
 }

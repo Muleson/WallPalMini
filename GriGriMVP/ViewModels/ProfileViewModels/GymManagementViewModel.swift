@@ -17,8 +17,8 @@ class GymManagementViewModel: ObservableObject {
     private let gymRepository: GymRepositoryProtocol
     private let userRepository: UserRepositoryProtocol
     
-    init(gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
-         userRepository: UserRepositoryProtocol = FirebaseUserRepository()) {
+    init(gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
+         userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository()) {
         self.gymRepository = gymRepository
         self.userRepository = userRepository
     }

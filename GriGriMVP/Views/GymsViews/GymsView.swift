@@ -11,22 +11,14 @@ struct GymsView: View {
     @StateObject private var viewModel: GymsViewModel
     @ObservedObject private var locationService = LocationService.shared
     
-    init(
-        gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
-        eventRepository: EventRepositoryProtocol = FirebaseEventRepository(),
-        appState: AppState
-    ) {
-        self._viewModel = StateObject(wrappedValue: GymsViewModel(
-            gymRepository: gymRepository,
-            eventRepository: eventRepository,
-            appState: appState
-        ))
+    init(appState: AppState) {
+        self._viewModel = StateObject(wrappedValue: GymsViewModel(appState: appState))
     }
     
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 16) {
+                VStack(spacing: 16) {
                     // Favourite Gyms Section
                     if !viewModel.favoriteGyms.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
@@ -112,6 +104,11 @@ struct GymsView: View {
                     Text(errorMessage)
                 }
             }
+            .navigationDestination(isPresented: $viewModel.showGymProfile) {
+                if let selectedGym = viewModel.selectedGym {
+                    GymProfileView(gym: selectedGym)
+                }
+            }
         }
         .task {
             await viewModel.loadData()
@@ -128,10 +125,6 @@ struct GymsView: View {
 }
 
 #Preview {
-    GymsView(
-        gymRepository: SampleData.MockGymRepository(),
-        eventRepository: SampleData.MockEventRepository(),
-        appState: AppState()
-    )
+    GymsView(appState: AppState())
 }
 

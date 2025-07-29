@@ -11,6 +11,8 @@ struct FeaturedEventCard: View {
     let event: EventItem
     let onView: () -> Void
     let onRegister: () -> Void
+    let onAddToCalendar: (() -> Void)? 
+    @State private var selectedGym: Gym?
     
     private var eventDateFormatted: String {
         let formatter = DateFormatter()
@@ -28,8 +30,8 @@ struct FeaturedEventCard: View {
         return "\(startTime) - \(endTime)"
     }
     
-    private var backgroundGradient: LinearGradient {
-        // Choose gradient based on event type or use random attractive gradients
+    private var fallbackGradient: LinearGradient {
+        // Fallback gradient only used when no media is available
         let gradients: [LinearGradient] = [
             LinearGradient(
                 gradient: Gradient(colors: [Color.orange.opacity(0.8), Color.red.opacity(0.6)]),
@@ -53,20 +55,14 @@ struct FeaturedEventCard: View {
             )
         ]
         
-        // Use event ID to consistently pick the same gradient for the same event
         let index = abs(event.id.hashValue) % gradients.count
         return gradients[index]
     }
     
     var body: some View {
         HStack(spacing: 0) {
-            // Event banner section - portrait orientation on left
-            Rectangle()
-                .fill(backgroundGradient)
-                .frame(width: 160, height: 240)
-                .overlay(
-                    eventBannerContent
-                )
+            // Event media section - clean image display
+            eventMediaSection
             
             // Event details section - text content on right
             eventDetailsSection
@@ -75,53 +71,73 @@ struct FeaturedEventCard: View {
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
     }
     
-    private var eventBannerContent: some View {
-        VStack {
-            Spacer()
-            
-            VStack(alignment: .leading, spacing: 8) {
-                // Event type icon at top
-                Image(systemName: climbingIcon)
-                    .font(.system(size: 40))
-                    .foregroundColor(.white.opacity(0.4))
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.bottom, 8)
-                
-                Spacer()
-                
-                // Event name styled as banner text
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(event.name.components(separatedBy: " ").chunked(into: 1), id: \.self) { chunk in
-                        Text(chunk.joined(separator: " ").uppercased())
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(1)
-                    }
+    private var eventMediaSection: some View {
+        Group {
+            // Use event mediaItems[0] if available, otherwise fallback gradient
+            if let eventMedia = event.mediaItems?.first {
+                AsyncImage(url: eventMedia.url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 160, height: 240)
+                        .clipped()
+                } placeholder: {
+                    Rectangle()
+                        .fill(fallbackGradient)
+                        .frame(width: 160, height: 240)
                 }
+            } else {
+                Rectangle()
+                    .fill(fallbackGradient)
+                    .frame(width: 160, height: 240)
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 16)
         }
     }
     
     private var eventDetailsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Host/venue info
-            HStack(spacing: 8) {
-                Image(systemName: "house.fill")
-                    .font(.caption)
-                    .foregroundColor(AppTheme.appTextLight)
-                
-                Text(event.host.name)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(AppTheme.appTextPrimary)
-                    .lineLimit(1)
+            // Host/venue info - made tappable
+            Button(action: {
+                selectedGym = event.host
+            }) {
+                HStack(spacing: 4) {
+                    // Display host gym's profile image instead of house icon
+                    AsyncImage(url: event.host.profileImage?.url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 20, height: 20)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Circle()
+                            .fill(AppTheme.appTextLight.opacity(0.3))
+                            .frame(width: 20, height: 20)
+                            .overlay(
+                                Image(systemName: "house.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(AppTheme.appTextLight)
+                            )
+                    }
+                    
+                    Text(event.host.name)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(AppTheme.appTextPrimary)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                }
             }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Event name - moved to details section
+          /*  Text(event.name)
+                .font(.system(size: 20, weight: .medium, design: .rounded))
+                .foregroundColor(AppTheme.appTextPrimary)
+                .lineLimit(2) */
             
             // Date
             Text(eventDateFormatted)
-                .font(.system(size: 18, weight: .medium, design: .rounded))
+                .font(.system(size: 16, weight: .regular, design: .rounded))
                 .foregroundColor(AppTheme.appTextPrimary)
                 .lineLimit(1)
             
@@ -161,36 +177,41 @@ struct FeaturedEventCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 
-                Button(action: onRegister) {
-                    Text("Register")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                // Conditional button based on registration requirement
+                if event.registrationRequired == true {
+                    Button(action: onRegister) {
+                        Text("Register")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.appPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .shadow(color: AppTheme.appPrimary.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                } else {
+                    Button(action: {
+                        onAddToCalendar?()
+                    }) {
+                        HStack(spacing: 6) {
+                            Text("Add to Calendar")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                        }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(AppTheme.appPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                         .shadow(color: AppTheme.appPrimary.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
                 }
             }
         }
         .padding(16)
         .frame(height: 240)
         .background(Color(AppTheme.appContentBG))
-    }
-    
-    private var climbingIcon: String {
-        // Choose icon based on event type
-        switch event.type {
-        case .competition:
-            return "trophy.fill"
-        case .social:
-            return "person.3.fill"
-        case .openDay:
-            return "door.left.hand.open"
-        case .settingTaster:
-            return "hammer.fill"
-        case .opening:
-            return "party.popper.fill"
+        .navigationDestination(item: $selectedGym) { gym in
+            GymProfileView(gym: gym)
         }
     }
     
@@ -211,7 +232,7 @@ struct FeaturedEventCard: View {
 }
 
 #Preview {
-    VStack(spacing: 20) {
+    VStack(spacing: 12) {
         // Preview with different event types from sample data
         FeaturedEventCard(
             event: SampleData.events[0], // Summer Send Festival (competition)
@@ -220,6 +241,9 @@ struct FeaturedEventCard: View {
             },
             onRegister: {
                 print("Register for: \(SampleData.events[0].name)")
+            },
+            onAddToCalendar: {
+                print("Add to calendar: \(SampleData.events[0].name)")
             }
         )
     }

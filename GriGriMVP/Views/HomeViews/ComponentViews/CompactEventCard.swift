@@ -12,13 +12,15 @@ struct CompactEventCard: View {
     let subtitle: String?
     let backgroundColor: Color
     let systemImage: String?
+    let mediaItem: MediaItem?
     let onTap: () -> Void
     
-    init(title: String, subtitle: String? = nil, backgroundColor: Color, systemImage: String? = nil, onTap: @escaping () -> Void) {
+    init(title: String, subtitle: String? = nil, backgroundColor: Color, systemImage: String? = nil, mediaItem: MediaItem? = nil, onTap: @escaping () -> Void) {
         self.title = title
         self.subtitle = subtitle
         self.backgroundColor = backgroundColor
         self.systemImage = systemImage
+        self.mediaItem = mediaItem
         self.onTap = onTap
     }
     
@@ -26,6 +28,7 @@ struct CompactEventCard: View {
     init(event: EventItem, onTap: @escaping () -> Void) {
         self.title = event.name.uppercased()
         self.subtitle = event.host.name.uppercased()
+        self.mediaItem = event.mediaItems?.first // Use first media item if available
         
         // Choose background color based on event type
         switch event.type {
@@ -48,12 +51,38 @@ struct CompactEventCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 0) {
-                Rectangle()
-                    .fill(backgroundColor)
-                    .frame(width: 200, height: 240)
-                    .overlay(
-                        overlayContent
+                ZStack {
+                    // Background (color or media)
+                    if let mediaItem = mediaItem {
+                        AsyncImage(url: mediaItem.url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Rectangle()
+                                .fill(backgroundColor)
+                        }
+                    } else {
+                        Rectangle()
+                            .fill(backgroundColor)
+                    }
+                    
+                    // Sharp gradient overlay from event type color to clear
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: .clear, location: 0.4),
+                            .init(color: AppTheme.appPrimary.opacity(0.8), location: 0.8),
+                            .init(color: AppTheme.appPrimary, location: 1.0)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
+                    
+                    // Overlay content
+                    overlayContent
+                }
+                .frame(width: 180, height: 240)
             }
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
@@ -100,45 +129,17 @@ struct CompactEventCard: View {
     }
 }
 
-// Pre-defined card variants
-extension CompactEventCard {
-    static func communityClimb(onTap: @escaping () -> Void) -> CompactEventCard {
-        CompactEventCard(
-            title: "COMMUNITY\nCLIMB",
-            subtitle: "CLIMB • CONNECT • CELEBRATE",
-            backgroundColor: Color.green.opacity(0.8),
-            systemImage: "figure.climbing",
-            onTap: onTap
-        )
+#Preview {
+    VStack(spacing: 12) {
+        // Preview with different event types from sample data
+        CompactEventCard(event: SampleData.events[0]) {
+            print("Tapped event: \(SampleData.events[0].name)")
+        }
+        
+        CompactEventCard(event: SampleData.events[1]) {
+            print("Tapped event: \(SampleData.events[1].name)")
+        }
     }
-    
-    static func vertigoFiesta(onTap: @escaping () -> Void) -> CompactEventCard {
-        CompactEventCard(
-            title: "VERTIGO\nFIESTA",
-            subtitle: "CLIMB • GET TOGETHER • PARTY",
-            backgroundColor: Color.blue.opacity(0.8),
-            systemImage: "figure.climbing",
-            onTap: onTap
-        )
-    }
-    
-    static func routeSetting(onTap: @escaping () -> Void) -> CompactEventCard {
-        CompactEventCard(
-            title: "ROUTE\nSETTING",
-            subtitle: "WORKSHOP • LEARN • CREATE",
-            backgroundColor: Color.purple.opacity(0.8),
-            systemImage: "hammer.fill",
-            onTap: onTap
-        )
-    }
-    
-    static func beginnerSession(onTap: @escaping () -> Void) -> CompactEventCard {
-        CompactEventCard(
-            title: "BEGINNER\nSESSION",
-            subtitle: "LEARN • PRACTICE • GROW",
-            backgroundColor: Color.orange.opacity(0.8),
-            systemImage: "graduationcap.fill",
-            onTap: onTap
-        )
-    }
+    .padding()
+    .background(Color.gray.opacity(0.1))
 }

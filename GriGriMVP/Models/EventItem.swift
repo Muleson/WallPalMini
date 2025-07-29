@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct EventItem: Identifiable, Equatable {
+struct EventItem: Identifiable, Equatable, Hashable {
     var id: String
     var author: User
     var host: Gym

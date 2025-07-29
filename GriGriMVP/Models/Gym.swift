@@ -8,7 +8,7 @@
 import Foundation
 import FirebaseFirestore
 
-struct Gym: Identifiable, Equatable {
+struct Gym: Identifiable, Equatable, Hashable {
     var id: String
     var email: String
     var name: String
@@ -102,14 +102,14 @@ struct GymAdministrator: Identifiable, Codable {
     }
 }
 
-enum ClimbingTypes: String, Codable, CaseIterable {
+enum ClimbingTypes: String, Codable, CaseIterable, Hashable {
     case bouldering
     case sport
     case board
     case gym
 }
 
-enum Amenities: String, Codable, CaseIterable {
+enum Amenities: String, Codable, CaseIterable, Hashable {
     case showers = "Showers"
     case lockers = "Lockers"
     case bar = "Bar"

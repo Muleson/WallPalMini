@@ -51,9 +51,9 @@ class GymCreationViewModel: ObservableObject {
     private var geocodingTask: Task<Void, Never>?
     
     init() {
-        self.userRepository = FirebaseUserRepository()
-        self.gymRepository = FirebaseGymRepository()
-        self.mediaRepository = FirebaseMediaRepository()
+        self.userRepository = RepositoryFactory.createUserRepository()
+        self.gymRepository = RepositoryFactory.createGymRepository()
+        self.mediaRepository = RepositoryFactory.createMediaRepository()
     }
     
     init(userRepository: UserRepositoryProtocol, gymRepository: GymRepositoryProtocol, mediaRepository: MediaRepositoryProtocol) {

@@ -17,6 +17,10 @@ class GymsViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     
+    // Add navigation state
+    @Published var showGymProfile = false
+    @Published var selectedGym: Gym?
+    
     private let locationService = LocationService.shared
     private let gymRepository: GymRepositoryProtocol
     private let eventRepository: EventRepositoryProtocol
@@ -47,9 +51,9 @@ class GymsViewModel: ObservableObject {
     }
     
     init(
-        gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
-        eventRepository: EventRepositoryProtocol = FirebaseEventRepository(),
-        userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
+        gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
+        eventRepository: EventRepositoryProtocol = RepositoryFactory.createEventRepository(),
+        userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
         appState: AppState
     ) {
         self.gymRepository = gymRepository
@@ -252,6 +256,11 @@ class GymsViewModel: ObservableObject {
         // Remove from local arrays
         gyms.removeAll { $0.id == gym.id }
         favoriteGyms.removeAll { $0.id == gym.id }
+    }
+    
+    func selectGym(_ gym: Gym) {
+        selectedGym = gym
+        showGymProfile = true
     }
 }
 

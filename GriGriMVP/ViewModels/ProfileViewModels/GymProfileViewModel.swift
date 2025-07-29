@@ -34,12 +34,9 @@ class GymProfileViewModel: ObservableObject {
     private let eventRepository: EventRepositoryProtocol
     
     init(gym: Gym, 
-         gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
-         userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
-         eventRepository: EventRepositoryProtocol = FirebaseEventRepository(
-             userRepository: FirebaseUserRepository(),
-             gymRepository: FirebaseGymRepository()
-         )) {
+         gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
+         userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
+         eventRepository: EventRepositoryProtocol = RepositoryFactory.createEventRepository()) {
         self.gym = gym
         self.gymRepository = gymRepository
         self.userRepository = userRepository

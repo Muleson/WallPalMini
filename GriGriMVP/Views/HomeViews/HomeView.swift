@@ -11,10 +11,11 @@ struct HomeView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var viewModel = HomeViewModel()
     @State private var navigateToPasses = false
+    @State private var selectedEvent: EventItem? // Add state for selected event
     
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     // Header Section
                     headerSection
@@ -37,6 +38,10 @@ struct HomeView: View {
             .navigationBarHidden(true)
             .navigationDestination(isPresented: $navigateToPasses) {
                 PassesRootView()
+            }
+            // Add navigation destination for event details
+            .navigationDestination(item: $selectedEvent) { event in
+                EventPageView(event: event)
             }
         }
         .onAppear {
@@ -113,6 +118,35 @@ struct HomeView: View {
         .padding(.top, 24)
     }
     
+    // MARK: - Coming Up Section
+    private var comingUpSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Coming Up")
+                .font(.system(size: 28, weight: .light, design: .rounded))
+                .foregroundColor(AppTheme.appTextPrimary)
+                .padding(.horizontal, 16)
+            
+            if viewModel.isLoadingEvents {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        // Combine nearby events with fallback events sorted by date
+                        ForEach(upcomingEventsForDisplay.prefix(5)) { event in
+                            CompactEventCard(event: event) {
+                                selectedEvent = event // Set selected event for navigation
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+            }
+        }
+        .padding(.bottom, 32)
+    }
+    
     // MARK: - Happening Next Section
     private var happeningNextSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -129,15 +163,17 @@ struct HomeView: View {
                 FeaturedEventCard(
                     event: featuredEvent,
                     onView: {
-                        // Navigate to event details
-                        print("View event: \(featuredEvent.name)")
+                        selectedEvent = featuredEvent // Also navigate from featured card
                     },
                     onRegister: {
                         // Register for event
                         print("Register for event: \(featuredEvent.name)")
+                    },
+                    onAddToCalendar: {
+                        viewModel.addEventToCalendar(featuredEvent)
                     }
                 )
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 12)
             } else {
                 Text("No featured events available")
                     .font(.appBody)
@@ -148,49 +184,26 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Coming Up Section
-    private var comingUpSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Coming Up")
-                .font(.system(size: 28, weight: .light, design: .rounded))
-                .foregroundColor(AppTheme.appTextPrimary)
-                .padding(.horizontal, 16)
-            
-            if viewModel.isLoadingEvents {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        // Pre-defined event cards
-                        CompactEventCard.communityClimb {
-                            print("Community Climb tapped")
-                        }
-                        
-                        CompactEventCard.vertigoFiesta {
-                            print("Vertigo Fiesta tapped")
-                        }
-                        
-                        // Dynamic event cards from your data
-                        ForEach(viewModel.nearbyEvents.prefix(3)) { event in
-                            CompactEventCard(event: event) {
-                                print("Event tapped: \(event.name)")
-                            }
-                        }
-                        
-                        // Show route setting if no nearby events
-                        if viewModel.nearbyEvents.isEmpty {
-                            CompactEventCard.routeSetting {
-                                print("Route Setting tapped")
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                }
-            }
+    // MARK: - Helper computed property for upcoming events
+    private var upcomingEventsForDisplay: [EventItem] {
+        let nearbyEvents = viewModel.nearbyEvents
+        let minEventsToShow = 5
+        
+        // If we have enough nearby events, use them
+        if nearbyEvents.count >= minEventsToShow {
+            return Array(nearbyEvents.prefix(minEventsToShow))
         }
-        .padding(.bottom, 32)
+        
+        // Otherwise, combine nearby events with other events sorted by date
+        let allOtherEvents = viewModel.allEvents
+            .filter { otherEvent in
+                // Exclude events that are already in nearby events
+                !nearbyEvents.contains { $0.id == otherEvent.id }
+            }
+            .sorted { $0.startDate < $1.startDate } // Sort by nearest date
+        
+        let combinedEvents = nearbyEvents + allOtherEvents
+        return Array(combinedEvents.prefix(minEventsToShow))
     }
 }
 

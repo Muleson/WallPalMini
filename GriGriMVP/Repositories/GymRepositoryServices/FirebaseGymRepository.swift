@@ -14,7 +14,7 @@ class FirebaseGymRepository: GymRepositoryProtocol {
     private let usersCollection = "users"
     private let mediaRepository: MediaRepositoryProtocol
     
-    init(mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) {
+    init(mediaRepository: MediaRepositoryProtocol = RepositoryFactory.createMediaRepository()) {
         self.mediaRepository = mediaRepository
     }
     

@@ -9,6 +9,12 @@ import SwiftUI
 
 struct EventPageView: View {
     let event: EventItem
+    @StateObject private var viewModel: EventPageViewModel
+    
+    init(event: EventItem) {
+        self.event = event
+        self._viewModel = StateObject(wrappedValue: EventPageViewModel(event: event))
+    }
     
     var body: some View {
         ScrollView {
@@ -26,34 +32,14 @@ struct EventPageView: View {
                     .padding(.horizontal, 24)
                 
                 // Event date and time section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(formatEventDate(event.startDate))
+                HStack(spacing: 8) {
+                    Text(viewModel.formattedEventDate)
                         .font(.appSubheadline)
                         .foregroundStyle(AppTheme.appTextPrimary)
                     
-                    HStack {
-                        Text(formatEventTime(event.startDate))
-                            .font(.appUnderline)
-                            .foregroundColor(AppTheme.appTextLight)
-                        
-                        // Show end time if different from start time
-                        if event.endDate != event.startDate {
-                            Text("–")
-                                .font(.appUnderline)
-                                .foregroundColor(AppTheme.appTextLight)
-                            
-                            Text(formatEventTime(event.endDate))
-                                .font(.appUnderline)
-                                .foregroundColor(AppTheme.appTextLight)
-                        }
-                    }
-                    
-                    // Show duration if it's a multi-day event or longer than 2 hours
-                    if shouldShowDuration() {
-                        Text(formatEventDuration())
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    Text(viewModel.formattedTimeAndDuration)
+                        .font(.appUnderline)
+                        .foregroundColor(AppTheme.appTextLight)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 16)
@@ -66,7 +52,7 @@ struct EventPageView: View {
                 
                 // Host and location section
                 HStack {
-                    // Profile image placeholder - assuming we need to access host's profile image
+                    // Profile image placeholder
                     if let profileImage = event.host.profileImage {
                         AsyncImage(url: profileImage.url) { image in
                             image
@@ -87,14 +73,14 @@ struct EventPageView: View {
                             .foregroundColor(.gray)
                     }
                     Text(event.host.name)
-                        .font(.appButtonPrimary)
+                        .font(.appSubheadline)
                         .foregroundStyle(AppTheme.appPrimary)
                     
                     Spacer()
                     
-                    // Maps button placeholder
+                    // Maps button
                     Button(action: {
-                        // TODO: Open maps with event location
+                        viewModel.openMaps()
                     }) {
                         HStack {
                             Image(systemName: "location.magnifyingglass")
@@ -110,7 +96,7 @@ struct EventPageView: View {
                     }
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 16)
+                .padding(.vertical, 8)
                 
                 // Divider
                 Rectangle()
@@ -119,10 +105,10 @@ struct EventPageView: View {
                     .padding(.horizontal, 24)
                 
                 // Event media section
-                if let mediaItems = event.mediaItems, !mediaItems.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(mediaItems, id: \.id) { mediaItem in
+                if viewModel.hasMediaItems {
+                    GeometryReader { geometry in
+                        TabView {
+                            ForEach(viewModel.mediaItems, id: \.id) { mediaItem in
                                 AsyncImage(url: mediaItem.url) { image in
                                     image
                                         .resizable()
@@ -131,20 +117,22 @@ struct EventPageView: View {
                                     Rectangle()
                                         .fill(Color.gray.opacity(0.3))
                                 }
-                                .frame(width: 200, height: 150)
+                                .frame(width: geometry.size.width - 16, height: (geometry.size.width - 16) * 3/2)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                         }
-                        .padding(.horizontal)
+                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: viewModel.mediaItems.count > 1 ? .automatic : .never))
+                        .frame(height: (geometry.size.width - 16) * 3/2)
                     }
-                    .padding(.vertical, 16)
+                    .frame(height: UIScreen.main.bounds.width * 3/2 - 24)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 16)
                     
                     // Divider
                     Rectangle()
                         .fill(AppTheme.appSecondary)
                         .frame(height: 1)
                         .padding(.horizontal, 24)
-                    
                 }
                 
                 // Description section
@@ -167,10 +155,7 @@ struct EventPageView: View {
             // Floating register button
             if event.registrationRequired {
                 Button(action: {
-                    if let registrationLink = event.registrationLink,
-                       let url = URL(string: registrationLink) {
-                        UIApplication.shared.open(url)
-                    }
+                    viewModel.handleRegistration()
                 }) {
                     HStack {
                         Image(systemName: "person.badge.plus")
@@ -187,37 +172,6 @@ struct EventPageView: View {
                 .padding(.trailing, 20)
                 .padding(.bottom, 20)
             }
-        }
-    }
-    
-    private func formatEventDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
-    }
-    
-    private func formatEventTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-    
-    private func shouldShowDuration() -> Bool {
-        let duration = event.endDate.timeIntervalSince(event.startDate)
-        return duration > 2 * 3600 // Show if longer than 2 hours
-    }
-    
-    private func formatEventDuration() -> String {
-        let duration = event.endDate.timeIntervalSince(event.startDate)
-        let hours = Int(duration / 3600)
-        let minutes = Int((duration.truncatingRemainder(dividingBy: 3600)) / 60)
-        
-        if hours > 0 && minutes > 0 {
-            return "Duration: \(hours)h \(minutes)m"
-        } else if hours > 0 {
-            return "Duration: \(hours) hours"
-        } else {
-            return "Duration: \(minutes) minutes"
         }
     }
 }

@@ -128,9 +128,9 @@ class FirebaseEventRepository: EventRepositoryProtocol {
     private let gymRepository: GymRepositoryProtocol
     private let mediaRepository: MediaRepositoryProtocol
     
-    init(userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
-         gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
-         mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) {
+    init(userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
+         gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
+         mediaRepository: MediaRepositoryProtocol = RepositoryFactory.createMediaRepository()) {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
         self.mediaRepository = mediaRepository
