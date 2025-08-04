@@ -29,7 +29,7 @@ struct MainTabView: View {
             }
             
             NavigationStack {
-                GymsView(appState: appState)
+                GymsListView(appState: appState)
             }
             .tabItem {
                 Label("Gyms", systemImage: "building.2")

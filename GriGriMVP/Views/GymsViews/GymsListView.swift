@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct GymsView: View {
+struct GymsListView: View {
     @StateObject private var viewModel: GymsViewModel
     @ObservedObject private var locationService = LocationService.shared
     
@@ -125,6 +125,6 @@ struct GymsView: View {
 }
 
 #Preview {
-    GymsView(appState: AppState())
+    GymsListView(appState: AppState())
 }
 

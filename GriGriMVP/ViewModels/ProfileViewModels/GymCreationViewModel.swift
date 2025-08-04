@@ -132,6 +132,7 @@ class GymCreationViewModel: ObservableObject {
         
         Task {
             do {
+                // Try to get cached location first
                 let location = try await locationService.requestCurrentLocation()
                 
                 self.latitude = location.coordinate.latitude
@@ -148,6 +149,30 @@ class GymCreationViewModel: ObservableObject {
                     print("Failed to get address: \(error)")
                 }
                 
+            } catch LocationError.cacheExpired {
+                // Cache expired, try to refresh
+                do {
+                    try await locationService.refreshLocationCache()
+                    // Retry getting the location
+                    let location = try await locationService.requestCurrentLocation()
+                    
+                    self.latitude = location.coordinate.latitude
+                    self.longitude = location.coordinate.longitude
+                    self.useCurrentLocation = true
+                    self.isLocationLoading = false
+                    
+                    // Get address for the location
+                    do {
+                        let address = try await locationService.reverseGeocode(location)
+                        self.address = address
+                    } catch {
+                        print("Failed to get address: \(error)")
+                    }
+                    
+                } catch {
+                    self.isLocationLoading = false
+                    self.errorMessage = "Failed to get location: \(error.localizedDescription)"
+                }
             } catch {
                 self.isLocationLoading = false
                 if let locationError = error as? LocationError {

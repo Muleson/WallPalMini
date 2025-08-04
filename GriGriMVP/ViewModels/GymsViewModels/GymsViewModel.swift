@@ -8,6 +8,7 @@
 import Foundation
 import CoreLocation
 import SwiftUI
+import Combine
 
 @MainActor
 class GymsViewModel: ObservableObject {
@@ -33,16 +34,23 @@ class GymsViewModel: ObservableObject {
         return appState.user?.id
     }
     
+    // MARK: - Updated Location Methods
+    
     var gymsByDistance: [Gym] {
-        guard let userLocation = userLocation else {
+        // Use cached location from LocationService
+        guard let userLocation = locationService.getCachedLocation() else {
             return gyms
         }
         
-        return locationService.sortEventsByProximity(
-            gyms,
-            to: userLocation,
-            locationExtractor: { $0.location }
-        )
+        do {
+            return try locationService.sortEventsByProximity(
+                gyms,
+                locationExtractor: { $0.location }
+            )
+        } catch {
+            print("Failed to sort gyms by proximity: \(error)")
+            return gyms
+        }
     }
     
     var nonFavoriteGymsByDistance: [Gym] {
@@ -64,8 +72,12 @@ class GymsViewModel: ObservableObject {
     }
     
     private func setupLocationObservation() {
-        // Observe location service changes if needed
-        // Could add observers for location authorization changes
+        // Observe cached location changes
+        locationService.$cachedLocation
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] cachedLocation in
+                self?.userLocation = cachedLocation
+            }
     }
     
     func loadData() async {
@@ -101,6 +113,14 @@ class GymsViewModel: ObservableObject {
     private func loadUserLocation() async {
         do {
             userLocation = try await locationService.requestCurrentLocation()
+        } catch LocationError.cacheExpired {
+            // Try to refresh cache
+            do {
+                try await locationService.refreshLocationCache()
+                userLocation = try await locationService.requestCurrentLocation()
+            } catch {
+                print("Failed to get user location after refresh: \(error.localizedDescription)")
+            }
         } catch {
             print("Failed to get user location: \(error.localizedDescription)")
             // Continue without location - gyms will be shown in default order
@@ -190,7 +210,8 @@ class GymsViewModel: ObservableObject {
     }
     
     func distanceToGym(_ gym: Gym) -> String? {
-        guard let userLocation = userLocation else { return nil }
+        // Use cached location directly
+        guard let userLocation = locationService.getCachedLocation() else { return nil }
         
         let distance = locationService.distance(from: userLocation, to: gym.location)
         

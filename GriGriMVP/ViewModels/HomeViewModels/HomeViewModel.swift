@@ -33,7 +33,6 @@ class HomeViewModel: ObservableObject {
     // Location services
     @Published var userLocation: CLLocation?
     @Published var locationPermissionGranted = false
-    @Published var canRequestLocation = true
     
     // MARK: - Private Properties
     private let maxDistanceInMeters: Double = 10000
@@ -76,11 +75,12 @@ class HomeViewModel: ObservableObject {
         self.gymRepository = gymRepository
         self.eventRepository = eventRepository ?? RepositoryFactory.createEventRepository()
 
-        
         setupLocationObservers()
         fetchUserAndFavorites()
         fetchEvents()
-        requestLocationIfNeeded()
+        
+        // Check for existing cached location
+        checkCachedLocation()
     }
     
     // MARK: - Location Management
@@ -109,57 +109,41 @@ class HomeViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+        
+        // Observe cached location changes
+        locationService.$cachedLocation
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] cachedLocation in
+                if let location = cachedLocation {
+                    self?.userLocation = location
+                    self?.applyFilters()
+                    self?.findNearestGym()
+                }
+            }
+            .store(in: &cancellables)
     }
     
     private func updateLocationPermissionStatus(_ status: CLAuthorizationStatus) {
         locationPermissionGranted = status == .authorizedWhenInUse || status == .authorizedAlways
-        canRequestLocation = status != .denied && status != .restricted
-        
-        // If permission was just granted, try to get location
-        if locationPermissionGranted && userLocation == nil {
-            requestUserLocation()
+    }
+    
+    /// Check for cached location on initialization
+    private func checkCachedLocation() {
+        if let cachedLocation = locationService.getCachedLocation() {
+            userLocation = cachedLocation
+            applyFilters()
+            findNearestGym()
         }
     }
     
-    private func requestLocationIfNeeded() {
-        if locationService.authorizationStatus == .authorizedWhenInUse ||
-           locationService.authorizationStatus == .authorizedAlways {
-            requestUserLocation()
-        }
-    }
-    
-    private var isRequestingLocation = false
-
-    func requestUserLocation() {
-        guard !isRequestingLocation else {
-            print("Location request already in progress")
-            return
-        }
-        
-        isRequestingLocation = true
-        
+    /// Manual refresh for pull-to-refresh
+    func refreshLocation() {
         Task {
-            // Remove the defer block and handle cleanup manually
             do {
-                let location = try await LocationService.shared.requestCurrentLocation()
-                
-                await MainActor.run {
-                    self.userLocation = location
-                    self.errorMessage = nil
-                    self.hasError = false
-                    self.isRequestingLocation = false // Set this here
-                }
-                
-                // Apply filters and find nearest gym with new location
-                self.applyFilters()
-                self.findNearestGym()
-                
+                try await locationService.refreshLocationCache()
+                // Location will be updated via observer
             } catch {
-                await MainActor.run {
-                    self.errorMessage = "Failed to get location: \(error.localizedDescription)"
-                    self.hasError = true
-                    self.isRequestingLocation = false // And also here in the error case
-                }
+                handleLocationError(error.localizedDescription)
             }
         }
     }
@@ -185,14 +169,14 @@ class HomeViewModel: ObservableObject {
             do {
                 let events = try await eventRepository.fetchAllEvents()
                 
-                self.allEvents = events
-                self.isLoadingEvents = false
-                self.applyFilters()
+                allEvents = events
+                isLoadingEvents = false
+                applyFilters()
                 
             } catch {
-                self.errorMessage = "Failed to load events: \(error.localizedDescription)"
-                self.hasError = true
-                self.isLoadingEvents = false
+                errorMessage = "Failed to load events: \(error.localizedDescription)"
+                hasError = true
+                isLoadingEvents = false
             }
         }
     }
@@ -201,13 +185,13 @@ class HomeViewModel: ObservableObject {
         Task {
             do {
                 if let user = try await userRepository.getCurrentUser() {
-                    self.currentUser = user
-                    self.favoritedEventIds = Set(user.favoriteEvents ?? [])
-                    self.updateFavoriteEvents()
+                    currentUser = user
+                    favoritedEventIds = Set(user.favoriteEvents ?? [])
+                    updateFavoriteEvents()
                 }
             } catch {
-                self.errorMessage = "Failed to load user data: \(error.localizedDescription)"
-                self.hasError = true
+                errorMessage = "Failed to load user data: \(error.localizedDescription)"
+                hasError = true
             }
         }
     }
@@ -220,7 +204,7 @@ class HomeViewModel: ObservableObject {
         Task {
             do {
                 let gyms = try await gymRepository.fetchAllGyms()
-                self.allGyms = gyms
+                allGyms = gyms
                 
                 // Find the nearest gym
                 let nearestGym = gyms.min { gym1, gym2 in
@@ -230,12 +214,11 @@ class HomeViewModel: ObservableObject {
                 }
                 
                 self.nearestGym = nearestGym
-                self.isLoadingGyms = false
+                isLoadingGyms = false
                 
             } catch {
                 print("Failed to fetch gyms: \(error.localizedDescription)")
-                self.isLoadingGyms = false
-                // Set a fallback gym or leave as nil
+                isLoadingGyms = false
             }
         }
     }
@@ -243,7 +226,6 @@ class HomeViewModel: ObservableObject {
     // MARK: - User Favorites Management
     
     private func updateFavoriteEvents() {
-        // Apply filters that depend on favorites
         applyFilters()
     }
     
@@ -273,8 +255,8 @@ class HomeViewModel: ObservableObject {
                     updateFavoriteEvents()
                 }
             } catch {
-                self.errorMessage = "Failed to update favorite: \(error.localizedDescription)"
-                self.hasError = true
+                errorMessage = "Failed to update favorite: \(error.localizedDescription)"
+                hasError = true
             }
         }
     }
@@ -285,7 +267,7 @@ class HomeViewModel: ObservableObject {
         filterFeaturedEvents()
         filterNearbyEvents()
         
-        // Find nearest gym when applying filters if location available
+        // Find nearest gym when applying filters if location available and no gym found
         if userLocation != nil && nearestGym == nil {
             findNearestGym()
         }
@@ -307,48 +289,67 @@ class HomeViewModel: ObservableObject {
         // Get upcoming events only
         let upcomingEvents = allEvents.filter { $0.startDate > Date() }
         
-        guard let userLocation = userLocation, !upcomingEvents.isEmpty else {
-            // No location or no events, sort by date
+        guard !upcomingEvents.isEmpty else {
+            nearbyEvents = []
+            return
+        }
+        
+        // If no location, just show upcoming events sorted by date
+        guard userLocation != nil else {
             nearbyEvents = Array(upcomingEvents
                 .sorted(by: { $0.startDate < $1.startDate })
                 .prefix(10))
             return
         }
         
-        // Extract location data from an event
-        let locationExtractor: (EventItem) -> LocationData = { event in
-            return event.host.location
+        // Use cache-based filtering from LocationService
+        do {
+            let locationExtractor: (EventItem) -> LocationData = { event in
+                return event.host.location
+            }
+            
+            // Filter events by distance using cached location
+            let filteredEvents = try locationService.filterEventsByDistance(
+                upcomingEvents,
+                maxDistance: maxDistanceInMeters,
+                locationExtractor: locationExtractor
+            )
+            
+            // Sort by proximity using cached location
+            let sortedEvents = try locationService.sortEventsByProximity(
+                filteredEvents,
+                locationExtractor: locationExtractor
+            )
+            
+            // Limit number of results
+            nearbyEvents = Array(sortedEvents.prefix(10))
+            
+        } catch LocationError.cacheExpired {
+            // Cache expired, show events sorted by date
+            nearbyEvents = Array(upcomingEvents
+                .sorted(by: { $0.startDate < $1.startDate })
+                .prefix(10))
+        } catch {
+            print("Error filtering nearby events: \(error)")
+            nearbyEvents = Array(upcomingEvents
+                .sorted(by: { $0.startDate < $1.startDate })
+                .prefix(10))
         }
-        
-        // Filter events by distance using LocationService
-        let filteredEvents = locationService.filterEventsByDistance(
-            upcomingEvents,
-            from: userLocation,
-            maxDistance: maxDistanceInMeters,
-            locationExtractor: locationExtractor
-        )
-        
-        // Sort by proximity using LocationService
-        let sortedEvents = locationService.sortEventsByProximity(
-            filteredEvents,
-            to: userLocation,
-            locationExtractor: locationExtractor
-        )
-        
-        // Limit number of results
-        nearbyEvents = Array(sortedEvents.prefix(10))
     }
     
     // MARK: - Utility Methods
     
     func distanceToEvent(_ event: EventItem) -> Double? {
-        guard let userLocation = userLocation else { return nil }
+        guard userLocation != nil else { return nil }
         
-        return locationService.distanceToEvent(
-            event,
-            from: userLocation,
-            locationExtractor: { $0.host.location }
-        )
+        do {
+            return try locationService.distanceToEvent(
+                event,
+                locationExtractor: { $0.host.location }
+            )
+        } catch {
+            return nil
+        }
     }
     
     func formattedDistanceToEvent(_ event: EventItem) -> String? {
@@ -372,14 +373,7 @@ class HomeViewModel: ObservableObject {
     func refresh() {
         fetchUserAndFavorites()
         fetchEvents()
-        
-        // Re-request location if we have permission but no location
-        if locationPermissionGranted && userLocation == nil {
-            requestUserLocation()
-        } else if userLocation != nil {
-            // If we already have location, just find nearest gym
-            findNearestGym()
-        }
+        refreshLocation()
     }
     
     // MARK: - Calendar Management
@@ -411,10 +405,10 @@ class HomeViewModel: ObservableObject {
         
         do {
             try eventStore.save(calendarEvent, span: .thisEvent)
-            // Show success message or feedback
+            // Could add success feedback here
         } catch {
-            self.errorMessage = "Failed to add event to calendar: \(error.localizedDescription)"
-            self.hasError = true
+            errorMessage = "Failed to add event to calendar: \(error.localizedDescription)"
+            hasError = true
         }
     }
     

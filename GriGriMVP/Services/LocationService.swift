@@ -18,74 +18,114 @@ class LocationService: NSObject, ObservableObject {
     @Published var isLocationServicesEnabled: Bool = false
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var cachedLocation: CLLocation?
+    @Published var lastLocationUpdate: Date?
     
     private let locationManager = CLLocationManager()
     private let geocoder = CLGeocoder()
-    private var locationCompletion: ((Result<CLLocation, Error>) -> Void)?
-    private var locationTimer: Timer?
-    private var locationContinuation: CheckedContinuation<CLLocation, Error>? // For the new requestCurrentLocation method
+    private var locationContinuation: CheckedContinuation<CLLocation, Error>?
+    
+    // Auto-refresh configuration
+    private let autoRefreshInterval: TimeInterval = 300.0 // 5 minutes
+    private let cacheValidityDuration: TimeInterval = 600.0 // 10 minutes
+    private var autoRefreshTimer: Timer?
     
     // Configuration
     private let locationTimeout: TimeInterval = 30.0
     private let desiredAccuracy: CLLocationAccuracy = kCLLocationAccuracyNearestTenMeters
-    private let maximumLocationAge: TimeInterval = 300.0 // 5 minutes
+    private let maximumLocationAge: TimeInterval = 300.0
     
-    private var isRequestingLocation = false // Add this flag
+    private var isRequestingLocation = false
     
     override init() {
         super.init()
         setupLocationManager()
+        
+        // Start auto-refresh system
+        Task {
+            await initializeLocationCache()
+            startAutoRefresh()
+        }
     }
     
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = desiredAccuracy
         locationManager.distanceFilter = 10.0
-        
-        isLocationServicesEnabled = CLLocationManager.locationServicesEnabled()
+
         authorizationStatus = locationManager.authorizationStatus
     }
     
-    // MARK: - Basic Location Operations
+    // MARK: - Cache-Only Public Methods
     
-    func distance(from userLocation: CLLocation, to locationData: LocationData) -> Double {
-        let eventLocation = CLLocation(latitude: locationData.latitude, longitude: locationData.longitude)
-        return userLocation.distance(from: eventLocation)
-    }
-    
-    func createCLLocation(from locationData: LocationData) -> CLLocation {
-        return CLLocation(latitude: locationData.latitude, longitude: locationData.longitude)
-    }
-    
-    // MARK: - Location Parsing
-    
-    func parseLocationString(_ locationString: String) -> LocationData? {
-        let components = locationString.split(separator: ",")
-        
-        guard components.count == 2,
-              let latitude = Double(components[0]),
-              let longitude = Double(components[1]) else {
+    /// Get cached location - ViewModels should use this
+    func getCachedLocation() -> CLLocation? {
+        guard let lastUpdate = lastLocationUpdate,
+              Date().timeIntervalSince(lastUpdate) < cacheValidityDuration else {
             return nil
         }
-        
-        return LocationData(latitude: latitude, longitude: longitude, address: nil)
+        return cachedLocation
     }
     
-    // MARK: - Event Filtering & Sorting
+    /// Check if we have valid cached location
+    var hasCachedLocation: Bool {
+        return getCachedLocation() != nil
+    }
     
-    /// Filter events based on their distance from a location
+    /// Main method ViewModels should call - cache only, no new requests
+    func requestCurrentLocation() async throws -> CLLocation {
+        guard let cachedLocation = getCachedLocation() else {
+            throw LocationError.cacheExpired
+        }
+        return cachedLocation
+    }
+    
+    /// Manual refresh for pull-to-refresh or explicit user action
+    func refreshLocationCache() async throws {
+        let location = try await requestLocationInternal()
+        cachedLocation = location
+        lastLocationUpdate = Date()
+    }
+    
+    // MARK: - Event Filtering & Sorting (Cache-Based)
+    
     func filterEventsByDistance<T>(_ events: [T],
-                                 from userLocation: CLLocation,
                                  maxDistance: Double,
-                                 locationExtractor: (T) -> LocationData) -> [T] {
+                                 locationExtractor: (T) -> LocationData) throws -> [T] {
+        guard let userLocation = getCachedLocation() else {
+            throw LocationError.cacheExpired
+        }
+        
         return events.filter { event in
             let locationData = locationExtractor(event)
-            let distanceToEvent = distance(from: userLocation, to: locationData)
-            return distanceToEvent <= maxDistance
+            let eventLocation = CLLocation(latitude: locationData.latitude, longitude: locationData.longitude)
+            let distance = userLocation.distance(from: eventLocation)
+            return distance <= maxDistance
         }
     }
     
-    /// Sort events by proximity to a location (closest first)
+    func sortEventsByProximity<T>(_ events: [T],
+                                locationExtractor: (T) -> LocationData) throws -> [T] {
+        guard let userLocation = getCachedLocation() else {
+            throw LocationError.cacheExpired
+        }
+        
+        return events.sorted { event1, event2 in
+            let location1 = locationExtractor(event1)
+            let location2 = locationExtractor(event2)
+            
+            let eventLocation1 = CLLocation(latitude: location1.latitude, longitude: location1.longitude)
+            let eventLocation2 = CLLocation(latitude: location2.latitude, longitude: location2.longitude)
+            
+            let distance1 = userLocation.distance(from: eventLocation1)
+            let distance2 = userLocation.distance(from: eventLocation2)
+            
+            return distance1 < distance2
+        }
+    }
+    
+    // MARK: - Additional Sorting Methods
+
     func sortEventsByProximity<T>(_ events: [T],
                                 to userLocation: CLLocation,
                                 locationExtractor: (T) -> LocationData) -> [T] {
@@ -93,74 +133,54 @@ class LocationService: NSObject, ObservableObject {
             let location1 = locationExtractor(event1)
             let location2 = locationExtractor(event2)
             
-            let distance1 = distance(from: userLocation, to: location1)
-            let distance2 = distance(from: userLocation, to: location2)
+            let eventLocation1 = CLLocation(latitude: location1.latitude, longitude: location1.longitude)
+            let eventLocation2 = CLLocation(latitude: location2.latitude, longitude: location2.longitude)
+            
+            let distance1 = userLocation.distance(from: eventLocation1)
+            let distance2 = userLocation.distance(from: eventLocation2)
             
             return distance1 < distance2
         }
     }
+
+    func filterEventsByDistance<T>(_ events: [T],
+                                 from userLocation: CLLocation,
+                                 maxDistance: Double,
+                                 locationExtractor: (T) -> LocationData) -> [T] {
+        return events.filter { event in
+            let locationData = locationExtractor(event)
+            let eventLocation = CLLocation(latitude: locationData.latitude, longitude: locationData.longitude)
+            let distance = userLocation.distance(from: eventLocation)
+            return distance <= maxDistance
+        }
+    }
     
-    /// Get the distance between user location and an event
     func distanceToEvent<T>(_ event: T,
-                          from userLocation: CLLocation,
-                          locationExtractor: (T) -> LocationData) -> Double {
+                          locationExtractor: (T) -> LocationData) throws -> Double {
+        guard let userLocation = getCachedLocation() else {
+            throw LocationError.cacheExpired
+        }
+        
         let locationData = locationExtractor(event)
-        return distance(from: userLocation, to: locationData)
+        let eventLocation = CLLocation(latitude: locationData.latitude, longitude: locationData.longitude)
+        return userLocation.distance(from: eventLocation)
     }
     
-    // MARK: - New Location Acquisition Methods
+    // MARK: - Utility Methods
     
-    func requestCurrentLocation() async throws -> CLLocation {
-        // Prevent multiple simultaneous requests
-        guard !isRequestingLocation else {
-            throw LocationError.requestInProgress
-        }
-        
-        isRequestingLocation = true
-        
-        defer {
-            isRequestingLocation = false
-        }
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            // Make sure we don't have a pending continuation
-            if locationContinuation != nil {
-                locationContinuation?.resume(throwing: LocationError.cancelled)
-            }
-            
-            locationContinuation = continuation
-            
-            guard isLocationServicesEnabled else {
-                locationContinuation?.resume(throwing: LocationError.servicesDisabled)
-                locationContinuation = nil
-                return
-            }
-            
-            guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
-                if authorizationStatus == .notDetermined {
-                    locationManager.requestWhenInUseAuthorization()
-                    return
-                } else {
-                    locationContinuation?.resume(throwing: LocationError.permissionDenied)
-                    locationContinuation = nil
-                    return
-                }
-            }
-            
-            locationManager.startUpdatingLocation()
-            
-            // Set a timeout
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-                if let continuation = self?.locationContinuation {
-                    self?.locationContinuation = nil
-                    continuation.resume(throwing: LocationError.timeout)
-                    self?.locationManager.stopUpdatingLocation()
-                }
-            }
+    func distance(from userLocation: CLLocation, to locationData: LocationData) -> Double {
+        let eventLocation = CLLocation(latitude: locationData.latitude, longitude: locationData.longitude)
+        return userLocation.distance(from: eventLocation)
+    }
+    
+    func openLocationSettings() {
+        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(settingsUrl)
         }
     }
     
-    // Updated geocode method (replacing your placeholder)
+    // MARK: - Geocoding
+    
     func geocode(address: String) async throws -> LocationData {
         let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedAddress.isEmpty else {
@@ -201,14 +221,6 @@ class LocationService: NSObject, ObservableObject {
         }
     }
     
-    func openLocationSettings() {
-        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(settingsUrl)
-        }
-    }
-    
-    // MARK: - Address Search & Suggestions
-    
     func searchAddresses(_ query: String) async throws -> [AddressSuggestion] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedQuery.count >= 3 else {
@@ -228,7 +240,7 @@ class LocationService: NSObject, ObservableObject {
                         guard let location = placemark.location else { return nil }
                         
                         return AddressSuggestion(
-                            id: UUID().uuidString, // Add the missing id parameter
+                            id: UUID().uuidString,
                             displayAddress: self.formatAddress(from: placemark),
                             locationData: LocationData(
                                 latitude: location.coordinate.latitude,
@@ -245,19 +257,108 @@ class LocationService: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Private Methods
+    // MARK: - Auto-Refresh System (Private)
     
-    private func handleLocationTimeout() {
-        guard isLoading else { return }
+    private func initializeLocationCache() async {
+        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+            return
+        }
         
-        locationManager.stopUpdatingLocation()
-        isLoading = false
-        locationTimer?.invalidate()
-        locationTimer = nil
-        
-        locationCompletion?(.failure(LocationError.timeout))
-        locationCompletion = nil
+        do {
+            let location = try await requestLocationInternal()
+            cachedLocation = location
+            lastLocationUpdate = Date()
+            print("Location cache initialized: \(location.coordinate)")
+        } catch {
+            print("Failed to initialize location cache: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+        }
     }
+    
+    private func startAutoRefresh() {
+        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+            return
+        }
+        
+        stopAutoRefresh()
+        
+        autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: autoRefreshInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.autoRefreshLocation()
+            }
+        }
+        
+        print("Auto-refresh started - will update location every \(autoRefreshInterval/60) minutes")
+    }
+    
+    private func stopAutoRefresh() {
+        autoRefreshTimer?.invalidate()
+        autoRefreshTimer = nil
+    }
+    
+    private func autoRefreshLocation() async {
+        guard !isRequestingLocation else { return }
+        
+        do {
+            let location = try await requestLocationInternal()
+            cachedLocation = location
+            lastLocationUpdate = Date()
+            print("Auto-refreshed location: \(location.coordinate)")
+        } catch {
+            print("Auto-refresh failed: \(error.localizedDescription)")
+        }
+    }
+    
+    private func requestLocationInternal() async throws -> CLLocation {
+        guard !isRequestingLocation else {
+            throw LocationError.requestInProgress
+        }
+        
+        isRequestingLocation = true
+        isLoading = true
+        
+        defer {
+            isRequestingLocation = false
+            isLoading = false
+        }
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            if locationContinuation != nil {
+                locationContinuation?.resume(throwing: LocationError.cancelled)
+            }
+            
+            locationContinuation = continuation
+            
+            guard isLocationServicesEnabled else {
+                locationContinuation?.resume(throwing: LocationError.servicesDisabled)
+                locationContinuation = nil
+                return
+            }
+            
+            guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+                if authorizationStatus == .notDetermined {
+                    locationManager.requestWhenInUseAuthorization()
+                    return
+                } else {
+                    locationContinuation?.resume(throwing: LocationError.permissionDenied)
+                    locationContinuation = nil
+                    return
+                }
+            }
+            
+            locationManager.startUpdatingLocation()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + locationTimeout) { [weak self] in
+                if let continuation = self?.locationContinuation {
+                    self?.locationContinuation = nil
+                    continuation.resume(throwing: LocationError.timeout)
+                    self?.locationManager.stopUpdatingLocation()
+                }
+            }
+        }
+    }
+    
+    // MARK: - Private Helper Methods
     
     private func formatAddress(from placemark: CLPlacemark) -> String {
         var components: [String] = []
@@ -304,105 +405,6 @@ class LocationService: NSObject, ObservableObject {
         }
         return .unknown(error.localizedDescription)
     }
-}
-
-// MARK: - CLLocationManagerDelegate
-
-extension LocationService: CLLocationManagerDelegate {
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        Task { @MainActor in
-            guard let location = locations.last else { return }
-            
-            // Validate location quality
-            let locationAge = -location.timestamp.timeIntervalSinceNow
-            guard locationAge < maximumLocationAge,
-                  location.horizontalAccuracy <= 100.0,
-                  location.horizontalAccuracy > 0 else {
-                return
-            }
-            
-            isLoading = false
-            locationManager.stopUpdatingLocation()
-            locationTimer?.invalidate()
-            locationTimer = nil
-            
-            // Handle the new continuation-based approach
-            if let continuation = locationContinuation {
-                locationContinuation = nil
-                continuation.resume(returning: location)
-            }
-            
-            // Keep the old completion for backward compatibility if needed
-            locationCompletion?(.success(location))
-            locationCompletion = nil
-        }
-    }
-    
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Task { @MainActor in
-            isLoading = false
-            locationManager.stopUpdatingLocation()
-            locationTimer?.invalidate()
-            locationTimer = nil
-            
-            let locationError = mapLocationError(error)
-            errorMessage = locationError.localizedDescription
-            
-            // Handle the new continuation-based approach
-            if let continuation = locationContinuation {
-                locationContinuation = nil
-                continuation.resume(throwing: locationError)
-            }
-            
-            // Keep the old completion for backward compatibility if needed
-            locationCompletion?(.failure(locationError))
-            locationCompletion = nil
-        }
-    }
-    
-    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        Task { @MainActor in
-            authorizationStatus = status
-            
-            switch status {
-            case .authorizedWhenInUse, .authorizedAlways:
-                // Handle the pending continuation if authorization was just granted
-                if let continuation = locationContinuation {
-                    locationContinuation = nil
-                    locationManager.startUpdatingLocation()
-                    
-                    // Set a timeout for this specific request
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-                        if let pendingContinuation = continuation as? CheckedContinuation<CLLocation, Error> {
-                            pendingContinuation.resume(throwing: LocationError.timeout)
-                            self?.locationManager.stopUpdatingLocation()
-                        }
-                    }
-                }
-            case .denied, .restricted:
-                isLoading = false
-                errorMessage = LocationError.permissionDenied.localizedDescription
-                
-                // Resume the pending continuation with an error
-                if let continuation = locationContinuation {
-                    locationContinuation = nil
-                    continuation.resume(throwing: LocationError.permissionDenied)
-                }
-            case .notDetermined:
-                break
-            @unknown default:
-                isLoading = false
-                let error = LocationError.unknown("Unknown authorization status")
-                errorMessage = error.localizedDescription
-                
-                // Resume the pending continuation with an error
-                if let continuation = locationContinuation {
-                    locationContinuation = nil
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
     
     private func mapLocationError(_ error: Error) -> LocationError {
         if let clError = error as? CLError {
@@ -410,7 +412,7 @@ extension LocationService: CLLocationManagerDelegate {
             case .denied:
                 return .permissionDenied
             case .locationUnknown:
-                return .locationUnknown
+                return .unknown("Location unknown")
             case .network:
                 return .networkError
             default:
@@ -421,48 +423,140 @@ extension LocationService: CLLocationManagerDelegate {
     }
 }
 
+// MARK: - CLLocationManagerDelegate
+
+extension LocationService: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        Task { @MainActor in
+            guard let location = locations.last else { return }
+            
+            let locationAge = -location.timestamp.timeIntervalSinceNow
+            guard locationAge < maximumLocationAge,
+                  location.horizontalAccuracy <= 100.0,
+                  location.horizontalAccuracy > 0 else {
+                return
+            }
+            
+            isLoading = false
+            locationManager.stopUpdatingLocation()
+            
+            if let continuation = locationContinuation {
+                locationContinuation = nil
+                continuation.resume(returning: location)
+            }
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in
+            isLoading = false
+            locationManager.stopUpdatingLocation()
+            
+            let locationError = mapLocationError(error)
+            errorMessage = locationError.localizedDescription
+            
+            if let continuation = locationContinuation {
+                locationContinuation = nil
+                continuation.resume(throwing: locationError)
+            }
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        Task { @MainActor in
+            authorizationStatus = status
+            
+            switch status {
+            case .authorizedWhenInUse, .authorizedAlways:
+                startAutoRefresh()
+                
+                if let continuation = locationContinuation {
+                    locationManager.startUpdatingLocation()
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + locationTimeout) { [weak self] in
+                        if self?.locationContinuation != nil {
+                            self?.locationContinuation?.resume(throwing: LocationError.timeout)
+                            self?.locationContinuation = nil
+                            self?.locationManager.stopUpdatingLocation()
+                        }
+                    }
+                } else if !hasCachedLocation {
+                    Task {
+                        await self.initializeLocationCache()
+                    }
+                }
+                
+            case .denied, .restricted:
+                stopAutoRefresh()
+                isLoading = false
+                errorMessage = LocationError.permissionDenied.localizedDescription
+                
+                if let continuation = locationContinuation {
+                    locationContinuation = nil
+                    continuation.resume(throwing: LocationError.permissionDenied)
+                }
+                
+            case .notDetermined:
+                stopAutoRefresh()
+                break
+                
+            @unknown default:
+                stopAutoRefresh()
+                isLoading = false
+                let error = LocationError.unknown("Unknown authorization status")
+                errorMessage = error.localizedDescription
+                
+                if let continuation = locationContinuation {
+                    locationContinuation = nil
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - LocationError
 
-enum LocationError: LocalizedError {
+enum LocationError: Error, LocalizedError {
     case servicesDisabled
     case permissionDenied
-    case locationUnknown
-    case networkError
     case timeout
+    case networkError
     case invalidAddress
     case geocodingFailed
     case reverseGeocodingFailed
     case partialResult
     case cancelled
+    case requestInProgress
+    case cacheExpired
     case unknown(String)
-    case requestInProgress // Add this
     
     var errorDescription: String? {
         switch self {
         case .servicesDisabled:
-            return "Location services are disabled. Please enable them in Settings."
+            return "Location services are disabled"
         case .permissionDenied:
-            return "Location access denied. Please enable location access in Settings."
-        case .locationUnknown:
-            return "Unable to determine location. Please try again."
-        case .networkError:
-            return "Network error. Please check your internet connection."
+            return "Location permission denied"
         case .timeout:
-            return "Location request timed out. Please try again."
+            return "Location request timed out"
+        case .networkError:
+            return "Network error occurred"
         case .invalidAddress:
-            return "Please enter a valid address."
+            return "Invalid address provided"
         case .geocodingFailed:
-            return "Could not find location for the provided address."
+            return "Failed to find location"
         case .reverseGeocodingFailed:
-            return "Could not determine address for location."
+            return "Failed to get address"
         case .partialResult:
-            return "Only partial location results found."
+            return "Partial location result"
         case .cancelled:
-            return "Location request was cancelled."
-        case .unknown(let message):
-            return message
+            return "Location request cancelled"
         case .requestInProgress:
             return "Location request already in progress"
+        case .cacheExpired:
+            return "Location data unavailable. Please check your location settings."
+        case .unknown(let message):
+            return message
         }
     }
 }
