@@ -8,149 +8,171 @@
 import SwiftUI
 
 struct GymSelectionView: View {
-    @ObservedObject var passViewModel: PassViewModel
-    @Binding var isPrimary: Bool
-    @Binding var isPresented: Bool
+    @ObservedObject var viewModel: PassCreationViewModel
     @State private var searchText: String = ""
-    @State private var showScanner: Bool = false
+    @State private var showScanner: Bool = false // Keep this for navigation destination
     @State private var debounceTimer: Timer?
     
+    let onPassAdded: () -> Void
+    
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    
-                    TextField("Search gyms", text: $searchText)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
-                        .onChange(of: searchText) { _, newValue in
-                            // Debounce search
-                            debounceTimer?.invalidate()
-                            debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
-                                passViewModel.searchGyms(query: newValue)
-                            }
-                        }
-                    
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            searchText = ""
-                            passViewModel.loadGyms() // Reset to all gyms
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(10)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
+        VStack(spacing: 20) {
+            // Search bar
+            searchBarView
+            
+            Text("Select your gym")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
-                .padding(.top)
-                
-                Text("Select your gym")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                
-                // Show loading state or error
-                if passViewModel.isLoading {
-                    Spacer()
-                    ProgressView("Loading gyms...")
-                    Spacer()
-                } else if let error = passViewModel.searchError {
-                    Spacer()
-                    Text(error)
-                        .foregroundColor(.red)
-                    Button("Try Again") {
-                        passViewModel.loadGyms()
-                    }
-                    .padding()
-                    Spacer()
-                } else if passViewModel.gyms.isEmpty {
-                    Spacer()
-                    Text("No gyms found")
+            
+            // Show loading state or error
+            contentView
+            
+            // Action buttons
+            actionButtonsView
+        }
+        .navigationTitle("Add New Pass")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            viewModel.loadGyms()
+        }
+        .navigationDestination(isPresented: $showScanner) {
+            PassScannerView(
+                creationViewModel: viewModel,
+                onPassAdded: onPassAdded
+            )
+        }
+    }
+    
+    // MARK: - Subviews
+    
+    private var searchBarView: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            
+            TextField("Search gyms", text: $searchText)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+                .onChange(of: searchText, perform: handleSearchTextChange)
+            
+            if !searchText.isEmpty {
+                Button(action: clearSearch) {
+                    Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
-                    Spacer()
-                } else {
-                    // List of gyms
-                    List {
-                        ForEach(passViewModel.gyms) { gym in
-                            GymRow(
-                                gym: gym,
-                                isSelected: gym.id == passViewModel.selectedGym?.id
-                            )
-                            .onTapGesture {
-                                // Select this gym when tapped
-                                passViewModel.selectedGym = gym
-                            }
-                        }
-                    }
-                    .listStyle(PlainListStyle())
                 }
-                
-                // Primary pass toggle
-                Toggle("Set as primary pass", isOn: $isPrimary)
-                    .padding(.horizontal)
-                
-                // Action buttons
-                VStack(spacing: 12) {
-                    Button {
-                        if let gym = passViewModel.selectedGym {
-                            passViewModel.prepareForScan(with: gym)
-                            showScanner = true
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "barcode.viewfinder")
-                            Text("Scan Pass")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(passViewModel.selectedGym == nil ? Color.gray : AppTheme.appPrimary)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .opacity(passViewModel.selectedGym == nil ? 0.6 : 1.0)
-                    }
-                    .disabled(passViewModel.selectedGym == nil)
-                    
-                    Button {
-                        isPresented = false
-                    } label: {
-                        Text("Cancel")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(.systemGray5))
-                            .foregroundColor(.primary)
-                            .cornerRadius(10)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.bottom)
-            }
-            .onAppear {
-                // Initial data load
-                passViewModel.loadGyms()
-            }
-            .navigationBarTitle("Add New Pass", displayMode: .inline)
-            .navigationBarItems(trailing: Button(action: {
-                isPresented = false
-            }) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.gray)
-            })
-            .sheet(isPresented: $showScanner) {
-                PassScannerView(
-                    passViewModel: passViewModel,
-                    isPrimary: isPrimary,
-                    onPassAdded: {
-                        isPresented = false
-                    }
-                )
             }
         }
+        .padding(10)
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+        .padding(.horizontal)
+        .padding(.top)
+    }
+    
+    private var contentView: some View {
+        Group {
+            if viewModel.isLoading {
+                Spacer()
+                ProgressView("Loading gyms...")
+                Spacer()
+            } else if let error = viewModel.searchError {
+                Spacer()
+                VStack(spacing: 16) {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                    Button("Try Again") {
+                        viewModel.loadGyms()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                Spacer()
+            } else if viewModel.gyms.isEmpty {
+                Spacer()
+                VStack(spacing: 16) {
+                    Image(systemName: "building.2")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    Text("No gyms found")
+                        .foregroundColor(.secondary)
+                    if !searchText.isEmpty {
+                        Text("Try adjusting your search")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+            } else {
+                gymListView
+            }
+        }
+    }
+    
+    private var gymListView: some View {
+        List {
+            ForEach(viewModel.gyms) { gym in
+                GymRow(
+                    gym: gym,
+                    isSelected: gym.id == viewModel.selectedGym?.id,
+                    distance: viewModel.gymDistances[gym.id]
+                )
+                .onTapGesture {
+                    viewModel.selectedGym = gym
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+    }
+    
+    private var actionButtonsView: some View {
+        VStack(spacing: 12) {
+            scanButton
+            // Removed cancel button since navigation back button handles this
+        }
+        .padding(.horizontal)
+        .padding(.bottom)
+    }
+    
+    private var scanButton: some View {
+        Button(action: handleScanButtonTap) {
+            HStack {
+                Image(systemName: "barcode.viewfinder")
+                Text("Scan Pass")
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(viewModel.selectedGym == nil ? Color.gray : AppTheme.appPrimary)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+            .opacity(viewModel.selectedGym == nil ? 0.6 : 1.0)
+        }
+        .disabled(viewModel.selectedGym == nil)
+    }
+    
+    // MARK: - Actions
+    
+    private func handleSearchTextChange(_ newValue: String) {
+        debounceTimer?.invalidate()
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+            if newValue.isEmpty {
+                viewModel.loadGyms()
+            } else {
+                viewModel.searchGyms(query: newValue)
+            }
+        }
+    }
+    
+    private func clearSearch() {
+        searchText = ""
+        viewModel.loadGyms()
+    }
+    
+    private func handleScanButtonTap() {
+        guard let gym = viewModel.selectedGym else { return }
+        
+        viewModel.prepareForScan(with: gym)
+        showScanner = true
     }
 }
 
@@ -158,65 +180,86 @@ struct GymSelectionView: View {
 struct GymRow: View {
     let gym: Gym
     let isSelected: Bool
+    let distance: String? // Pass distance from ViewModel
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
+        HStack(spacing: 12) {
+            // Gym logo with better error handling
+            gymImageView
+            
+            VStack(alignment: .leading, spacing: 4) {
                 Text(gym.name)
                     .font(.body)
-                    .fontWeight(isSelected ? .semibold : .regular)
+                    .fontWeight(isSelected ? .bold : .regular)
+                    .foregroundColor(isSelected ? AppTheme.appPrimary : AppTheme.appTextPrimary)
+                
+                subtitleView
             }
             
             Spacer()
             
             if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundColor(.blue)
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(AppTheme.appPrimary)
+                    .font(.title2)
             }
         }
         .padding(.vertical, 8)
-        .background(isSelected ? Color.blue.opacity(0.1) : Color.clear)
+        .padding(.horizontal, 4)
         .contentShape(Rectangle())
     }
-}
-
-#Preview("Gym Selection - With Selected") {
-    GymSelectionView(
-        passViewModel: createPreviewViewModel(),
-        isPrimary: .constant(true),
-        isPresented: .constant(true)
-    )
-}
-
-#Preview("No Gym Selected") {
-    GymSelectionView(
-        passViewModel: createPreviewViewModel(selectedGym: false),
-        isPrimary: .constant(false),
-        isPresented: .constant(true)
-    )
-}
-
-#Preview("Loading State") {
-    GymSelectionView(
-        passViewModel: createPreviewViewModel(isLoading: true),
-        isPrimary: .constant(true),
-        isPresented: .constant(true)
-    )
-}
-
-// Helper function to create a view model for previews
-private func createPreviewViewModel(isLoading: Bool = false, selectedGym: Bool = true) -> PassViewModel {
-    let viewModel = PassViewModel()
     
-    // For the pass view, we might be using a simplified Gym model
-    // If PassViewModel uses the full Gym model:
-    viewModel.gyms = SampleData.gyms
-    
-    viewModel.isLoading = isLoading
-    
-    if !isLoading && !SampleData.gyms.isEmpty && selectedGym {
-        viewModel.selectedGym = SampleData.gyms.first
+    private var gymImageView: some View {
+        Group {
+            if let profileImage = gym.profileImage {
+                AsyncImage(url: profileImage.url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    placeholderImage
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                placeholderImage
+            }
+        }
     }
     
-    return viewModel
+    private var placeholderImage: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(Color(.systemGray5))
+            .frame(width: 56, height: 56)
+            .overlay(
+                Image(systemName: "building.2")
+                    .foregroundColor(.secondary)
+                    .font(.title2)
+            )
+    }
+    
+    private var subtitleView: some View {
+        Group {
+            if let distance = distance {
+                HStack(spacing: 4) {
+                    Image(systemName: "location")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(distance)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else if let address = gym.location.address {
+                Text(address)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            } else {
+                Text("Location unavailable")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .italic()
+            }
+        }
+    }
 }

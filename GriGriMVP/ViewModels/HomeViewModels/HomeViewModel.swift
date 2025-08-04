@@ -75,6 +75,7 @@ class HomeViewModel: ObservableObject {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
         self.eventRepository = eventRepository ?? RepositoryFactory.createEventRepository()
+
         
         setupLocationObservers()
         fetchUserAndFavorites()
@@ -127,45 +128,37 @@ class HomeViewModel: ObservableObject {
         }
     }
     
+    private var isRequestingLocation = false
+
     func requestUserLocation() {
-        guard canRequestLocation else {
-            errorMessage = "Location access is not available. Please check your settings."
-            hasError = true
+        guard !isRequestingLocation else {
+            print("Location request already in progress")
             return
         }
         
+        isRequestingLocation = true
+        
         Task {
+            // Remove the defer block and handle cleanup manually
             do {
-                let location = try await locationService.requestCurrentLocation()
+                let location = try await LocationService.shared.requestCurrentLocation()
                 
-                self.userLocation = location
-                self.errorMessage = nil
-                self.hasError = false
+                await MainActor.run {
+                    self.userLocation = location
+                    self.errorMessage = nil
+                    self.hasError = false
+                    self.isRequestingLocation = false // Set this here
+                }
                 
                 // Apply filters and find nearest gym with new location
                 self.applyFilters()
                 self.findNearestGym()
                 
             } catch {
-                if let locationError = error as? LocationError {
-                    switch locationError {
-                    case .permissionDenied:
-                        self.locationPermissionGranted = false
-                        self.canRequestLocation = false
-                        break
-                    case .servicesDisabled:
-                        self.errorMessage = "Location services are disabled. Enable them in Settings to see nearby events."
-                        self.hasError = true
-                    case .timeout:
-                        self.errorMessage = "Location request timed out. Please try again."
-                        self.hasError = true
-                    default:
-                        self.errorMessage = locationError.localizedDescription
-                        self.hasError = true
-                    }
-                } else {
+                await MainActor.run {
                     self.errorMessage = "Failed to get location: \(error.localizedDescription)"
                     self.hasError = true
+                    self.isRequestingLocation = false // And also here in the error case
                 }
             }
         }

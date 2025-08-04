@@ -22,7 +22,7 @@ struct MainTabView: View {
             }
             
             NavigationStack {
-                PassesRootView()
+                PassesRootView(appState: appState)
             }
             .tabItem {
                 Label("Passes", systemImage: "qrcode.viewfinder")
@@ -36,6 +36,9 @@ struct MainTabView: View {
             }
         }
         .tint(AppTheme.appPrimary)
+                .onAppear {
+            print("📱 MainTabView.onAppear() called")
+        }
     }
 }
 

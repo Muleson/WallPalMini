@@ -9,31 +9,45 @@ import SwiftUI
 import Foundation
 
 struct PassRowView: View {
-    
-    @ObservedObject var viewModel: PassViewModel
+    @ObservedObject var viewModel: PassDisplayViewModel
     @Binding var passToDelete: Pass?
     let pass: Pass
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(pass.mainInformation.title)
-                .font(.headline)
-            
-            Text("Scanned: \(pass.mainInformation.date.formatted())")
-                .font(.subheadline)
-                .frame(alignment: .trailing)
-            
-            if pass.isActive {
-                Text("Active")
-                    .font(.caption)
-                    .foregroundStyle(Color.gray)
-                    .padding(.top, 4)
+        HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(pass.mainInformation.title)
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    // Active tag
+                    if pass.isActive {
+                        Text("Active")
+                            .font(.caption)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(AppTheme.appPrimary)
+                            .cornerRadius(8)
+                    }
+                }
+                
+                Text("Scanned: \(pass.mainInformation.date.formatted())")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
+            
+            Spacer()
         }
         .frame(minHeight: 80)
         .contentShape(Rectangle())
         .onTapGesture {
-            viewModel.setActivePass(for: pass.id)
+            // Only allow making pass active if it's not already active
+            if !pass.isActive {
+                viewModel.setActivePass(for: pass.id)
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
@@ -44,13 +58,16 @@ struct PassRowView: View {
             }
             .tint(Color.red)
             
-            Button {
-                viewModel.setActivePass(for: pass.id)
-            } label: {
-                Label("Make Primary", systemImage: "star")
-                    .labelStyle(.titleAndIcon)
+            // Only show "Make Primary" button if it's not already active
+            if !pass.isActive {
+                Button {
+                    viewModel.setActivePass(for: pass.id)
+                } label: {
+                    Label("Make Primary", systemImage: "star")
+                        .labelStyle(.titleAndIcon)
+                }
+                .tint(AppTheme.appPrimary)
             }
-            .tint(AppTheme.appPrimary)
         }
     }
 }

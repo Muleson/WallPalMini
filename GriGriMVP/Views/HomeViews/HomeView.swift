@@ -9,9 +9,11 @@ import SwiftUI
 
 struct HomeView: View {
     @ObservedObject var appState: AppState
-    @ObservedObject var viewModel = HomeViewModel()
+    @StateObject private var viewModel = HomeViewModel()
+    
     @State private var navigateToPasses = false
-    @State private var selectedEvent: EventItem? // Add state for selected event
+    @State private var selectedEvent: EventItem?
+    @State private var navigateToPassCreation = false // Renamed for clarity
     
     var body: some View {
         NavigationStack {
@@ -37,17 +39,26 @@ struct HomeView: View {
             .background(Color(AppTheme.appBackgroundBG))
             .navigationBarHidden(true)
             .navigationDestination(isPresented: $navigateToPasses) {
-                PassesRootView()
+                PassesRootView(appState: appState)
             }
             // Add navigation destination for event details
             .navigationDestination(item: $selectedEvent) { event in
                 EventPageView(event: event)
+            }
+            // Updated navigation destination for pass creation flow
+            .navigationDestination(isPresented: $navigateToPassCreation) {
+                PassCreationFlowView {
+                    // This callback is triggered when a pass is successfully added
+                    // You could refresh any pass-related data here if needed
+                    print("Pass added successfully from HomeView")
+                }
             }
         }
         .onAppear {
             viewModel.fetchEvents()
             viewModel.fetchUserAndFavorites()
         }
+
         .alert(isPresented: $viewModel.hasError, content: {
             Alert(
                 title: Text("Error"),
@@ -110,8 +121,7 @@ struct HomeView: View {
                 navigateToPasses = true
             },
             onAddPass: {
-                // Add pass action - could navigate to gym search or pass purchase
-                print("Add pass tapped")
+                navigateToPassCreation = true // Updated to use pass creation flow
             }
         )
         .padding(.horizontal, 12)

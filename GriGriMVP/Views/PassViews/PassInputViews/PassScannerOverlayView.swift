@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ScannerOverlayView: View {
-    @EnvironmentObject var passViewModel: PassViewModel
+    @EnvironmentObject var passViewModel: PassDisplayViewModel
     
     let message: String
     let isBarcodeDetected: Bool

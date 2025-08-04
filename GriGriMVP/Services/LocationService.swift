@@ -23,11 +23,14 @@ class LocationService: NSObject, ObservableObject {
     private let geocoder = CLGeocoder()
     private var locationCompletion: ((Result<CLLocation, Error>) -> Void)?
     private var locationTimer: Timer?
+    private var locationContinuation: CheckedContinuation<CLLocation, Error>? // For the new requestCurrentLocation method
     
     // Configuration
     private let locationTimeout: TimeInterval = 30.0
     private let desiredAccuracy: CLLocationAccuracy = kCLLocationAccuracyNearestTenMeters
     private let maximumLocationAge: TimeInterval = 300.0 // 5 minutes
+    
+    private var isRequestingLocation = false // Add this flag
     
     override init() {
         super.init()
@@ -108,40 +111,51 @@ class LocationService: NSObject, ObservableObject {
     // MARK: - New Location Acquisition Methods
     
     func requestCurrentLocation() async throws -> CLLocation {
+        // Prevent multiple simultaneous requests
+        guard !isRequestingLocation else {
+            throw LocationError.requestInProgress
+        }
+        
+        isRequestingLocation = true
+        
+        defer {
+            isRequestingLocation = false
+        }
+        
         return try await withCheckedThrowingContinuation { continuation in
-            requestCurrentLocation { result in
-                continuation.resume(with: result)
+            // Make sure we don't have a pending continuation
+            if locationContinuation != nil {
+                locationContinuation?.resume(throwing: LocationError.cancelled)
             }
-        }
-    }
-    
-    func requestCurrentLocation(completion: @escaping (Result<CLLocation, Error>) -> Void) {
-        guard isLocationServicesEnabled else {
-            completion(.failure(LocationError.servicesDisabled))
-            return
-        }
-        
-        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
-            if authorizationStatus == .notDetermined {
-                locationCompletion = completion
-                locationManager.requestWhenInUseAuthorization()
-                return
-            } else {
-                completion(.failure(LocationError.permissionDenied))
+            
+            locationContinuation = continuation
+            
+            guard isLocationServicesEnabled else {
+                locationContinuation?.resume(throwing: LocationError.servicesDisabled)
+                locationContinuation = nil
                 return
             }
-        }
-        
-        isLoading = true
-        errorMessage = nil
-        locationCompletion = completion
-        
-        locationManager.startUpdatingLocation()
-        
-        // Set timeout timer
-        locationTimer = Timer.scheduledTimer(withTimeInterval: locationTimeout, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.handleLocationTimeout()
+            
+            guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+                if authorizationStatus == .notDetermined {
+                    locationManager.requestWhenInUseAuthorization()
+                    return
+                } else {
+                    locationContinuation?.resume(throwing: LocationError.permissionDenied)
+                    locationContinuation = nil
+                    return
+                }
+            }
+            
+            locationManager.startUpdatingLocation()
+            
+            // Set a timeout
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+                if let continuation = self?.locationContinuation {
+                    self?.locationContinuation = nil
+                    continuation.resume(throwing: LocationError.timeout)
+                    self?.locationManager.stopUpdatingLocation()
+                }
             }
         }
     }
@@ -312,6 +326,13 @@ extension LocationService: CLLocationManagerDelegate {
             locationTimer?.invalidate()
             locationTimer = nil
             
+            // Handle the new continuation-based approach
+            if let continuation = locationContinuation {
+                locationContinuation = nil
+                continuation.resume(returning: location)
+            }
+            
+            // Keep the old completion for backward compatibility if needed
             locationCompletion?(.success(location))
             locationCompletion = nil
         }
@@ -327,6 +348,13 @@ extension LocationService: CLLocationManagerDelegate {
             let locationError = mapLocationError(error)
             errorMessage = locationError.localizedDescription
             
+            // Handle the new continuation-based approach
+            if let continuation = locationContinuation {
+                locationContinuation = nil
+                continuation.resume(throwing: locationError)
+            }
+            
+            // Keep the old completion for backward compatibility if needed
             locationCompletion?(.failure(locationError))
             locationCompletion = nil
         }
@@ -338,22 +366,40 @@ extension LocationService: CLLocationManagerDelegate {
             
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
-                if let completion = locationCompletion {
-                    requestCurrentLocation(completion: completion)
+                // Handle the pending continuation if authorization was just granted
+                if let continuation = locationContinuation {
+                    locationContinuation = nil
+                    locationManager.startUpdatingLocation()
+                    
+                    // Set a timeout for this specific request
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+                        if let pendingContinuation = continuation as? CheckedContinuation<CLLocation, Error> {
+                            pendingContinuation.resume(throwing: LocationError.timeout)
+                            self?.locationManager.stopUpdatingLocation()
+                        }
+                    }
                 }
             case .denied, .restricted:
                 isLoading = false
                 errorMessage = LocationError.permissionDenied.localizedDescription
-                locationCompletion?(.failure(LocationError.permissionDenied))
-                locationCompletion = nil
+                
+                // Resume the pending continuation with an error
+                if let continuation = locationContinuation {
+                    locationContinuation = nil
+                    continuation.resume(throwing: LocationError.permissionDenied)
+                }
             case .notDetermined:
                 break
             @unknown default:
                 isLoading = false
                 let error = LocationError.unknown("Unknown authorization status")
                 errorMessage = error.localizedDescription
-                locationCompletion?(.failure(error))
-                locationCompletion = nil
+                
+                // Resume the pending continuation with an error
+                if let continuation = locationContinuation {
+                    locationContinuation = nil
+                    continuation.resume(throwing: error)
+                }
             }
         }
     }
@@ -389,6 +435,7 @@ enum LocationError: LocalizedError {
     case partialResult
     case cancelled
     case unknown(String)
+    case requestInProgress // Add this
     
     var errorDescription: String? {
         switch self {
@@ -414,6 +461,8 @@ enum LocationError: LocalizedError {
             return "Location request was cancelled."
         case .unknown(let message):
             return message
+        case .requestInProgress:
+            return "Location request already in progress"
         }
     }
 }

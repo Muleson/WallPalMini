@@ -11,7 +11,7 @@ import SwiftUI
 struct BarcodeImageView: View {
     let pass: Pass
     
-    @ObservedObject var viewModel: PassViewModel
+    @ObservedObject var viewModel: PassDisplayViewModel
     
     var body: some View {
         if let barcodeImage = viewModel.generateBarcodeImage(from: pass) {

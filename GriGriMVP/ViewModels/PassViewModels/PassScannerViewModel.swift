@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import VisionKit
+import Vision
 import AVKit
 import Combine
 
@@ -21,97 +22,66 @@ enum PassScannerStatus {
 
 @MainActor
 final class PassScannerViewModel: ObservableObject {
-    
     @Published var scannerStatus: PassScannerStatus = .notDetermined
     @Published var recognizedCode: RecognizedItem?
     @Published var isBarcodeDetected: Bool = false
     
-    // Use a callback instead of relying on property observation
-    var onBarcodeDetected: ((RecognizedItem) -> Void)?
+    // Prevent oscillation
+    private var hasProcessedBarcode: Bool = false
     
-    // Use a passed-in PassViewModel instead of creating a new one
-    private let passViewModel: PassViewModel
-    private var cancellables = Set<AnyCancellable>()
+    // Callback for when barcode is detected
+    var onBarcodeDetected: ((String, String) -> Void)?
     
-    init(scannerStatus: PassScannerStatus, recognizedCode: RecognizedItem?, passViewModel: PassViewModel) {
-        self.scannerStatus = scannerStatus
-        self.recognizedCode = recognizedCode
-        self.passViewModel = passViewModel
-        
-        Task {
-            try? await requestPassScannerStatus()
-        }
-        
-        // Monitor recognizedCode changes through combine
-        $recognizedCode
-            .dropFirst()
-            .compactMap { $0 }
-            .receive(on: RunLoop.main)
-            .sink { [weak self] newItem in
-                self?.isBarcodeDetected = true
-                
-                // Add a short delay before triggering navigation
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    // Call the callback with the new item
-                    self?.onBarcodeDetected?(newItem)
-                }
-            }
-            .store(in: &cancellables)
-        
-        // Monitor changes to isBarcodeDetected separately
-        $recognizedCode
-            .map { $0 != nil }
-            .assign(to: &$isBarcodeDetected)
+    init() {
+        checkScannerAvailability()
     }
     
-    var recognizedDataType: DataScannerViewController.RecognizedDataType {
-        .barcode()
-    }
-    
-    private var isScannerAvailable: Bool {
-        DataScannerViewController.isAvailable && DataScannerViewController.isSupported
-    }
-    
-    func processScannedCode(_ item: RecognizedItem) {
-        guard case .barcode(let barcode) = item else { return }
-        
-        passViewModel.handleScannedBarcode(
-            code: barcode.payloadStringValue ?? "Unknown",
-            codeType: barcode.observation.symbology.rawValue
-        )
-    }
-    
-    // Call this method when a potential barcode is detected but not yet confirmed
-    func updateBarcodeDetectionStatus(_ detected: Bool) {
-        DispatchQueue.main.async {
-            self.isBarcodeDetected = detected
+    func checkScannerAvailability() {
+        if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
+            scannerStatus = .scannerAvailable
+        } else {
+            scannerStatus = .scannerNotAvailable
         }
     }
     
-    func requestPassScannerStatus() async throws {
-        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            scannerStatus = .cameraNotFound
-            return
-        }
+    func requestCameraPermission() async {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
         
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-            
+        switch status {
         case .authorized:
-            scannerStatus = isScannerAvailable ? .scannerAvailable : .scannerNotAvailable
-            
-        case .restricted, .denied:
-            scannerStatus = .noCameraAccess
-            
+            await MainActor.run { scannerStatus = .scannerAvailable }
         case .notDetermined:
             let granted = await AVCaptureDevice.requestAccess(for: .video)
-            if granted {
-                scannerStatus = isScannerAvailable ? .scannerAvailable: .scannerNotAvailable
+            await MainActor.run {
+                scannerStatus = granted ? .scannerAvailable : .noCameraAccess
             }
-            else { scannerStatus = .noCameraAccess
-            }
-        
-        default: break
-            
+        case .denied, .restricted:
+            await MainActor.run { scannerStatus = .noCameraAccess }
+        @unknown default:
+            await MainActor.run { scannerStatus = .noCameraAccess }
         }
+    }
+    
+    func handleBarcodeDetection(_ item: RecognizedItem) {
+        guard !hasProcessedBarcode else { return }
+        
+        if case let .barcode(barcode) = item {
+            hasProcessedBarcode = true
+            isBarcodeDetected = true
+            recognizedCode = item
+            
+            let code = barcode.payloadStringValue ?? ""
+            
+            // Direct access to symbology since observation is VNBarcodeObservation
+            let codeType = barcode.observation.symbology.rawValue
+            
+            onBarcodeDetected?(code, codeType)
+        }
+    }
+    
+    func resetScanner() {
+        hasProcessedBarcode = false
+        isBarcodeDetected = false
+        recognizedCode = nil
     }
 }

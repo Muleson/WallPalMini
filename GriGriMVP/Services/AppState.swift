@@ -28,7 +28,7 @@ class AppState: ObservableObject {
     
     private let userRepository: UserRepositoryProtocol
     
-    init(userRepository: UserRepositoryProtocol = FirebaseUserRepository()) {
+    init(userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository()) {
         self.userRepository = userRepository
         
         Task {
@@ -72,7 +72,18 @@ struct RootView: View {
         Group {
             switch appState.authState {
                 case .checking:
-                    ProgressView("Checking Authentication...")
+                    VStack {
+                        Image("AppLogoNegative")
+                            .resizable()
+                            .frame(width: 196, height: 196)
+                            .padding(.bottom, 32)
+                        ProgressView()
+                            .frame(width: 32, height: 32)
+                            .scaleEffect(1.0)
+                            .tint(AppTheme.appBackgroundBG)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(AppTheme.appPrimary)
                 case .authenticated:
                     MainTabView(appState: appState)
                 case .unauthenticated:

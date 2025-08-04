@@ -10,7 +10,7 @@ import SwiftUI
 
 struct PrimaryPassView: View {
     
-    @ObservedObject var viewModel: PassViewModel
+    @ObservedObject var viewModel: PassDisplayViewModel
     
     var body: some View {
         if let primaryPass = viewModel.primaryPass {

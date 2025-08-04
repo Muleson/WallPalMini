@@ -8,11 +8,16 @@
 import Foundation
 
 class PassManager: ObservableObject {
+    static let shared = PassManager()
+    
     @Published private(set) var passes: [Pass] = []
+    @Published var primaryPass: Pass? = nil
+    @Published var nonPrimaryPasses: [Pass] = []
+    
     private let userDefaults: UserDefaults
     private var passesKey = "saved_passes"
     
-    init() {
+    private init() { // Make init private for singleton
         self.passes = []
         self.userDefaults = .standard
         self.passesKey = "saved_passes"
@@ -22,12 +27,10 @@ class PassManager: ObservableObject {
     func addPass(_ pass: Pass) -> Bool {
         // Check for duplicates based on barcode data
         if isDuplicatePass(pass) {
-            // DEBUG PRINT
             print("Duplicate pass detected - not adding")
             return false
         }
         
-        // DEBUG PRINT
         print("Adding pass. Current passes count: \(passes.count)")
 
         var newPasses = passes
@@ -38,8 +41,6 @@ class PassManager: ObservableObject {
                            barcodeData: pass.barcodeData,
                            isActive: true)
         } else if newPass.isActive {
-            
-            // DEBUG PRINT
             print("New pass is primary, updating other passes")
             
             newPasses = passes.map { existingPass in
@@ -51,11 +52,19 @@ class PassManager: ObservableObject {
         newPasses.append(newPass)
         passes = newPasses
         
-        // DEBUG PRINT
+        // Update computed properties
+        updateComputedProperties()
+        
         print("After adding pass. Count: \(passes.count), Has primary: \(passes.contains(where: { $0.isActive }))")
 
         savePasses()
         return true
+    }
+    
+    // Add this method to update computed properties
+    private func updateComputedProperties() {
+        primaryPass = passes.first(where: { $0.isActive })
+        nonPrimaryPasses = passes.filter { !$0.isActive }
     }
     
     // Method to check if a pass is a duplicate
@@ -104,17 +113,17 @@ class PassManager: ObservableObject {
     
     func setActivePass(id: UUID) {
         let newPasses = passes.map { pass in
-            var updatedPasss = pass
+            var updatedPass = pass
             if pass.id == id {
-                updatedPasss = Pass(mainInformation: pass.mainInformation,
+                updatedPass = Pass(mainInformation: pass.mainInformation,
                                     barcodeData: pass.barcodeData,
                                     isActive: true)
             } else if pass.isActive {
-                updatedPasss = Pass(mainInformation: pass.mainInformation,
+                updatedPass = Pass(mainInformation: pass.mainInformation,
                                     barcodeData: pass.barcodeData,
                                     isActive: false)
             }
-            return updatedPasss
+            return updatedPass
         }
         passes = newPasses
         savePasses()
@@ -139,26 +148,26 @@ class PassManager: ObservableObject {
     
     private func loadPasses() {
         guard let data = userDefaults.data(forKey: passesKey) else {
-            //DEBUG
             print("No passes found in UserDefaults")
+            updateComputedProperties()
             return
         }
 
         do {
             passes = try JSONDecoder().decode([Pass].self, from: data)
             
-            //DEBUG
             print("Loaded \(passes.count) passes from UserDefaults")
             print("Before ensurePrimaryPass - Has primary: \(passes.contains(where: { $0.isActive }))")
             
             ensureActivePass()
+            updateComputedProperties()
             
-            //DEBUG
             print("After ensurePrimaryPass - Has primary: \(passes.contains(where: { $0.isActive }))")
 
         } catch {
             print("Failed to decode passes: \(error)")
             passes = []
+            updateComputedProperties()
         }
     }
 }
@@ -169,6 +178,7 @@ extension PassManager: DeletionManager {
     func delete(id: UUID, wasItemPrimary: Bool) {
         passes.removeAll(where: { $0.id == id })
         
+        // If we deleted the primary pass and there are other passes, make the first one primary
         if wasItemPrimary && !passes.isEmpty {
             var newPasses = passes
             newPasses[0] = Pass(mainInformation: passes[0].mainInformation,

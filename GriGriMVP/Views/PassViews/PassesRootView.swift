@@ -9,51 +9,49 @@ import Foundation
 import SwiftUI
 
 struct PassesRootView: View {
-    @ObservedObject private var appState = AppState()
-    @StateObject private var passViewModel = PassViewModel()
+    @ObservedObject var appState: AppState
     
-    @State private var scannerIsPresented: Bool = false
-    @State private var gymSelectionIsPresented: Bool = false
-    @State private var passToDelete: Pass? = nil
-    @State private var refreshTrigger = UUID() // Used to force view refresh
-    
-    @State var isPrimary: Bool = false
+    @StateObject private var displayViewModel = PassDisplayViewModel()
+    @State private var showPassCreation = false
     
     var body: some View {
         VStack {
-            if passViewModel.passes.isEmpty && passViewModel.primaryPass == nil {
+            if displayViewModel.allPasses.isEmpty {
                 // Empty state view
                 emptyStateView
             } else {
-                // Regular content view
-                PrimaryPassView(viewModel: passViewModel)
+                // Show primary pass at the top
+                PrimaryPassView(viewModel: displayViewModel)
                     .padding()
-                    .id(UUID()) // This helps refresh the primary pass view
                 
+                // Show ALL passes in the list, including the active one
                 List {
-                    ForEach(passViewModel.passes) { pass in
-                        PassRowView(viewModel: passViewModel, passToDelete: $passToDelete, pass: pass)
+                    ForEach(displayViewModel.allPasses) { pass in
+                        PassRowView(
+                            viewModel: displayViewModel, 
+                            passToDelete: .constant(nil),
+                            pass: pass
+                        )
                     }
                 }
-                .id(refreshTrigger) // This helps refresh the list when passes change
             }
         }
         .confirmationDialog("Delete Pass?",
                             isPresented: .init(
-                                get: { if case .confirming = passViewModel.deletionState { return true }; return false },
-                                set: { if !$0 { passViewModel.cancelDelete() }}
+                                get: { if case .confirming = displayViewModel.deletionState { return true }; return false },
+                                set: { if !$0 { displayViewModel.cancelDelete() }}
                             )
         ) {
-            if case let .confirming(pass) = passViewModel.deletionState {
+            if case let .confirming(pass) = displayViewModel.deletionState {
                 Button("Delete", role: .destructive) {
-                    passViewModel.handleDelete(for: pass)
+                    displayViewModel.handleDelete(for: pass)
                 }
                 Button("Cancel", role: .cancel) {
-                    passViewModel.cancelDelete()
+                    displayViewModel.cancelDelete()
                 }
             }
         } message: {
-            if case let .confirming(pass) = passViewModel.deletionState {
+            if case let .confirming(pass) = displayViewModel.deletionState {
                 Text(pass.deletionMessage)
             }
         }
@@ -61,25 +59,16 @@ struct PassesRootView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: {
-                    gymSelectionIsPresented = true
+                    showPassCreation = true
                 }) {
                     Image(systemName: "plus")
                 }
                 .foregroundStyle(AppTheme.appPrimary)
             }
         }
-        .sheet(isPresented: $gymSelectionIsPresented) {
-            NavigationStack {
-                GymSelectionView(passViewModel: passViewModel, isPrimary: $isPrimary, isPresented: $gymSelectionIsPresented)
-            }
-        }
-        .onAppear {
-            refreshPasses()
-        }
-        .onChange(of: scannerIsPresented) {_, newValue in
-            if !newValue {
-                // When scanner sheet is dismissed, refresh passes
-                refreshPasses()
+        .navigationDestination(isPresented: $showPassCreation) {
+            PassCreationFlowView {
+                showPassCreation = false
             }
         }
     }
@@ -104,7 +93,7 @@ struct PassesRootView: View {
                 .padding(.horizontal, 40)
             
             Button(action: {
-                gymSelectionIsPresented = true
+                showPassCreation = true
             }) {
                 HStack {
                     Image(systemName: "plus.circle")
@@ -121,13 +110,16 @@ struct PassesRootView: View {
         }
         .padding()
     }
-    
-    private func refreshPasses() {
-        passViewModel.loadPasses()
-        refreshTrigger = UUID() // Force view refresh
-        
-        // Debug output
-        print("PassesView refreshed. Passes count: \(passViewModel.passes.count)")
-        print("Primary pass exists: \(passViewModel.primaryPass != nil)")
+}
+
+#Preview("With Passes") {
+    NavigationStack {
+        PassesRootView(appState: AppState())
+    }
+}
+
+#Preview("Empty State") {
+    NavigationStack {
+        PassesRootView(appState: AppState())
     }
 }

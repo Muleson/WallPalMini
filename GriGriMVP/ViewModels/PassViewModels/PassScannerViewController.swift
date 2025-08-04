@@ -63,6 +63,7 @@ struct PassScannerViewController: UIViewControllerRepresentable {
     class Coordinator: NSObject, DataScannerViewControllerDelegate {
         @Binding var recognizedCode: RecognizedItem?
         let viewModel: PassScannerViewModel
+        private var hasDetectedBarcode = false
         
         init(recognizedCode: Binding<RecognizedItem?>, viewModel: PassScannerViewModel) {
             self._recognizedCode = recognizedCode
@@ -70,21 +71,39 @@ struct PassScannerViewController: UIViewControllerRepresentable {
         }
         
         func dataScanner(_ dataScanner: DataScannerViewController, didTapOn item: RecognizedItem) {
-            viewModel.updateBarcodeDetectionStatus(true)
-            recognizedCode = item
+            guard !hasDetectedBarcode else { return }
+            processDetectedItem(item, dataScanner: dataScanner)
         }
         
         func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
-            // Auto-capture first recognized barcode when items are detected
-            viewModel.updateBarcodeDetectionStatus(true)
+            guard !hasDetectedBarcode else { return }
+            
             if let firstBarcode = addedItems.first {
-                // Update the recognized code
-                self.recognizedCode = firstBarcode
+                processDetectedItem(firstBarcode, dataScanner: dataScanner)
             }
         }
         
+        private func processDetectedItem(_ item: RecognizedItem, dataScanner: DataScannerViewController) {
+            hasDetectedBarcode = true
+            dataScanner.stopScanning()
+            
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                
+                // Set the recognized code
+                self.recognizedCode = item
+                
+                // Process the code in the view model using the correct method name
+                self.viewModel.handleBarcodeDetection(item)
+            }
+        }
+        
+        func dataScanner(_ dataScanner: DataScannerViewController, didRemove removedItems: [RecognizedItem], allItems: [RecognizedItem]) {
+            // Don't reset anything here to prevent oscillation
+        }
+        
         func dataScanner(_ dataScanner: DataScannerViewController, becameUnavailableWithError error: DataScannerViewController.ScanningUnavailable) {
-            print("Scanner no longer available. Error: \(error.localizedDescription)")
+            // Handle scanner unavailable error if needed
         }
     }
 }
