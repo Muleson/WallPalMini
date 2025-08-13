@@ -166,8 +166,8 @@ struct SampleData {
             name: "The Vault",
             description: "Indoor lead and top rope climbing center with routes for all abilities",
             location: LocationData(
-                latitude: 53.4808,
-                longitude: -2.2426,
+                latitude: 51.4682,
+                longitude: -0.1217,
                 address: "456 Rock Avenue, Manchester"
             ),
             climbingType: [.sport, .gym],
@@ -184,8 +184,8 @@ struct SampleData {
             name: "Gravity Climbing",
             description: "Family-friendly climbing center with bouldering and walls for all ages",
             location: LocationData(
-                latitude: 51.4545,
-                longitude: -2.5879,
+                latitude: 51.5063,
+                longitude: -0.2233,
                 address: "789 Chalk Road, Bristol"
             ),
             climbingType: [.bouldering, .gym],
@@ -202,8 +202,8 @@ struct SampleData {
             name: "The Church",
             description: "Iconic, state of the art climbing center in a beutifully unique former church",
             location: LocationData(
-                latitude: 51.4545,
-                longitude: -2.5879,
+                latitude: 51.5038,
+                longitude: -0.2666,
                 address: "789 Chalk Road, Bristol"
             ),
             climbingType: [.bouldering, .gym],

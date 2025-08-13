@@ -8,16 +8,13 @@
 import SwiftUI
 
 struct ScannerOverlayView: View {
-    @EnvironmentObject var passViewModel: PassDisplayViewModel
-    
     let message: String
     let isBarcodeDetected: Bool
-    let onManualInput: () -> Void
     let onCancel: () -> Void
     
     var body: some View {
         ZStack {
-            // Semi-transparent background
+            // Semi-transparent background covering entire screen
             Color.black.opacity(0.3)
                 .edgesIgnoringSafeArea(.all)
             
@@ -29,8 +26,8 @@ struct ScannerOverlayView: View {
                     path.addRect(rect)
                     
                     // Calculate center scan area
-                    let scanWidth = min(geometry.size.width * 0.8, 300)
-                    let scanHeight = scanWidth * 0.6 // Adjust for typical barcode aspect ratio
+                    let scanWidth = min(geometry.size.width * 0.75, 280)
+                    let scanHeight = scanWidth * 0.5 // Better aspect ratio for barcodes
                     let scanRect = CGRect(
                         x: (geometry.size.width - scanWidth) / 2,
                         y: (geometry.size.height - scanHeight) / 2,
@@ -39,10 +36,10 @@ struct ScannerOverlayView: View {
                     )
                     
                     // Cut out scanning area
-                    path.addRoundedRect(in: scanRect, cornerSize: CGSize(width: 10, height: 10))
+                    path.addRoundedRect(in: scanRect, cornerSize: CGSize(width: 12, height: 12))
                 }
                 .fill(
-                    Color.black.opacity(0.5),
+                    Color.black.opacity(0.6),
                     style: FillStyle(
                         eoFill: true,
                         antialiased: true
@@ -50,91 +47,127 @@ struct ScannerOverlayView: View {
                 )
                 
                 // Scanning area border
-                let scanWidth = min(geometry.size.width * 0.8, 300)
-                let scanHeight = scanWidth * 0.6
-                let centerX = (geometry.size.width - scanWidth) / 2
-                let centerY = (geometry.size.height - scanHeight) / 2
+                let scanWidth = min(geometry.size.width * 0.75, 280)
+                let scanHeight = scanWidth * 0.5
+                let centerX = geometry.size.width / 2
+                let centerY = geometry.size.height / 2
                 
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isBarcodeDetected ? Color.green : Color.white, lineWidth: 3)
-                    .frame(width: scanWidth, height: scanHeight)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                
-                // Guidance message
-                Text(message)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.black.opacity(0.6))
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isBarcodeDetected ? AppTheme.appPrimary : Color.white, 
+                        lineWidth: isBarcodeDetected ? 4 : 2
                     )
-                    .frame(width: geometry.size.width)
-                    .position(x: geometry.size.width / 2, y: centerY + scanHeight + 40)
+                    .frame(width: scanWidth, height: scanHeight)
+                    .position(x: centerX, y: centerY)
+                    .animation(.easeInOut(duration: 0.3), value: isBarcodeDetected)
                 
-                // Action Buttons
-                VStack(spacing: 16) {
-                    Button(action: onManualInput) {
-                        HStack {
-                            Image(systemName: "keyboard")
-                                .font(.body)
-                            Text("Manual Input")
-                                .fontWeight(.semibold)
-                        }
-                        .foregroundColor(.white)
-                        .frame(width: 200)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue)
+                // Corner indicators for better UX
+                if !isBarcodeDetected {
+                    ForEach(0..<4, id: \.self) { corner in
+                        cornerIndicator(
+                            corner: corner,
+                            scanWidth: scanWidth,
+                            scanHeight: scanHeight,
+                            centerX: centerX,
+                            centerY: centerY
                         )
                     }
-                    .padding(.bottom, 8)
+                }
+                
+                // Guidance message
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: isBarcodeDetected ? "checkmark.circle.fill" : "viewfinder")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(isBarcodeDetected ? AppTheme.appPrimary : .white)
+                        
+                        Text(message)
+                            .font(.appUnderline)
+                            .foregroundColor(.white)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.black.opacity(0.7))
+                )
+                .position(x: centerX, y: centerY + scanHeight/2 + 40)
+                
+                // Cancel Button - positioned at bottom
+                VStack {
+                    Spacer()
                     
                     Button(action: onCancel) {
                         Text("Cancel")
-                            .fontWeight(.medium)
-                            .foregroundColor(.white)
-                            .frame(width: 200)
+                            .font(.appButtonSecondary)
+                            .foregroundColor(AppTheme.appTextLight)
+                            .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.red.opacity(0.8))
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(AppTheme.appTextLight.opacity(0.3), lineWidth: 1)
                             )
                     }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 40)
                 }
-                .position(x: geometry.size.width / 2, y: geometry.size.height - 100)
             }
         }
     }
+    
+    // Helper function for corner indicators
+    private func cornerIndicator(corner: Int, scanWidth: CGFloat, scanHeight: CGFloat, centerX: CGFloat, centerY: CGFloat) -> some View {
+        let cornerSize: CGFloat = 20
+        let thickness: CGFloat = 3
+        
+        let xOffset = scanWidth / 2 - cornerSize / 2
+        let yOffset = scanHeight / 2 - cornerSize / 2
+        
+        let positions: [(CGFloat, CGFloat)] = [
+            (-xOffset, -yOffset), // Top-left
+            (xOffset, -yOffset),  // Top-right
+            (-xOffset, yOffset),  // Bottom-left
+            (xOffset, yOffset)    // Bottom-right
+        ]
+        
+        let (x, y) = positions[corner]
+        
+        return ZStack {
+            // Horizontal line
+            Rectangle()
+                .fill(Color.white)
+                .frame(width: cornerSize, height: thickness)
+            
+            // Vertical line
+            Rectangle()
+                .fill(Color.white)
+                .frame(width: thickness, height: cornerSize)
+        }
+        .position(x: centerX + x, y: centerY + y)
+    }
 }
 
-/*
 #Preview {
-    VStack {
+    VStack(spacing: 20) {
+        // Normal state
         ScannerOverlayView(
             message: "Align barcode within the frame",
             isBarcodeDetected: false,
-            onManualInput: {},
             onCancel: {}
         )
-        .environmentObject({ 
-            let vm = PassViewModel()
-            vm.selectedGym = Gym(name: "Boulder World", location: "Downtown")
-            return vm
-        }())
-        .background(Color.gray)
         .frame(height: 300)
+        .background(Color.gray.opacity(0.3))
         
+        // Detected state
         ScannerOverlayView(
-            message: "Barcode detected",
+            message: "Barcode detected!",
             isBarcodeDetected: true,
-            onManualInput: {},
             onCancel: {}
         )
-        .environmentObject(PassViewModel())
-        .background(Color.gray)
         .frame(height: 300)
+        .background(Color.gray.opacity(0.3))
     }
+    .padding()
+    .background(Color(AppTheme.appBackgroundBG))
 }
-*/

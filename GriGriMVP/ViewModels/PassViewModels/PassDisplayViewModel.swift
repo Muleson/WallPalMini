@@ -14,10 +14,30 @@ import SwiftUI
 class PassDisplayViewModel: ObservableObject {
     // MARK: - Display Properties Only
     @Published var deletionState: DeletionState<Pass> = .none
+    @Published var gyms: [String: Gym] = [:] // Cache for gym lookups
     
     private let passManager = PassManager.shared
+    private let gymRepository: GymRepositoryProtocol
     private var cancellables = Set<AnyCancellable>()
     
+    init(gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository()) {
+        self.gymRepository = gymRepository
+        
+        // Subscribe to changes in the shared passManager's passes array
+        passManager.$passes.sink { [weak self] passes in
+            print("🔄 PassDisplayViewModel: Passes changed, count: \(passes.count)")
+            DispatchQueue.main.async {
+                self?.objectWillChange.send()
+                // Also reload gyms when passes change to ensure we have gym data for newly added passes
+                print("🔄 PassDisplayViewModel: Triggering gym reload for passes")
+                self?.loadGymsForPasses()
+            }
+        }.store(in: &cancellables)
+        
+        // Load gyms for passes
+        loadGymsForPasses()
+    }
+
     // Keep the existing computed properties
     var passes: [Pass] {
         let allPasses = passManager.passes
@@ -38,13 +58,42 @@ class PassDisplayViewModel: ObservableObject {
         return passManager.passes
     }
     
-    init() {
-        // Subscribe to changes in the shared passManager's passes array
-        passManager.$passes.sink { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.objectWillChange.send()
+    // Method to get gym for a pass
+    func gym(for pass: Pass) -> Gym? {
+        guard let gymId = pass.gymId else { 
+            return nil
+        }
+        let gym = gyms[gymId]
+        
+        return gym
+    }
+    
+    // Load gyms for all passes
+    private func loadGymsForPasses() {
+        let gymIds = Set(passManager.passes.compactMap { $0.gymId })
+        print("🏋️‍♂️ PassDisplayViewModel: Loading gyms for \(gymIds.count) unique gym IDs: \(gymIds)")
+        
+        Task {
+            var didLoadNewGymData = false
+            
+            for gymId in gymIds {
+                if gyms[gymId] == nil {
+                    let gym = try await gymRepository.getGym(id: gymId)
+                    await MainActor.run {
+                        gyms[gymId] = gym
+                        didLoadNewGymData = true
+                    }
+                }
             }
-        }.store(in: &cancellables)
+            
+            // Trigger another UI update if we loaded new gym data
+            if didLoadNewGymData {
+                print("🔄 PassDisplayViewModel: Triggering UI update after loading new gym data")
+                await MainActor.run {
+                    self.objectWillChange.send()
+                }
+            }
+        }
     }
 
     // MARK: - Pass Display Logic

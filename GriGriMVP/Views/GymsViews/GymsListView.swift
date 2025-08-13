@@ -89,6 +89,14 @@ struct GymsListView: View {
                 }
                 .padding(.vertical, 16)
             }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: GymsMapView(viewModel: viewModel)) {
+                        Image(systemName: "map")
+                            .foregroundColor(AppTheme.appPrimary)
+                    }
+                }
+            }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Gyms")
             .navigationBarTitleDisplayMode(.large)

@@ -47,11 +47,17 @@ struct HomeView: View {
             }
             // Updated navigation destination for pass creation flow
             .navigationDestination(isPresented: $navigateToPassCreation) {
-                PassCreationFlowView {
-                    // This callback is triggered when a pass is successfully added
-                    // You could refresh any pass-related data here if needed
-                    print("Pass added successfully from HomeView")
-                }
+                PassCreationFlowView(
+                    onPassAdded: {
+                        // This callback is triggered when a pass is successfully added
+                        // You could refresh any pass-related data here if needed
+                        print("Pass added successfully from HomeView")
+                        navigateToPassCreation = false
+                    },
+                    onCancel: {
+                        navigateToPassCreation = false
+                    }
+                )
             }
         }
         .onAppear {

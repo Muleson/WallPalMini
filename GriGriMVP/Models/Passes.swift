@@ -8,17 +8,27 @@
 import Foundation
 import CoreImage.CIFilterBuiltins
 
+enum PassType: String, CaseIterable, Codable {
+    case payAsYouGo = "Pay as you go"
+    case membership = "Membership"
+    case punchCard = "Punch card"
+}
+
 struct Pass: Identifiable, Codable {
     var id: UUID
     var mainInformation: MainInformation
     var barcodeData: BarcodeData
+    var passType: PassType
+    var gymId: String?
     var isActive: Bool
     var isFavourite: Bool
     
-    init(mainInformation: MainInformation, barcodeData:BarcodeData, isActive: Bool = false, isFavourite: Bool = false) {
+    init(mainInformation: MainInformation, barcodeData:BarcodeData, passType: PassType = .membership, gymId: String? = nil, isActive: Bool = false, isFavourite: Bool = false) {
         self.id = UUID()
         self.mainInformation = mainInformation
         self.barcodeData = barcodeData
+        self.passType = passType
+        self.gymId = gymId
         self.isActive = isActive
         self.isFavourite = isFavourite
         

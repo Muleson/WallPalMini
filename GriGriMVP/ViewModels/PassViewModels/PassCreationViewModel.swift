@@ -27,6 +27,12 @@ class PassCreationViewModel: ObservableObject {
     @Published var duplicatePassAlert: Bool = false
     @Published var duplicatePassName: String = ""
     @Published var lastSavedPassWasSuccessful: Bool = false
+    @Published var selectedPassType: PassType = .membership
+    @Published var hasSelectedPassType: Bool = false
+    
+    // MARK: - Gym Duplicate Properties
+    @Published var showGymDuplicateConfirmation: Bool = false
+    @Published var duplicateGymPassFound: Pass? = nil
 
     
     private let gymRepository: GymRepositoryProtocol
@@ -136,7 +142,7 @@ class PassCreationViewModel: ObservableObject {
         let barcodeData = BarcodeData(code: code, codeType: codeType)
         let mainInfo = MainInformation(title: "", date: Date())
         
-        lastScannedPass = Pass(mainInformation: mainInfo, barcodeData: barcodeData)
+        lastScannedPass = Pass(mainInformation: mainInfo, barcodeData: barcodeData, passType: selectedPassType, gymId: selectedGym?.id)
         showTitlePrompt = true
         
         // Check for duplicates
@@ -153,9 +159,17 @@ class PassCreationViewModel: ObservableObject {
             return false 
         }
         
-        // Check for duplicates
+        // Check for barcode duplicates first
         if findDuplicatePass(code: code, codeType: codeType) != nil {
             duplicatePassAlert = true
+            lastSavedPassWasSuccessful = false
+            return false
+        }
+        
+        // Check for gym duplicates
+        if let duplicateGymPass = findDuplicateGymPass(gymId: gym.id) {
+            duplicateGymPassFound = duplicateGymPass
+            showGymDuplicateConfirmation = true
             lastSavedPassWasSuccessful = false
             return false
         }
@@ -165,6 +179,8 @@ class PassCreationViewModel: ObservableObject {
         
         let pass = Pass(mainInformation: mainInfo,
                         barcodeData: barcodeData,
+                        passType: selectedPassType,
+                        gymId: gym.id,
                         isActive: primaryStatus)
                 
         let success = passManager.addPass(pass)
@@ -192,11 +208,13 @@ class PassCreationViewModel: ObservableObject {
                 title: gym.name,
                 date: pass.mainInformation.date
             )
+            pass.gymId = gym.id  // Ensure gymId is set
         } else if !titlePlaceholder.isEmpty {
             pass.mainInformation = MainInformation(
                 title: titlePlaceholder,
                 date: pass.mainInformation.date
             )
+            // gymId remains as previously set or nil
         } else {
             lastSavedPassWasSuccessful = false
             return false
@@ -204,10 +222,21 @@ class PassCreationViewModel: ObservableObject {
         
         pass.isActive = primaryStatus
         
-        // Check for duplicates one more time
+        // Update the pass type with the currently selected value
+        pass.passType = selectedPassType
+        
+        // Check for barcode duplicates first
         if let duplicatePass = findDuplicatePass(code: pass.barcodeData.code, codeType: pass.barcodeData.codeType) {
             duplicatePassName = duplicatePass.mainInformation.title
             duplicatePassAlert = true
+            lastSavedPassWasSuccessful = false
+            return false
+        }
+        
+        // Check for gym duplicates
+        if let gymId = pass.gymId, let duplicateGymPass = findDuplicateGymPass(gymId: gymId) {
+            duplicateGymPassFound = duplicateGymPass
+            showGymDuplicateConfirmation = true
             lastSavedPassWasSuccessful = false
             return false
         }
@@ -231,6 +260,55 @@ class PassCreationViewModel: ObservableObject {
         }
     }
     
+    private func findDuplicateGymPass(gymId: String) -> Pass? {
+        return passManager.passes.first { pass in
+            return pass.gymId == gymId
+        }
+    }
+    
+    // MARK: - Gym Duplicate Handling
+    
+    func replaceExistingGymPass(primaryStatus: Bool = false) -> Bool {
+        guard var newPass = lastScannedPass,
+              let duplicatePass = duplicateGymPassFound else {
+            lastSavedPassWasSuccessful = false
+            return false
+        }
+        
+        // Prepare the new pass with proper title and gym ID
+        if let gym = selectedGym {
+            newPass.mainInformation = MainInformation(
+                title: gym.name,
+                date: newPass.mainInformation.date
+            )
+            newPass.gymId = gym.id
+        }
+        
+        newPass.isActive = primaryStatus
+        newPass.passType = selectedPassType
+        
+        // Remove the old pass
+        passManager.delete(id: duplicatePass.id, wasItemPrimary: duplicatePass.isActive)
+        
+        // Add the new pass
+        let success = passManager.addPass(newPass)
+        
+        if success {
+            lastSavedPassWasSuccessful = true
+            resetCreationState()
+        } else {
+            lastSavedPassWasSuccessful = false
+        }
+        
+        return success
+    }
+    
+    func cancelGymDuplicateFlow() {
+        showGymDuplicateConfirmation = false
+        duplicateGymPassFound = nil
+        lastSavedPassWasSuccessful = false
+    }
+    
     private func resetCreationState() {
         selectedGym = nil
         titlePlaceholder = ""
@@ -239,6 +317,10 @@ class PassCreationViewModel: ObservableObject {
         showScanner = false
         duplicatePassName = ""
         lastSavedPassWasSuccessful = false  // Reset the success flag
+        selectedPassType = .membership  // Reset to default
+        hasSelectedPassType = false  // Reset selection flag
+        showGymDuplicateConfirmation = false
+        duplicateGymPassFound = nil
     }
 }
 

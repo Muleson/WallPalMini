@@ -67,9 +67,14 @@ struct PassesRootView: View {
             }
         }
         .navigationDestination(isPresented: $showPassCreation) {
-            PassCreationFlowView {
-                showPassCreation = false
-            }
+            PassCreationFlowView(
+                onPassAdded: {
+                    showPassCreation = false
+                },
+                onCancel: {
+                    showPassCreation = false
+                }
+            )
         }
     }
     

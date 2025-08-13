@@ -54,6 +54,9 @@ class LocationService: NSObject, ObservableObject {
         locationManager.distanceFilter = 10.0
 
         authorizationStatus = locationManager.authorizationStatus
+        isLocationServicesEnabled = CLLocationManager.locationServicesEnabled()
+        
+        print("Location setup - Services enabled: \(isLocationServicesEnabled), Auth status: \(authorizationStatus.rawValue)")
     }
     
     // MARK: - Cache-Only Public Methods
@@ -464,7 +467,11 @@ extension LocationService: CLLocationManagerDelegate {
     
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         Task { @MainActor in
+            let previousStatus = authorizationStatus
             authorizationStatus = status
+            
+            // Only act if the status actually changed
+            guard previousStatus != status else { return }
             
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:

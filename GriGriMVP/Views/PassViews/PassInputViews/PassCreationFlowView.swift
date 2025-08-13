@@ -13,6 +13,7 @@ struct PassCreationFlowView: View {
     @Environment(\.dismiss) private var dismiss
     
     let onPassAdded: () -> Void
+    let onCancel: (() -> Void)?
     
     var body: some View {
         GymSelectionView(
@@ -31,6 +32,10 @@ struct PassCreationFlowView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     dismiss()
                 }
+            },
+            onCancel: {
+                // Handle cancellation by calling the cancel callback if provided
+                onCancel?()
             }
         )
         .navigationBarBackButtonHidden(false) // Allow back navigation

@@ -17,10 +17,12 @@ struct PassScannerView: View {
     @State private var dismissToRoot = false
     
     let onPassAdded: () -> Void
+    let onCancel: () -> Void
     
     var body: some View {
         ZStack {
             if scannerViewModel.scannerStatus == .scannerAvailable {
+                // Camera view goes to edges of screen
                 PassScannerViewController(
                     recognizedCode: $scannerViewModel.recognizedCode,
                     recognizedDataType: .barcode(),
@@ -31,9 +33,6 @@ struct PassScannerView: View {
                 ScannerOverlayView(
                     message: scannerViewModel.isBarcodeDetected ? "Barcode detected!" : "Align barcode within the frame",
                     isBarcodeDetected: scannerViewModel.isBarcodeDetected,
-                    onManualInput: {
-                        // Navigate to manual input
-                    },
                     onCancel: {
                         dismiss()
                     }
@@ -44,7 +43,7 @@ struct PassScannerView: View {
         }
         .navigationTitle("Scan Pass")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
+        .navigationBarBackButtonHidden(false)
         .onAppear {
             setupScannerCallbacks()
             Task {
@@ -58,35 +57,48 @@ struct PassScannerView: View {
                 onPassSaved: {
                     onPassAdded()
                     dismissToRoot = true
-                }
+                },
+                onCancel: onCancel
             )
         }
     }
     
     private var scannerUnavailableView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "camera.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
+        VStack(spacing: 24) {
+            Spacer()
             
-            Text("Scanner Unavailable")
-                .font(.headline)
-            
-            Text("Camera scanning is not available on this device")
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-            
-            Button("Manual Input") {
-                // Navigate to manual input
+            VStack(spacing: 16) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(AppTheme.appTextLight)
+                
+                Text("Scanner Unavailable")
+                    .font(.appHeadline)
+                    .foregroundColor(AppTheme.appTextPrimary)
+                
+                Text("Camera scanning is not available on this device. Please try again later or use a different device.")
+                    .font(.appBody)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(AppTheme.appTextLight)
+                    .padding(.horizontal, 32)
             }
-            .buttonStyle(.borderedProminent)
             
             Button("Cancel") {
                 dismiss()
             }
-            .buttonStyle(.bordered)
+            .font(.appButtonSecondary)
+            .foregroundColor(AppTheme.appTextLight)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(AppTheme.appTextLight.opacity(0.3), lineWidth: 1)
+            )
+            .padding(.horizontal, 32)
+            
+            Spacer()
         }
-        .padding()
+        .background(Color(AppTheme.appBackgroundBG))
     }
     
     private func setupScannerCallbacks() {
@@ -108,6 +120,9 @@ struct PassScannerView: View {
             creationViewModel: PassCreationViewModel(),
             onPassAdded: {
                 print("Pass added in preview")
+            },
+            onCancel: {
+                print("Cancelled in preview")
             }
         )
     }

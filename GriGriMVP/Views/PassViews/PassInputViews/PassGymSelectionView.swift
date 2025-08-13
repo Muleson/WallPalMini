@@ -14,6 +14,7 @@ struct GymSelectionView: View {
     @State private var debounceTimer: Timer?
     
     let onPassAdded: () -> Void
+    let onCancel: () -> Void
     
     var body: some View {
         VStack(spacing: 20) {
@@ -39,7 +40,8 @@ struct GymSelectionView: View {
         .navigationDestination(isPresented: $showScanner) {
             PassScannerView(
                 creationViewModel: viewModel,
-                onPassAdded: onPassAdded
+                onPassAdded: onPassAdded,
+                onCancel: onCancel
             )
         }
     }

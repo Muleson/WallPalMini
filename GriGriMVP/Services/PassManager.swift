@@ -39,6 +39,8 @@ class PassManager: ObservableObject {
         if passes.isEmpty {
             newPass = Pass(mainInformation: pass.mainInformation,
                            barcodeData: pass.barcodeData,
+                           passType: pass.passType,
+                           gymId: pass.gymId,
                            isActive: true)
         } else if newPass.isActive {
             print("New pass is primary, updating other passes")
@@ -46,6 +48,8 @@ class PassManager: ObservableObject {
             newPasses = passes.map { existingPass in
                 Pass(mainInformation: existingPass.mainInformation,
                             barcodeData: existingPass.barcodeData,
+                            passType: existingPass.passType,
+                            gymId: existingPass.gymId,
                             isActive: false)
             }
         }
@@ -98,11 +102,15 @@ class PassManager: ObservableObject {
             if pass.id == id {
                 updatedPass = Pass(mainInformation: pass.mainInformation,
                                    barcodeData: pass.barcodeData,
+                                   passType: pass.passType,
+                                   gymId: pass.gymId,
                                    isActive: pass.isActive,
                                    isFavourite: true)
             } else if pass.isFavourite {
                 updatedPass = Pass(mainInformation: pass.mainInformation,
                                    barcodeData: pass.barcodeData,
+                                   passType: pass.passType,
+                                   gymId: pass.gymId,
                                    isActive: pass.isActive,
                                    isFavourite: false)
             }
@@ -117,10 +125,14 @@ class PassManager: ObservableObject {
             if pass.id == id {
                 updatedPass = Pass(mainInformation: pass.mainInformation,
                                     barcodeData: pass.barcodeData,
+                                    passType: pass.passType,
+                                    gymId: pass.gymId,
                                     isActive: true)
             } else if pass.isActive {
                 updatedPass = Pass(mainInformation: pass.mainInformation,
                                     barcodeData: pass.barcodeData,
+                                    passType: pass.passType,
+                                    gymId: pass.gymId,
                                     isActive: false)
             }
             return updatedPass
@@ -134,6 +146,8 @@ class PassManager: ObservableObject {
             var newPasses = passes
             newPasses[0] = Pass(mainInformation: passes[0].mainInformation,
                                 barcodeData: passes[0].barcodeData,
+                                passType: passes[0].passType,
+                                gymId: passes[0].gymId,
                                 isActive: true)
             passes = newPasses
             savePasses()
@@ -183,6 +197,8 @@ extension PassManager: DeletionManager {
             var newPasses = passes
             newPasses[0] = Pass(mainInformation: passes[0].mainInformation,
                                 barcodeData: passes[0].barcodeData,
+                                passType: passes[0].passType,
+                                gymId: passes[0].gymId,
                                 isActive: true)
             passes = newPasses
         }

@@ -28,8 +28,8 @@ struct PassScannerViewController: UIViewControllerRepresentable {
         // Set region of interest for better scanning
         DispatchQueue.main.async {
             let screenBounds = UIScreen.main.bounds
-            let scanWidth = min(screenBounds.width * 0.8, 300)
-            let scanHeight = scanWidth * 0.6
+            let scanWidth = min(screenBounds.width * 0.75, 280)
+            let scanHeight = scanWidth * 0.5
             let centerX = screenBounds.width / 2
             let centerY = screenBounds.height / 2
             
@@ -43,7 +43,6 @@ struct PassScannerViewController: UIViewControllerRepresentable {
             
             viewController.regionOfInterest = roiRect
         }
-        
         return viewController
     }
     
