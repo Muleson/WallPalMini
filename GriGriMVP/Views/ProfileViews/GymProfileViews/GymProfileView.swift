@@ -138,41 +138,16 @@ struct GymProfileView: View {
     private var actionButtonsView: some View {
         HStack(spacing: 8) {
             // Favorite Button
-            Button(action: {
+            PrimaryActionButton.toggle(
+                viewModel.isFavorite ? "Favourited" : "Favourite",
+                isEngaged: viewModel.isFavorite
+            ) {
                 viewModel.toggleFavorite()
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
-                    Text("Favourite")
-                        .font(.appButtonPrimary)
-
-                }
-                .foregroundColor(viewModel.isFavorite ? AppTheme.appSecondary : AppTheme.appTextButton)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(viewModel.isFavorite ? Color.clear : AppTheme.appSecondary)
-                .overlay(
-                    viewModel.isFavorite ? 
-                    RoundedRectangle(cornerRadius: 15)
-                        .stroke(AppTheme.appSecondary, lineWidth: 1) : nil
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 15))
             }
             
             // Visit Button (Placeholder)
-            Button(action: {
+            PrimaryActionButton.primary("Visit") {
                 // Placeholder action
-            }) {
-                HStack(spacing: 4) {
-                    Image(systemName: "location")
-                    Text("Visit")
-                        .font(.appButtonPrimary)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(AppTheme.appPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: 15))
             }
         }
         .padding(.horizontal, 24)

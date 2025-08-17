@@ -43,6 +43,7 @@ class HomeViewModel: ObservableObject {
     private let userRepository: UserRepositoryProtocol
     private let eventRepository: EventRepositoryProtocol
     private let gymRepository: GymRepositoryProtocol
+    private let passManager = PassManager.shared
     
     // Current user data
     private var currentUser: User?
@@ -117,6 +118,17 @@ class HomeViewModel: ObservableObject {
                 if let location = cachedLocation {
                     self?.userLocation = location
                     self?.applyFilters()
+                    self?.findNearestGym()
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Observe pass changes to update nearest gym
+        passManager.$passes
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                // When passes change, update the nearest gym calculation
+                if self?.userLocation != nil {
                     self?.findNearestGym()
                 }
             }
@@ -206,8 +218,15 @@ class HomeViewModel: ObservableObject {
                 let gyms = try await gymRepository.fetchAllGyms()
                 allGyms = gyms
                 
-                // Find the nearest gym
-                let nearestGym = gyms.min { gym1, gym2 in
+                // Filter gyms to only include those with passes
+                let gymsWithPasses = gyms.filter { gym in
+                    passManager.passes.contains { pass in
+                        pass.gymId == gym.id
+                    }
+                }
+                
+                // Find the nearest gym that has a pass
+                let nearestGym = gymsWithPasses.min { gym1, gym2 in
                     let distance1 = locationService.distance(from: userLocation, to: gym1.location)
                     let distance2 = locationService.distance(from: userLocation, to: gym2.location)
                     return distance1 < distance2
@@ -221,6 +240,25 @@ class HomeViewModel: ObservableObject {
                 isLoadingGyms = false
             }
         }
+    }
+    
+    // MARK: - Pass Management
+    
+    /// Sets the active pass for the given gym and returns true if successful
+    func setActivePassForGym(_ gym: Gym) -> Bool {
+        guard let pass = passManager.passes.first(where: { $0.gymId == gym.id }) else {
+            print("No pass found for gym: \(gym.name)")
+            return false
+        }
+        
+        passManager.setActivePass(id: pass.id)
+        print("Set active pass for gym: \(gym.name)")
+        return true
+    }
+    
+    /// Returns the pass associated with the given gym, if any
+    func passForGym(_ gym: Gym) -> Pass? {
+        return passManager.passes.first(where: { $0.gymId == gym.id })
     }
     
     // MARK: - User Favorites Management

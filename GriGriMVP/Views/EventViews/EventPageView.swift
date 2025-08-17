@@ -79,21 +79,10 @@ struct EventPageView: View {
                     Spacer()
                     
                     // Maps button
-                    Button(action: {
+                    PrimaryActionButton.outlineCompact("View in Maps") {
                         viewModel.openMaps()
-                    }) {
-                        HStack {
-                            Image(systemName: "location.magnifyingglass")
-                                .padding(.trailing, -4)
-                            Text("View in Maps")
-                        }
-                        .font(.appButtonSecondary)
-                        .foregroundStyle(AppTheme.appTextButton)
-                        .padding(.horizontal,8)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.appSecondary)
-                        .cornerRadius(15)
                     }
+                    .frame(maxWidth: 128)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
@@ -154,21 +143,11 @@ struct EventPageView: View {
         .overlay(alignment: .bottomTrailing) {
             // Floating register button
             if event.registrationRequired {
-                Button(action: {
+                PrimaryActionButton.primary("Register") {
                     viewModel.handleRegistration()
-                }) {
-                    HStack {
-                        Image(systemName: "person.badge.plus")
-                        Text("Register")
-                    }
-                    .font(.appButtonPrimary)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(AppTheme.appPrimary)
-                    .clipShape(Capsule())
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                 }
+                .frame(width: 120)
+                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                 .padding(.trailing, 20)
                 .padding(.bottom, 20)
             }
@@ -178,6 +157,6 @@ struct EventPageView: View {
 
 #Preview {
     NavigationView {
-        EventPageView(event: SampleData.events[0])
+        EventPageView(event: SampleData.events[3])
     }
 }

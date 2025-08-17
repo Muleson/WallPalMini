@@ -53,12 +53,12 @@ struct PassRowView: View {
                     
                     Spacer()
                     
-                    // Active tag with improved styling
+                    // Active tag
                     if pass.isActive {
                         HStack(spacing: 4) {
                             Image(systemName: "star.fill")
                                 .font(.caption2)
-                            Text("Primary")
+                            Text("Active")
                         }
                         .font(.caption)
                         .foregroundStyle(.white)

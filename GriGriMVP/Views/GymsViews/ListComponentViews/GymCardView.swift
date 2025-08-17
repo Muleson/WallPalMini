@@ -74,26 +74,24 @@ struct GymCardView: View {
                 Spacer()
                 
                 // Favorite button
-                /*Button(action: {
+              /*  PrimaryActionButton.toggle(
+                    isEngaged: isFavorited,
+                    label: isFavorited ? "Favourited" : "Favourite"
+                ) {
                     Task {
                         await viewModel.toggleFavoriteGym(gym)
                     }
                 }) {
                     Image(systemName: isFavorited ? "heart.fill" : "heart")
-                        .foregroundColor(isFavorited ? .red : .gray)
+                        .foregroundColor(isFavorited ? AppTheme.appPrimary : .gray)
                         .font(.system(size: 20))
                 } */
                 
                 // Visit button
-                Button("Visit") {
+                PrimaryActionButton.primary("Visit") {
                     showingLocationOptions = true
                 }
-                .font(.appButtonSecondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
-                .background(AppTheme.appPrimary)
-                .foregroundColor(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(width: 80)
             }
             
             // Horizontal scroll view of upcoming events

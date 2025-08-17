@@ -97,17 +97,8 @@ struct PassesRootView: View {
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 40)
             
-            Button(action: {
+            PrimaryActionButton.primary("Add Your First Pass") {
                 showPassCreation = true
-            }) {
-                HStack {
-                    Image(systemName: "plus.circle")
-                    Text("Add Your First Pass")
-                }
-                .padding()
-                .foregroundColor(.white)
-                .background(AppTheme.appPrimary)
-                .cornerRadius(10)
             }
             .padding(.top, 20)
             

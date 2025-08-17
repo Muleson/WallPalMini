@@ -266,6 +266,11 @@ class PassCreationViewModel: ObservableObject {
         }
     }
     
+    // Public method to check for duplicate gym passes
+    func hasExistingPassForGym(gymId: String) -> Pass? {
+        return findDuplicateGymPass(gymId: gymId)
+    }
+    
     // MARK: - Gym Duplicate Handling
     
     func replaceExistingGymPass(primaryStatus: Bool = false) -> Bool {

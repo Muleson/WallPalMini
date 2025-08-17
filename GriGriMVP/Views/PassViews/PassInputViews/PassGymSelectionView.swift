@@ -12,6 +12,7 @@ struct GymSelectionView: View {
     @State private var searchText: String = ""
     @State private var showScanner: Bool = false // Keep this for navigation destination
     @State private var debounceTimer: Timer?
+    @State private var showExistingPassAlert: Bool = false
     
     let onPassAdded: () -> Void
     let onCancel: () -> Void
@@ -43,6 +44,16 @@ struct GymSelectionView: View {
                 onPassAdded: onPassAdded,
                 onCancel: onCancel
             )
+        }
+        .alert("Replace Existing Pass?", isPresented: $showExistingPassAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Replace Pass", role: .destructive) {
+                proceedToScanner()
+            }
+        } message: {
+            if let existingPass = viewModel.hasExistingPassForGym(gymId: viewModel.selectedGym?.id ?? "") {
+                Text("You already have a pass for \(viewModel.selectedGym?.name ?? "this gym"). Do you want to replace it with a new one?")
+            }
         }
     }
     
@@ -171,6 +182,17 @@ struct GymSelectionView: View {
     }
     
     private func handleScanButtonTap() {
+        guard let gym = viewModel.selectedGym else { return }
+        
+        // Check if user already has a pass for this gym
+        if viewModel.hasExistingPassForGym(gymId: gym.id) != nil {
+            showExistingPassAlert = true
+        } else {
+            proceedToScanner()
+        }
+    }
+    
+    private func proceedToScanner() {
         guard let gym = viewModel.selectedGym else { return }
         
         viewModel.prepareForScan(with: gym)

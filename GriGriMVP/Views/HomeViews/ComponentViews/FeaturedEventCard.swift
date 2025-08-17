@@ -163,46 +163,20 @@ struct FeaturedEventCard: View {
             
             // Action buttons - stacked vertically for better fit
             VStack(spacing: 8) {
-                Button(action: onView) {
-                    Text("View")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(AppTheme.appPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(AppTheme.appPrimary.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(AppTheme.appPrimary.opacity(0.3), lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                PrimaryActionButton.outline("View") {
+                    onView()
                 }
                 
                 // Conditional button based on registration requirement
                 if event.registrationRequired == true {
-                    Button(action: onRegister) {
-                        Text("Register")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(AppTheme.appPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .shadow(color: AppTheme.appPrimary.opacity(0.3), radius: 4, x: 0, y: 2)
+                    PrimaryActionButton(title: "Register",
+                                        style: .primary,
+                                        size: .standard) {
+                        onRegister()
                     }
                 } else {
-                    Button(action: {
+                    PrimaryActionButton.primary("Add to Calendar") {
                         onAddToCalendar?()
-                    }) {
-                        HStack(spacing: 6) {
-                            Text("Add to Calendar")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(AppTheme.appPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .shadow(color: AppTheme.appPrimary.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
                 }
             }
@@ -227,6 +201,8 @@ struct FeaturedEventCard: View {
             return Color.purple.opacity(0.2)
         case .opening:
             return Color.orange.opacity(0.2)
+        case .gymClass:
+            return Color.red.opacity(0.2)
         }
     }
 }

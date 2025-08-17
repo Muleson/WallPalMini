@@ -152,7 +152,7 @@ struct SampleData {
                 longitude: -0.1278,
                 address: "123 Climb Street, London"
             ),
-            climbingType: [.bouldering, .sport],
+            climbingType: [.bouldering, .sport, .board, .gym],
             amenities: [.cafe, .changingRooms, .showers],
             events: [],
             profileImage: mediaItems[0], // Uses media1

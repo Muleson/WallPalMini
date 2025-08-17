@@ -11,6 +11,10 @@ struct NearbyGymCard: View {
     let gym: Gym?
     let distance: String?
     let onViewPass: () -> Void
+    let onSetActivePass: () -> Bool // New closure that returns success status
+    
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
     
     var body: some View {
         HStack(spacing: 12) {
@@ -44,7 +48,16 @@ struct NearbyGymCard: View {
             Spacer()
             
             // QR Code Button
-            Button(action: onViewPass) {
+            Button(action: {
+                // First set the active pass, then navigate if successful
+                if onSetActivePass() {
+                    onViewPass()
+                } else {
+                    // Show alert if setting active pass failed
+                    alertMessage = "No pass found for this gym. Add a pass first to view QR codes."
+                    showingAlert = true
+                }
+            }) {
                 Image(systemName: "qrcode")
                     .font(.system(size: 24, weight: .medium))
                     .foregroundColor(AppTheme.appPrimary)
@@ -55,7 +68,13 @@ struct NearbyGymCard: View {
         .padding(.vertical, 16)
         .background(Color(AppTheme.appContentBG))
         .clipShape(RoundedRectangle(cornerRadius: 15))
-        .shadow(color: Color.black.opacity(0.25), radius: 2, x: 2, y: 2)    }
+        .shadow(color: Color.black.opacity(0.25), radius: 2, x: 2, y: 2)
+        .alert("Pass Not Available", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+    }
     
     private var gymIconPlaceholder: some View {
         Circle()
@@ -98,13 +117,15 @@ struct NearbyGymRow: View {
     let distance: String?
     let onViewPass: () -> Void
     let onAddPass: () -> Void
+    let onSetActivePass: () -> Bool // New closure for setting active pass
     
     var body: some View {
         HStack(spacing: 12) {
             NearbyGymCard(
                 gym: gym,
                 distance: distance,
-                onViewPass: onViewPass
+                onViewPass: onViewPass,
+                onSetActivePass: onSetActivePass
             )
             
             AddPassButton(onAddPass: onAddPass)
@@ -123,6 +144,10 @@ struct NearbyGymRow: View {
             },
             onAddPass: {
                 print("Add Pass tapped for \(SampleData.gyms[0].name)")
+            },
+            onSetActivePass: {
+                print("Set active pass for \(SampleData.gyms[0].name)")
+                return true // Simulate successful pass activation
             }
         )
         
@@ -134,6 +159,10 @@ struct NearbyGymRow: View {
             },
             onAddPass: {
                 print("Add Pass tapped for \(SampleData.gyms[1].name)")
+            },
+            onSetActivePass: {
+                print("Set active pass for \(SampleData.gyms[1].name)")
+                return true // Simulate successful pass activation
             }
         )
         
@@ -145,6 +174,10 @@ struct NearbyGymRow: View {
             },
             onAddPass: {
                 print("Add Pass tapped for fallback gym")
+            },
+            onSetActivePass: {
+                print("Set active pass for fallback gym")
+                return false // Simulate failed pass activation
             }
         )
     }

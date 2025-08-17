@@ -62,6 +62,7 @@ enum EventType: String, Codable, CaseIterable {
     case openDay = "openDay"
     case settingTaster = "settingTaster"
     case opening = "opening"
+    case gymClass = "class"
     
     var displayName: String {
         switch self {
@@ -75,6 +76,8 @@ enum EventType: String, Codable, CaseIterable {
             return "Setting Taster"
         case .opening:
             return "Grand Opening"
+        case .gymClass:
+            return "Class"
         }
     }
 }

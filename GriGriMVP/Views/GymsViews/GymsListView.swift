@@ -18,40 +18,37 @@ struct GymsListView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    // Favourite Gyms Section
+                VStack(spacing: 24) {
+                    // Favourites Section - only show if there are favorite gyms
                     if !viewModel.favoriteGyms.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("Favourite Gyms")
+                                Text("Favourites")
                                     .font(.appHeadline)
                                     .foregroundColor(AppTheme.appTextPrimary)
+                                    .padding(.horizontal, 16)
                                 Spacer()
                             }
                             .padding(.horizontal, 16)
                             
-                            ForEach(viewModel.favoriteGyms) { gym in
-                                GymCardView(
-                                    gym: gym,
-                                    events: viewModel.eventsForGym(gym.id),
-                                    viewModel: viewModel
-                                )
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(viewModel.favoriteGyms) { gym in
+                                        CompactGymCard(gym: gym, viewModel: viewModel)
+                                    }
+                                }
                                 .padding(.horizontal, 16)
                             }
                         }
-                        
-                        // Divider
-                        Divider()
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
                     }
                     
-                    // All Gyms Section
+                    // Discover Section
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text(viewModel.favoriteGyms.isEmpty ? "Gyms Near You" : "More Gyms")
+                            Text("Discover")
                                 .font(.appHeadline)
                                 .foregroundColor(AppTheme.appTextPrimary)
+                                .padding(.horizontal, 16)
                             Spacer()
                             
                             // Location status indicator
@@ -81,8 +78,8 @@ struct GymsListView: View {
                             }
                         } else {
                             ForEach(viewModel.nonFavoriteGymsByDistance) { gym in
-                                gymCardView(for: gym)
-                                    .padding(.horizontal, 16)
+                                LargeGymCardView(gym: gym, viewModel: viewModel)
+                                    .padding(.horizontal, 12)
                             }
                         }
                     }

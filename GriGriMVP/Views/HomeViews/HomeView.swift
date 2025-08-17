@@ -50,9 +50,10 @@ struct HomeView: View {
                 PassCreationFlowView(
                     onPassAdded: {
                         // This callback is triggered when a pass is successfully added
-                        // You could refresh any pass-related data here if needed
-                        print("Pass added successfully from HomeView")
+                        // Navigate to PassRootView instead of going back to HomeView
+                        print("Pass added successfully from HomeView, navigating to PassRootView")
                         navigateToPassCreation = false
+                        navigateToPasses = true
                     },
                     onCancel: {
                         navigateToPassCreation = false
@@ -128,6 +129,10 @@ struct HomeView: View {
             },
             onAddPass: {
                 navigateToPassCreation = true // Updated to use pass creation flow
+            },
+            onSetActivePass: {
+                guard let gym = viewModel.nearestGym else { return false }
+                return viewModel.setActivePassForGym(gym)
             }
         )
         .padding(.horizontal, 12)
@@ -179,7 +184,7 @@ struct HomeView: View {
                 FeaturedEventCard(
                     event: featuredEvent,
                     onView: {
-                        selectedEvent = featuredEvent // Also navigate from featured card
+                        selectedEvent = featuredEvent
                     },
                     onRegister: {
                         // Register for event

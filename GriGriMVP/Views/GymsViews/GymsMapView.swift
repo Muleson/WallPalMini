@@ -17,6 +17,7 @@ struct GymsMapView: View {
     )
     @State private var selectedGym: Gym?
     @State private var showingGymProfile = false
+    @State private var showingLocationOptions = false
     @State private var isStandardMapStyle = true
     @State private var dragOffset: CGFloat = 0
     @Environment(\.dismiss) private var dismiss
@@ -73,6 +74,19 @@ struct GymsMapView: View {
             if let selectedGym = selectedGym {
                 GymProfileView(gym: selectedGym)
             }
+        }
+        .confirmationDialog("Visit Gym", isPresented: $showingLocationOptions) {
+            if let selectedGym = selectedGym {
+                Button("View in Maps") {
+                    viewModel.openGymInMaps(selectedGym)
+                }
+                Button("View Gym Profile") {
+                    showingGymProfile = true
+                }
+                Button("Cancel", role: .cancel) { }
+            }
+        } message: {
+            Text("How would you like to visit this gym?")
         }
     }
     
@@ -250,35 +264,18 @@ private func gymInfoSection(for gym: Gym) -> some View {
  private func actionButtons(for gym: Gym) -> some View {
     HStack(spacing: 12) {
         // Favorite button
-        Button(action: {
+        PrimaryActionButton.toggle(
+            viewModel.isGymFavorited(gym) ? "Favourited" : "Favourite",
+            isEngaged: viewModel.isGymFavorited(gym)
+        ) {
             Task {
                 await viewModel.toggleFavoriteGym(gym)
             }
-        }) {
-            Text("Favourite")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(viewModel.isGymFavorited(gym) ? AppTheme.appPrimary : .white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(viewModel.isGymFavorited(gym) ? .clear : AppTheme.appSecondary)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(AppTheme.appSecondary, lineWidth: viewModel.isGymFavorited(gym) ? 2 : 0)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 25))
         }
         
         // Visit button
-        Button(action: {
-            showingGymProfile = true
-        }) {
-            Text("Visit")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(AppTheme.appPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: 25))
+        PrimaryActionButton.primary("Visit") {
+            showingLocationOptions = true
         }
     }
 }

@@ -132,37 +132,32 @@ struct PassConfirmationView: View {
                 Divider()
                 
                 HStack(spacing: 16) {
-                    Button("Cancel") {
+                    PrimaryActionButton(title: "Cancel",
+                                        style: .outline,
+                                        size: .prominent) {
                         viewModel.lastScannedPass = nil
                         // Use the callback to navigate back to PassRootView
                         onCancel()
                     }
-                    .font(.appButtonSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(AppTheme.appContentBG)
-                    .foregroundColor(AppTheme.appTextPrimary)
-                    .cornerRadius(10)
                     
-                    Button("Save") {
-                        let success = viewModel.savePassWithGym(primaryStatus: isPrimary)
-                        
-                        if success {
-                            // Mark success and trigger callback
-                            viewModel.lastSavedPassWasSuccessful = true
-                            onPassSaved()
+                    PrimaryActionButton(
+                        title: "Save",
+                        style: .primary,
+                        size: .prominent) {
+                            let success = viewModel.savePassWithGym(primaryStatus: isPrimary)
                             
-                            // Let the callback chain handle dismissal
-                            // Don't dismiss here - let PassCreationFlowView handle it
+                            if success {
+                                // Mark success and trigger callback
+                                viewModel.lastSavedPassWasSuccessful = true
+                                onPassSaved()
+                                
+                                // Let the callback chain handle dismissal
+                                // Don't dismiss here - let PassCreationFlowView handle it
+                            }
                         }
-                    }
-                    .font(.appButtonPrimary)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(isPassTypeSelected ? AppTheme.appPrimary : Color.gray)
-                    .foregroundColor(AppTheme.appTextButton)
-                    .cornerRadius(10)
+                    
                     .disabled(!isPassTypeSelected)
+                    .opacity(isPassTypeSelected ? 1.0 : 0.6)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 16)
