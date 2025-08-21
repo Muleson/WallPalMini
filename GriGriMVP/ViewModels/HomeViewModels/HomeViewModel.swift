@@ -213,10 +213,16 @@ class HomeViewModel: ObservableObject {
         
         isLoadingGyms = true
         
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 let gyms = try await gymRepository.fetchAllGyms()
-                allGyms = gyms
+                
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    allGyms = gyms
+                }
                 
                 // Filter gyms to only include those with passes
                 let gymsWithPasses = gyms.filter { gym in
@@ -232,12 +238,18 @@ class HomeViewModel: ObservableObject {
                     return distance1 < distance2
                 }
                 
-                self.nearestGym = nearestGym
-                isLoadingGyms = false
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.nearestGym = nearestGym
+                    isLoadingGyms = false
+                }
                 
             } catch {
                 print("Failed to fetch gyms: \(error.localizedDescription)")
-                isLoadingGyms = false
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    isLoadingGyms = false
+                }
             }
         }
     }
@@ -312,20 +324,42 @@ class HomeViewModel: ObservableObject {
     }
     
     private func filterFeaturedEvents() {
-        // Filter for featured events (events marked as featured by the system)
-        featuredEvents = allEvents.filter { $0.isFeatured == true }
+        // Define allowed event types for featured events
+        let allowedEventTypes: Set<EventType> = [.competition, .opening, .settingTaster, .openDay]
         
-        // If no featured events, use most upcoming events as featured
+        // Filter for featured events with additional criteria
+        featuredEvents = allEvents.filter { event in
+            event.isFeatured == true &&
+            event.startDate > Date() &&
+            event.mediaItems?.isEmpty == false &&
+            allowedEventTypes.contains(event.eventType)
+        }
+        
+        // If no featured events, use most upcoming events as featured with same criteria
         if featuredEvents.isEmpty {
-            let upcomingEvents = allEvents.filter { $0.startDate > Date() }
-                .sorted(by: { $0.startDate < $1.startDate })
+            let upcomingEvents = allEvents.filter { event in
+                event.startDate > Date() &&
+                event.mediaItems?.isEmpty == false &&
+                allowedEventTypes.contains(event.eventType)
+            }
+            .sorted(by: { $0.startDate < $1.startDate })
+            
             featuredEvents = Array(upcomingEvents.prefix(3))
         }
     }
     
     private func filterNearbyEvents() {
-        // Get upcoming events only
-        let upcomingEvents = allEvents.filter { $0.startDate > Date() }
+        // Get upcoming events only with additional filtering criteria
+        let allowedEventTypes: Set<EventType> = [.competition, .opening, .settingTaster, .openDay]
+        
+        let upcomingEvents = allEvents.filter { event in
+            // Must be upcoming
+            event.startDate > Date() &&
+            // Must have media items
+            event.mediaItems?.isEmpty == false &&
+            // Must be one of the allowed event types
+            allowedEventTypes.contains(event.eventType)
+        }
         
         guard !upcomingEvents.isEmpty else {
             nearbyEvents = []

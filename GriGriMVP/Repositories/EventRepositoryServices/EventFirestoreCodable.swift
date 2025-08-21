@@ -12,7 +12,7 @@ extension EventItem: FirestoreCodable {
     func toFirestoreData() -> [String: Any] {
         var data: [String: Any] = [
             "name": name,
-            "type": type.rawValue,
+            "eventType": eventType.rawValue,
             "location": location,
             "description": description,
             "createdAt": createdAt.firestoreTimestamp,
@@ -25,12 +25,24 @@ extension EventItem: FirestoreCodable {
         ]
         
         // Add optional fields
+        if let climbingType = climbingType, !climbingType.isEmpty {
+            data["climbingType"] = climbingType.map { $0.rawValue }
+        }
+        
         if let mediaItems = mediaItems, !mediaItems.isEmpty {
             data["mediaItems"] = mediaItems.map { $0.toFirestoreData() }
         }
         
         if let registrationLink = registrationLink {
             data["registrationLink"] = registrationLink
+        }
+        
+        if let frequency = frequency {
+            data["frequency"] = frequency.rawValue
+        }
+        
+        if let recurrenceEndDate = recurrenceEndDate {
+            data["recurrenceEndDate"] = recurrenceEndDate.firestoreTimestamp
         }
         
         return data
@@ -42,14 +54,32 @@ extension EventItem: FirestoreCodable {
             let authorId = firestoreData["authorId"] as? String,
             let hostId = firestoreData["hostId"] as? String,
             let name = firestoreData["name"] as? String,
-            let typeRawValue = firestoreData["type"] as? String,
-            let type = EventType(rawValue: typeRawValue),
             let location = firestoreData["location"] as? String,
             let description = firestoreData["description"] as? String
         else {
             print("DEBUG: Failed to decode required EventItem fields")
             print("DEBUG: Available keys: \(firestoreData.keys.sorted())")
             return nil
+        }
+        
+        // Handle eventType with backward compatibility for "type" field
+        let eventType: EventType
+        if let eventTypeRawValue = firestoreData["eventType"] as? String,
+           let type = EventType(rawValue: eventTypeRawValue) {
+            eventType = type
+        } else if let typeRawValue = firestoreData["type"] as? String,
+                  let type = EventType(rawValue: typeRawValue) {
+            // Backward compatibility for old "type" field
+            eventType = type
+        } else {
+            print("DEBUG: Failed to decode eventType/type field")
+            return nil
+        }
+        
+        // Handle climbingType array
+        var climbingType: [ClimbingTypes]?
+        if let climbingTypeRawValues = firestoreData["climbingType"] as? [String] {
+            climbingType = climbingTypeRawValues.compactMap { ClimbingTypes(rawValue: $0) }
         }
         
         // Handle timestamps
@@ -85,6 +115,18 @@ extension EventItem: FirestoreCodable {
         // Handle optional fields
         let registrationLink = firestoreData["registrationLink"] as? String
         
+        // Handle frequency
+        var frequency: EventFrequency?
+        if let frequencyRawValue = firestoreData["frequency"] as? String {
+            frequency = EventFrequency(rawValue: frequencyRawValue)
+        }
+        
+        // Handle recurrence end date
+        var recurrenceEndDate: Date?
+        if let timestamp = firestoreData["recurrenceEndDate"] as? Timestamp {
+            recurrenceEndDate = timestamp.dateValue()
+        }
+        
         // Handle media items
         var mediaItems: [MediaItem]?
         if let mediaItemsData = firestoreData["mediaItems"] as? [[String: Any]] {
@@ -102,7 +144,8 @@ extension EventItem: FirestoreCodable {
             author: placeholderAuthor,
             host: placeholderHost,
             name: name,
-            type: type,
+            eventType: eventType,
+            climbingType: climbingType,
             location: location,
             description: description,
             mediaItems: mediaItems,
@@ -111,7 +154,9 @@ extension EventItem: FirestoreCodable {
             startDate: startDate,
             endDate: endDate,
             isFeatured: isFeatured,
-            registrationRequired: registrationRequired
+            registrationRequired: registrationRequired,
+            frequency: frequency,
+            recurrenceEndDate: recurrenceEndDate
         )
     }
 }

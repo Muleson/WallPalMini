@@ -52,12 +52,14 @@ class EventManagementViewModel: ObservableObject {
         do {
             let events = try await eventRepository.fetchEventsForGym(gymId: gym.id)
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.gymEvents = events.sorted { $0.startDate < $1.startDate }
                 self.isLoading = false
             }
         } catch {
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.errorMessage = "Failed to load events: \(error.localizedDescription)"
                 self.isLoading = false
                 // For development, fall back to sample data
@@ -71,11 +73,13 @@ class EventManagementViewModel: ObservableObject {
         do {
             try await eventRepository.deleteEvent(id: eventId)
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.gymEvents.removeAll { $0.id == eventId }
             }
         } catch {
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.errorMessage = "Failed to delete event: \(error.localizedDescription)"
             }
         }
@@ -160,7 +164,8 @@ class EventManagementViewModel: ObservableObject {
                 author: existingEvent.author,
                 host: existingEvent.host,
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                type: eventType,
+                eventType: eventType,
+                climbingType: existingEvent.climbingType,
                 location: location,
                 description: description.trimmingCharacters(in: .whitespacesAndNewlines),
                 mediaItems: updatedMediaItems,
@@ -169,13 +174,16 @@ class EventManagementViewModel: ObservableObject {
                 startDate: startDate,
                 endDate: finalEndDate,
                 isFeatured: existingEvent.isFeatured,
-                registrationRequired: registrationRequired
+                registrationRequired: registrationRequired,
+                frequency: existingEvent.frequency,
+                recurrenceEndDate: existingEvent.recurrenceEndDate
             )
             
             // Update in repository
             try await eventRepository.updateEvent(updatedEvent)
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 // Update local array
                 if let index = self.gymEvents.firstIndex(where: { $0.id == eventId }) {
                     self.gymEvents[index] = updatedEvent
@@ -188,7 +196,8 @@ class EventManagementViewModel: ObservableObject {
             }
             
         } catch {
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isEditingEvent = false
                 self.isUploadingImages = false
                 self.errorMessage = "Failed to update event: \(error.localizedDescription)"

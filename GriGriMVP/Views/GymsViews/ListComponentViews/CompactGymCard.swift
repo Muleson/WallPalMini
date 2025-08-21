@@ -10,6 +10,9 @@ import SwiftUI
 struct CompactGymCard: View {
     let gym: Gym
     @ObservedObject var viewModel: GymsViewModel
+    @State private var showingVisitOptions = false
+    @State private var gymToVisit: Gym?
+    @State private var navigateToGymProfile = false
     
     var body: some View {
         VStack(spacing: 6) {
@@ -74,6 +77,8 @@ struct CompactGymCard: View {
             PrimaryActionButton(title: "Visit",
                                 style: .primary,
                                 size: .compact) {
+                gymToVisit = gym
+                showingVisitOptions = true
             }
         }
         .frame(width: 200, height: 140)
@@ -81,6 +86,25 @@ struct CompactGymCard: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .gymVisitDialog(
+            isPresented: $showingVisitOptions,
+            gym: gymToVisit,
+            onViewInMaps: {
+                if let gym = gymToVisit {
+                    viewModel.openGymInMaps(gym)
+                }
+                showingVisitOptions = false
+                gymToVisit = nil
+            },
+            onViewProfile: {
+                navigateToGymProfile = true
+                showingVisitOptions = false
+                gymToVisit = nil
+            }
+        )
+        .navigationDestination(isPresented: $navigateToGymProfile) {
+            GymProfileView(gym: gym)
+        }
     }
     
     private func climbingTypeIcon(for type: ClimbingTypes) -> Image {

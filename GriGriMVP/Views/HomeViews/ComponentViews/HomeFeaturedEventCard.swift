@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct FeaturedEventCard: View {
+struct HomeFeaturedEventCard: View {
     let event: EventItem
     let onView: () -> Void
     let onRegister: () -> Void
@@ -148,7 +148,7 @@ struct FeaturedEventCard: View {
             
             // Event type tag
             HStack {
-                Text(event.type.displayName)
+                Text(event.eventType.displayName)
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundColor(AppTheme.appTextPrimary)
                     .padding(.horizontal, 8)
@@ -190,7 +190,7 @@ struct FeaturedEventCard: View {
     }
     
     private var tagBackgroundColor: Color {
-        switch event.type {
+        switch event.eventType {
         case .competition:
             return Color.yellow.opacity(0.2)
         case .social:
@@ -210,7 +210,7 @@ struct FeaturedEventCard: View {
 #Preview {
     VStack(spacing: 12) {
         // Preview with different event types from sample data
-        FeaturedEventCard(
+        HomeFeaturedEventCard(
             event: SampleData.events[0], // Summer Send Festival (competition)
             onView: {
                 print("View event: \(SampleData.events[0].name)")

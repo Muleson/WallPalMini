@@ -15,24 +15,40 @@ struct PassesRootView: View {
     @State private var showPassCreation = false
     
     var body: some View {
-        VStack {
-            if displayViewModel.allPasses.isEmpty {
-                // Empty state view
-                emptyStateView
-            } else {
-                // Show primary pass at the top
-                PrimaryPassView(viewModel: displayViewModel)
-                    .padding()
-                
-                // Show ALL passes in the list, including the active one
-                List {
-                    ForEach(displayViewModel.allPasses) { pass in
-                        PassRowView(
-                            viewModel: displayViewModel, 
-                            passToDelete: .constant(nil),
-                            pass: pass
-                        )
+        ZStack {
+            VStack {
+                if displayViewModel.allPasses.isEmpty {
+                    // Empty state view
+                    emptyStateView
+                } else {
+                    // Show primary pass at the top
+                    PrimaryPassView(viewModel: displayViewModel)
+                        .padding()
+                    
+                    // Show ALL passes in the list, including the active one
+                    List {
+                        ForEach(displayViewModel.allPasses) { pass in
+                            PassRowView(
+                                viewModel: displayViewModel, 
+                                passToDelete: .constant(nil),
+                                pass: pass
+                            )
+                        }
                     }
+                }
+            }
+            
+            // Floating Add Pass Button
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    PrimaryActionButton.primary("Add Pass") {
+                        showPassCreation = true
+                    }
+                    .frame(width: 120)
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
                 }
             }
         }

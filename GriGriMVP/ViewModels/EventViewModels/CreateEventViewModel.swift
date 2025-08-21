@@ -121,7 +121,7 @@ class CreateEventViewModel: ObservableObject {
                 author: currentUser,
                 host: gym,
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                type: eventType,
+                eventType: eventType,
                 location: location,
                 description: description.trimmingCharacters(in: .whitespacesAndNewlines),
                 mediaItems: mediaItems,
@@ -130,13 +130,16 @@ class CreateEventViewModel: ObservableObject {
                 startDate: startDate,
                 endDate: finalEndDate,
                 isFeatured: false,
-                registrationRequired: registrationRequired
+                registrationRequired: registrationRequired,
+                frequency: nil,
+                recurrenceEndDate: nil
             )
             
             // Save to repository
             let eventId = try await eventRepository.createEvent(event)
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isLoading = false
                 self.clearImages()
                 // Success - errorMessage remains nil
@@ -144,7 +147,8 @@ class CreateEventViewModel: ObservableObject {
             }
             
         } catch {
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isLoading = false
                 self.isUploadingImages = false
                 self.errorMessage = "Failed to create event: \(error.localizedDescription)"

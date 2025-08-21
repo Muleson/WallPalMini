@@ -51,11 +51,14 @@ class PassCreationViewModel: ObservableObject {
         isLoading = true
         searchError = nil
         
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 let loadedGyms = try await gymRepository.fetchAllGyms()
                 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.gyms = loadedGyms
                     self.isLoading = false
                 }
@@ -63,7 +66,8 @@ class PassCreationViewModel: ObservableObject {
                 await calculateDistancesToGyms()
                 
             } catch {
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.searchError = "Failed to load gyms: \(error.localizedDescription)"
                     self.isLoading = false
                 }
@@ -74,19 +78,23 @@ class PassCreationViewModel: ObservableObject {
     func searchGyms(query: String) {
         searchTask?.cancel()
         
-        let task = Task {
+        let task = Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 let filteredGyms = try await gymRepository.searchGyms(query: query)
                 
                 if !Task.isCancelled {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         self.gyms = filteredGyms
                     }
                     await calculateDistancesToGyms()
                 }
             } catch {
                 if !Task.isCancelled {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         self.searchError = "Search failed: \(error.localizedDescription)"
                     }
                 }
@@ -112,14 +120,16 @@ class PassCreationViewModel: ObservableObject {
                 }
             }
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.gymDistances = distances
             }
         } catch LocationError.requestInProgress {
             print("Location request already in progress, skipping distance calculation")
         } catch {
             print("Location error: \(error.localizedDescription)")
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.gymDistances = [:]
             }
         }

@@ -73,13 +73,15 @@ class PassDisplayViewModel: ObservableObject {
         let gymIds = Set(passManager.passes.compactMap { $0.gymId })
         print("🏋️‍♂️ PassDisplayViewModel: Loading gyms for \(gymIds.count) unique gym IDs: \(gymIds)")
         
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             var didLoadNewGymData = false
             
             for gymId in gymIds {
                 if gyms[gymId] == nil {
                     let gym = try await gymRepository.getGym(id: gymId)
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         gyms[gymId] = gym
                         didLoadNewGymData = true
                     }
@@ -89,7 +91,8 @@ class PassDisplayViewModel: ObservableObject {
             // Trigger another UI update if we loaded new gym data
             if didLoadNewGymData {
                 print("🔄 PassDisplayViewModel: Triggering UI update after loading new gym data")
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.objectWillChange.send()
                 }
             }

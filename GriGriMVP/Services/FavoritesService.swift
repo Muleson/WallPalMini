@@ -102,7 +102,8 @@ class FavoritesService: ObservableObject {
         }
         
         // Update the published property on the main thread
-        await MainActor.run {
+        await MainActor.run { [weak self] in
+            guard let self = self else { return }
             self.favoritedEventIds = favoriteIds
         }
         
@@ -131,7 +132,8 @@ class FavoritesService: ObservableObject {
             try await existingDoc.reference.delete()
             
             // Update local cache
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.favoritedEventIds.remove(eventId)
             }
             
@@ -150,7 +152,8 @@ class FavoritesService: ObservableObject {
                 .setData(favorite.toFirestoreData())
             
             // Update local cache
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.favoritedEventIds.insert(eventId)
             }
             

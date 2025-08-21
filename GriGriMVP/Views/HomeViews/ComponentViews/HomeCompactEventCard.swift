@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct CompactEventCard: View {
+struct HomeCompactEventCard: View {
     let title: String
     let subtitle: String?
     let backgroundColor: Color
@@ -32,7 +32,7 @@ struct CompactEventCard: View {
         self.gymProfileImage = event.host.profileImage // Use gym's profile image
         
         // Choose background color based on event type
-        switch event.type {
+        switch event.eventType {
         case .competition:
             self.backgroundColor = Color.yellow.opacity(0.8)
         case .social:
@@ -61,13 +61,17 @@ struct CompactEventCard: View {
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
+                                .frame(width: 180, height: 270)
+                                .clipped()
                         } placeholder: {
                             Rectangle()
                                 .fill(backgroundColor)
+                                .frame(width: 180, height: 270)
                         }
                     } else {
                         Rectangle()
                             .fill(backgroundColor)
+                            .frame(width: 180, height: 270)
                     }
                     
                     // Sharp gradient overlay from event type color to clear
@@ -85,7 +89,7 @@ struct CompactEventCard: View {
                     // Overlay content
                     overlayContent
                 }
-                .frame(width: 180, height: 240)
+                .frame(width: 180, height: 270)
             }
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
@@ -129,7 +133,7 @@ struct CompactEventCard: View {
                         .frame(width: 50, height: 1)
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                .padding(.bottom, 16)
             }
             
             // Fixed position gym logo
@@ -182,11 +186,11 @@ struct CompactEventCard: View {
 #Preview {
     VStack(spacing: 12) {
         // Preview with different event types from sample data
-        CompactEventCard(event: SampleData.events[0]) {
+        HomeCompactEventCard(event: SampleData.events[0]) {
             print("Tapped event: \(SampleData.events[0].name)")
         }
         
-        CompactEventCard(event: SampleData.events[1]) {
+        HomeCompactEventCard(event: SampleData.events[1]) {
             print("Tapped event: \(SampleData.events[1].name)")
         }
     }

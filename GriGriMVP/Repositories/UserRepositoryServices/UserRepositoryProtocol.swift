@@ -14,6 +14,8 @@ protocol UserRepositoryProtocol {
     func signOut() throws
     func getCurrentAuthUser() -> String?
     
+    func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws -> User
+    
     // User data
     func getUser(id: String) async throws -> User?
     func getCurrentUser() async throws -> User?

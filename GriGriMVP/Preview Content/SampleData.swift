@@ -224,7 +224,8 @@ struct SampleData {
             author: users[0], // John Doe (owner of Boulder World)
             host: gyms[1], // The Vault Climbing
             name: "Community Climb",
-            type: .competition,
+            eventType: .openDay,
+            climbingType: [.bouldering],
             location: "Boulder World, Main Hall",
             description: "Annual bouldering competition with categories for all levels. Cash prizes for top finishers!",
             mediaItems: [mediaItems[4]], // Multiple images for this event
@@ -233,14 +234,15 @@ struct SampleData {
             startDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!,
             endDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!.addingTimeInterval(8 * 3600), // 8 hours later
             isFeatured: true,
-            registrationRequired: false
+            registrationRequired: true
         ),
         EventItem(
             id: "event2",
             author: users[1], // Jane Smith (owner of Vertical Edge)
             host: gyms[1], // Vertical Edge
             name: "Zenith Bash",
-            type: .openDay,
+            eventType: .openDay,
+            climbingType: [.bouldering, .sport],
             location: "Training Area",
             description: "Learn the basics of climbing in this introductory session. Equipment provided.",
             mediaItems: [mediaItems[5]], // Multiple images for this event
@@ -256,7 +258,8 @@ struct SampleData {
             author: users[3], // Sarah Johnson (staff at Boulder World)
             host: gyms[3], // The Church
             name: "Summer Send",
-            type: .settingTaster,
+            eventType: .settingTaster,
+            climbingType: [.bouldering],
             location: "The Steeple",
             description: "Come see our new routes and boulder problems set by guest setter Alex Megos!",
             mediaItems: [mediaItems[6]], // No images for this event
@@ -272,7 +275,8 @@ struct SampleData {
             author: users[2], // Alex Wilson (owner of Crag Climb)
             host: gyms[3], // The Church
             name: "Rope Jam",
-            type: .social,
+            eventType: .social,
+            climbingType: [.sport],
             location: "Crag Climb",
             description: "Join us for the grand opening of our new facility! Free climbing all day and prizes.",
             mediaItems: [mediaItems[7]], // Single image for this event
@@ -281,14 +285,16 @@ struct SampleData {
             startDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!,
             endDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!.addingTimeInterval(12 * 3600), // All day event (12 hours)
             isFeatured: true,
-            registrationRequired: true
+            registrationRequired: true,
+            frequency: .weekly
         ),
         EventItem(
             id: "event5",
             author: users[4], // Mike Brown (staff at Vertical Edge)
             host: gyms[3], // The Church
             name: "Elevate",
-            type: .competition,
+            eventType: .competition,
+            climbingType: [.bouldering, .sport],
             location: "The Church",
             description: "Biggest competition where all our strongest climbers come together!",
             mediaItems: [mediaItems[8]],
@@ -298,7 +304,169 @@ struct SampleData {
             endDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!.addingTimeInterval(2 * 3600), // 2 hours later
             isFeatured: false,
             registrationRequired: true
+        ),
+        
+     // Gym class samples
+        EventItem(
+            id: "event_class1",
+            author: users[3], // Sarah Johnson (staff at Rock Valley)
+            host: gyms[0], // Rock Valley
+            name: "Beginner Bouldering Basics",
+            eventType: .gymClass,
+            climbingType: [.bouldering],
+            location: "Rock Valley, Bouldering Area",
+            description: "Perfect for those new to bouldering! Learn fundamental techniques, safety, and how to read routes. All equipment provided.",
+            mediaItems: nil,
+            registrationLink: "https://rockvalley.com/classes/beginner-bouldering",
+            createdAt: Date(timeIntervalSince1970: 1672000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 2, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM, 2 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 2, to: Date())!.addingTimeInterval(19.5 * 3600), // 1.5 hour class
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .weekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .month, value: 3, to: Date()) // 3 month course
+        ),
+
+        EventItem(
+            id: "event_class2",
+            author: users[1], // Jane Smith (owner of The Vault)
+            host: gyms[1], // The Vault
+            name: "Youth Climbing Club (Ages 8-16)",
+            eventType: .gymClass,
+            climbingType: [.sport, .bouldering],
+            location: "The Vault, Youth Area",
+            description: "Weekly climbing sessions for young climbers. Focuses on technique, strength building, and fun challenges. Parent supervision required for under 12s.",
+            mediaItems: [mediaItems[5]], // Reusing existing media
+            registrationLink: "https://thevault.com/youth-club",
+            createdAt: Date(timeIntervalSince1970: 1675000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 6, to: Date())!.addingTimeInterval(16 * 3600), // 4 PM Saturday
+            endDate: Calendar.current.date(byAdding: .day, value: 6, to: Date())!.addingTimeInterval(17.5 * 3600), // 1.5 hour class
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .weekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date()) // Ongoing program
+        ),
+
+        EventItem(
+            id: "event_class3",
+            author: users[4], // Mike Brown (staff at The Vault)
+            host: gyms[1], // The Vault
+            name: "Lead Climbing Progression",
+            eventType: .gymClass,
+            climbingType: [.sport],
+            location: "The Vault, Sport Climbing Wall",
+            description: "Take your lead climbing to the next level! Focus on advanced techniques, mental training, and efficient movement. Lead certification required.",
+            mediaItems: nil,
+            registrationLink: "https://thevault.com/lead-progression",
+            createdAt: Date(timeIntervalSince1970: 1673000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM Thursday
+            endDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(21 * 3600), // 2 hour class
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .biweekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .month, value: 2, to: Date()) // 2 month intensive
+        ),
+
+        EventItem(
+            id: "event_class4",
+            author: users[2], // Alex Wilson (owner of Gravity Climbing)
+            host: gyms[2], // Gravity Climbing
+            name: "Family Climbing Adventures",
+            eventType: .gymClass,
+            climbingType: [.bouldering, .gym],
+            location: "Gravity Climbing, Main Wall",
+            description: "A fun climbing session designed for families! Parents and children climb together with structured activities and games. All skill levels welcome.",
+            mediaItems: [mediaItems[6]], // Reusing existing media
+            registrationLink: "https://gravity.com/family-climbing",
+            createdAt: Date(timeIntervalSince1970: 1674000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM next Sunday
+            endDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(11.5 * 3600), // 1.5 hour class
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .monthly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date()) // Ongoing monthly program
+        ),
+
+        EventItem(
+            id: "event_class5",
+            author: users[2], // Alex Wilson (owner of The Church)
+            host: gyms[3], // The Church
+            name: "Advanced Movement Workshop",
+            eventType: .gymClass,
+            climbingType: [.bouldering, .sport],
+            location: "The Church, Main Hall",
+            description: "Master complex climbing movements! This intensive workshop covers dynos, mantles, heel hooks, and body positioning. For experienced climbers only.",
+            mediaItems: [mediaItems[7]], // Reusing existing media
+            registrationLink: nil, // Drop-in class
+            createdAt: Date(timeIntervalSince1970: 1676000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM, 12 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(17 * 3600), // 3 hour intensive workshop
+            isFeatured: true,
+            registrationRequired: false,
+            frequency: .oneTime,
+            recurrenceEndDate: nil // Single workshop
+        ),
+
+        EventItem(
+            id: "event_class6",
+            author: users[3], // Sarah Johnson (staff at Rock Valley)
+            host: gyms[0], // Rock Valley
+            name: "Women's Climbing Circle",
+            eventType: .gymClass,
+            climbingType: [.bouldering, .sport],
+            location: "Rock Valley, Training Area",
+            description: "A supportive environment for women to climb, learn, and connect. Monthly sessions focusing on technique, confidence building, and community.",
+            mediaItems: nil,
+            registrationLink: "https://rockvalley.com/womens-circle",
+            createdAt: Date(timeIntervalSince1970: 1671000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(18.5 * 3600), // 6:30 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(20.5 * 3600), // 2 hour session
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .monthly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date()) // Ongoing program
+        ),
+
+        EventItem(
+            id: "event_class7",
+            author: users[4], // Mike Brown (now coaching at The Church)
+            host: gyms[3], // The Church
+            name: "Speed Climbing Bootcamp",
+            eventType: .gymClass,
+            climbingType: [.sport],
+            location: "The Church, Speed Wall",
+            description: "Train for speed climbing competitions! High-intensity sessions focusing on explosive power, precise footwork, and race tactics.",
+            mediaItems: [mediaItems[8]], // Reusing existing media
+            registrationLink: "https://thechurch.com/speed-training",
+            createdAt: Date(timeIntervalSince1970: 1677000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(20 * 3600), // 8 PM tomorrow
+            endDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(21.5 * 3600), // 1.5 hour intensive
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .biweekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .month, value: 4, to: Date()) // 4 month training cycle
+        ),
+
+        EventItem(
+            id: "event_class8",
+            author: users[2], // Alex Wilson (owner of Gravity Climbing)
+            host: gyms[2], // Gravity Climbing
+            name: "Active Seniors Climbing",
+            eventType: .gymClass,
+            climbingType: [.gym],
+            location: "Gravity Climbing, Low Wall Section",
+            description: "Climbing sessions designed for active adults 55+. Focus on mobility, strength maintenance, and social connection in a relaxed environment.",
+            mediaItems: nil,
+            registrationLink: "https://gravity.com/seniors-climbing",
+            createdAt: Date(timeIntervalSince1970: 1678000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM, 15 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(15.5 * 3600), // 1.5 hour class
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .weekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date()) // Ongoing program
         )
+      
     ]
     
     // MARK: - Helper Methods

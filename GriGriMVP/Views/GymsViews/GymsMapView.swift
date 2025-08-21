@@ -17,9 +17,11 @@ struct GymsMapView: View {
     )
     @State private var selectedGym: Gym?
     @State private var showingGymProfile = false
-    @State private var showingLocationOptions = false
     @State private var isStandardMapStyle = true
     @State private var dragOffset: CGFloat = 0
+    @State private var showingVisitOptions = false
+    @State private var gymToVisit: Gym?
+    @State private var navigateToGymProfile = false
     @Environment(\.dismiss) private var dismiss
     
     var allGyms: [Gym] {
@@ -70,24 +72,27 @@ struct GymsMapView: View {
                 updateMapRegion(to: location)
             }
         }
-        .navigationDestination(isPresented: $showingGymProfile) {
-            if let selectedGym = selectedGym {
-                GymProfileView(gym: selectedGym)
+        .navigationDestination(isPresented: $navigateToGymProfile) {
+            if let gym = gymToVisit {
+                GymProfileView(gym: gym)
             }
         }
-        .confirmationDialog("Visit Gym", isPresented: $showingLocationOptions) {
-            if let selectedGym = selectedGym {
-                Button("View in Maps") {
-                    viewModel.openGymInMaps(selectedGym)
+        .gymVisitDialog(
+            isPresented: $showingVisitOptions,
+            gym: gymToVisit,
+            onViewInMaps: {
+                if let gym = gymToVisit {
+                    viewModel.openGymInMaps(gym)
                 }
-                Button("View Gym Profile") {
-                    showingGymProfile = true
-                }
-                Button("Cancel", role: .cancel) { }
+                showingVisitOptions = false
+                gymToVisit = nil
+            },
+            onViewProfile: {
+                navigateToGymProfile = true
+                showingVisitOptions = false
+                gymToVisit = nil
             }
-        } message: {
-            Text("How would you like to visit this gym?")
-        }
+        )
     }
     
     // MARK: - Top Controls
@@ -275,7 +280,8 @@ private func gymInfoSection(for gym: Gym) -> some View {
         
         // Visit button
         PrimaryActionButton.primary("Visit") {
-            showingLocationOptions = true
+            gymToVisit = gym
+            showingVisitOptions = true
         }
     }
 }

@@ -42,7 +42,8 @@ class LocationService: NSObject, ObservableObject {
         setupLocationManager()
         
         // Start auto-refresh system
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             await initializeLocationCache()
             startAutoRefresh()
         }

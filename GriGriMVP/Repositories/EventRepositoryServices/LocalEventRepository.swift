@@ -61,7 +61,8 @@ class LocalEventRepository: EventRepositoryProtocol {
                 author: currentEvent.author,
                 host: currentEvent.host,
                 name: currentEvent.name,
-                type: currentEvent.type,
+                eventType: currentEvent.eventType,
+                climbingType: currentEvent.climbingType,
                 location: currentEvent.location,
                 description: currentEvent.description,
                 mediaItems: mediaItems,
@@ -70,7 +71,9 @@ class LocalEventRepository: EventRepositoryProtocol {
                 startDate: currentEvent.startDate,
                 endDate: currentEvent.endDate,
                 isFeatured: currentEvent.isFeatured,
-                registrationRequired: currentEvent.registrationRequired
+                registrationRequired: currentEvent.registrationRequired,
+                frequency: currentEvent.frequency,
+                recurrenceEndDate: currentEvent.recurrenceEndDate
             )
             events[index] = updatedEvent
         }

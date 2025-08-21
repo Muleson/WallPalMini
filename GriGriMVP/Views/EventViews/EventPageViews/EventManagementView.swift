@@ -116,7 +116,7 @@ struct EventRowView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
-                    Text(event.type.rawValue.capitalized)
+                    Text(event.eventType.rawValue.capitalized)
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)

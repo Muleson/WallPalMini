@@ -21,11 +21,19 @@ struct MainTabView: View {
                 Label("Home", systemImage: "house")
             }
             
+            
             NavigationStack {
                 PassesRootView(appState: appState)
             }
             .tabItem {
                 Label("Passes", systemImage: "qrcode.viewfinder")
+            }
+            
+            NavigationStack {
+                UpcomingEventsView(appState: appState)
+            }
+            .tabItem {
+                Label("What's On", systemImage: "calendar.badge.clock")
             }
             
             NavigationStack {

@@ -17,6 +17,8 @@ class GymsViewModel: ObservableObject {
     @Published var favoriteGyms: [Gym] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    @Published var selectedFilterTypes: Set<GymFilterType> = [.all]
+    @Published var showFilter = false
     
     // Add navigation state
     @Published var showGymProfile = false
@@ -55,7 +57,46 @@ class GymsViewModel: ObservableObject {
     
     var nonFavoriteGymsByDistance: [Gym] {
         let favoriteGymIds = Set(favoriteGyms.map { $0.id })
-        return gymsByDistance.filter { !favoriteGymIds.contains($0.id) }
+        let filteredGyms = filterGyms(gymsByDistance.filter { !favoriteGymIds.contains($0.id) })
+        return filteredGyms
+    }
+    
+    // MARK: - Filter Logic
+    
+    private func filterGyms(_ gyms: [Gym]) -> [Gym] {
+        // If "All" is selected, return all gyms
+        if selectedFilterTypes.contains(.all) {
+            return gyms
+        }
+        
+        // If no specific types selected, return all gyms
+        if selectedFilterTypes.isEmpty {
+            return gyms
+        }
+        
+        return gyms.filter { gym in
+            // Check if gym has ALL of the selected climbing types (AND logic)
+            return selectedFilterTypes.allSatisfy { filterType in
+                switch filterType {
+                case .all:
+                    return true
+                case .boulder:
+                    return gym.climbingType.contains(.bouldering)
+                case .sport:
+                    return gym.climbingType.contains(.sport)
+                }
+            }
+        }
+    }
+    
+    func toggleFilter() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showFilter.toggle()
+        }
+    }
+    
+    func updateFilterSelection(_ newSelection: Set<GymFilterType>) {
+        selectedFilterTypes = newSelection
     }
     
     init(

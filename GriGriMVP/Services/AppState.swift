@@ -31,7 +31,8 @@ class AppState: ObservableObject {
     init(userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository()) {
         self.userRepository = userRepository
         
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
             await checkAuthState()
         }
     }
@@ -40,7 +41,8 @@ class AppState: ObservableObject {
         do {
             if userRepository.getCurrentAuthUser() != nil {
                 if let currentUser = try await userRepository.getCurrentUser() {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         self.user = currentUser
                         self.authState = .authenticated
                     }
@@ -48,12 +50,14 @@ class AppState: ObservableObject {
                 }
             }
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.authState = .unauthenticated
             }
         } catch {
             print("Error checking auth state: \(error)")
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.authState = .unauthenticated
             }
         }

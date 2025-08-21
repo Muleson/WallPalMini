@@ -48,11 +48,19 @@ struct GymsListView: View {
                             Text("Discover")
                                 .font(.appHeadline)
                                 .foregroundColor(AppTheme.appTextPrimary)
-                                .padding(.horizontal, 16)
-                            Spacer()
                             
+                            Spacer()
+
+                            Button(action: {
+                                viewModel.toggleFilter()
+                            }) {
+                                Image(systemName: "line.3.horizontal.decrease")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(viewModel.showFilter ? AppTheme.appPrimary : AppTheme.appTextLight)
+                            }
+                                                        
                             // Location status indicator
-                            if locationService.isLoading {
+                          /*  if locationService.isLoading {
                                 ProgressView()
                                     .scaleEffect(0.8)
                             } else if locationService.authorizationStatus == .authorizedWhenInUse || 
@@ -66,9 +74,18 @@ struct GymsListView: View {
                                 }
                                 .font(.caption)
                                 .foregroundColor(.blue)
-                            }
+                            } */
                         }
                         .padding(.horizontal, 16)
+                        
+                        // Filter View - appears when showFilter is true
+                        if viewModel.showFilter {
+                            ClimbingTypeFilterView(selectedTypes: Binding(
+                                get: { viewModel.selectedFilterTypes },
+                                set: { viewModel.updateFilterSelection($0) }
+                            ))
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                         
                         if viewModel.isLoading {
                             // Loading state
@@ -94,6 +111,7 @@ struct GymsListView: View {
                     }
                 }
             }
+            .scrollIndicators(.hidden)
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Gyms")
             .navigationBarTitleDisplayMode(.large)
@@ -118,14 +136,6 @@ struct GymsListView: View {
         .task {
             await viewModel.loadData()
         }
-    }
-    
-    private func gymCardView(for gym: Gym) -> some View {
-        GymCardView(
-            gym: gym,
-            events: viewModel.eventsForGym(gym.id),
-            viewModel: viewModel
-        )
     }
 }
 

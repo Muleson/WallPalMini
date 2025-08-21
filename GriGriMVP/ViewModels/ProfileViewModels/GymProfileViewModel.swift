@@ -23,7 +23,7 @@ class GymProfileViewModel: ObservableObject {
     // Computed property for grouped events
     var groupedEvents: [String: [EventItem]] {
         Dictionary(grouping: gymEvents) { event in
-            event.type.rawValue.capitalized
+            event.eventType.rawValue.capitalized
         }
     }
     
@@ -47,10 +47,13 @@ class GymProfileViewModel: ObservableObject {
     }
     
     private func loadUserAndCheckFavorite() {
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 if let user = try await userRepository.getCurrentUser() {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         self.currentUser = user
                         self.isFavorite = user.favoriteGyms?.contains(self.gym.id) ?? false
                     }
@@ -65,17 +68,20 @@ class GymProfileViewModel: ObservableObject {
         isLoadingEvents = true
         error = nil
         
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
-                // Fetch events from Firestore for this gym
                 let events = try await eventRepository.fetchEventsForGym(gymId: gym.id)
                 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.gymEvents = events
                     self.isLoadingEvents = false
                 }
             } catch {
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.error = "Failed to load gym events: \(error.localizedDescription)"
                     self.isLoadingEvents = false
                 }
@@ -84,18 +90,21 @@ class GymProfileViewModel: ObservableObject {
     }
     
     func refreshGymDetails() {
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 if let updatedGym = try await gymRepository.getGym(id: gym.id) {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         self.gym = updatedGym
                     }
                 }
                 
-                // Also refresh user data to get updated favorites
                 loadUserAndCheckFavorite()
             } catch {
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.error = "Failed to refresh gym details: \(error.localizedDescription)"
                 }
             }
@@ -103,23 +112,25 @@ class GymProfileViewModel: ObservableObject {
     }
     
     func toggleFavorite() {
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 if let currentUserId = userRepository.getCurrentAuthUser() {
-                    // Let the repository handle the logic
                     let updatedFavorites = try await userRepository.updateUserFavoriteGyms(
                         userId: currentUserId,
                         gymId: gym.id,
                         isFavorite: !isFavorite
                     )
                     
-                    // Update UI state
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
                         self.isFavorite.toggle()
                     }
                 }
             } catch {
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.error = "Failed to update favorite status: \(error.localizedDescription)"
                 }
             }
@@ -133,23 +144,24 @@ class GymProfileViewModel: ObservableObject {
     
     // Toggle event favorite
     func toggleEventFavorite(event: EventItem) {
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 if let currentUserId = userRepository.getCurrentAuthUser() {
                     let isCurrentlyFavorite = isEventFavorited(event: event)
                     
-                    // Update in repository
                     _ = try await userRepository.updateUserFavoriteEvents(
                         userId: currentUserId,
                         eventId: event.id,
                         isFavorite: !isCurrentlyFavorite
                     )
                     
-                    // Refresh user data to get updated favorites
                     loadUserAndCheckFavorite()
                 }
             } catch {
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.error = "Failed to update event favorite status: \(error.localizedDescription)"
                 }
             }

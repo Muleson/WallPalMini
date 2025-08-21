@@ -8,6 +8,8 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import AuthenticationServices
+import CryptoKit
 
 class FirebaseUserRepository: UserRepositoryProtocol {
     private let db = Firestore.firestore()
@@ -15,19 +17,7 @@ class FirebaseUserRepository: UserRepositoryProtocol {
     private let usersCollection = "users"
     
     // MARK: - Authentication
-    
-    func signIn(email: String, password: String) async throws -> User {
-        let authResult = try await auth.signIn(withEmail: email, password: password)
         
-        guard let user = try await getUser(id: authResult.user.uid) else {
-            throw NSError(domain: "FirebaseUserRepository", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "User data not found after authentication"
-            ])
-        }
-        
-        return user
-    }
-    
     func createUser(email: String, password: String, firstName: String, lastName: String) async throws -> User {
         let authResult = try await auth.createUser(withEmail: email, password: password)
         
@@ -53,6 +43,70 @@ class FirebaseUserRepository: UserRepositoryProtocol {
     
     func getCurrentAuthUser() -> String? {
         return auth.currentUser?.uid
+    }
+    
+    // Standard email/password sign-in
+    
+    func signIn(email: String, password: String) async throws -> User {
+        let authResult = try await auth.signIn(withEmail: email, password: password)
+        
+        guard let user = try await getUser(id: authResult.user.uid) else {
+            throw NSError(domain: "FirebaseUserRepository", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "User data not found after authentication"
+            ])
+        }
+        
+        return user
+    }
+    
+    //Apple sign-in
+    
+    func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws -> User {
+        let credential = OAuthProvider.appleCredential(withIDToken: idToken,
+                                                      rawNonce: nonce,
+                                                      fullName: fullName)
+        
+        let authResult = try await auth.signIn(with: credential)
+        
+        // Check if user already exists in Firestore
+        if let existingUser = try await getUser(id: authResult.user.uid) {
+            
+            // CRITICAL: Update name if we have new data and current data is placeholder
+            if let nameComponents = fullName,
+               let givenName = nameComponents.givenName,
+               let familyName = nameComponents.familyName,
+               (existingUser.firstName == "Apple" || existingUser.lastName == "User" ||
+                existingUser.firstName.isEmpty || existingUser.lastName.isEmpty) {
+                
+                // Update user with real name data
+                var updatedUser = existingUser
+                updatedUser.firstName = givenName
+                updatedUser.lastName = familyName
+                
+                try await updateUser(updatedUser)
+                return updatedUser
+            }
+            
+            return existingUser
+        }
+        
+        // Create new user record for first-time Apple sign-in
+        let firstName = fullName?.givenName ?? ""
+        let lastName = fullName?.familyName ?? ""
+        
+        let user = User(
+            id: authResult.user.uid,
+            email: authResult.user.email ?? "private@privaterelay.appleid.com",
+            firstName: firstName.isEmpty ? "Apple" : firstName,
+            lastName: lastName.isEmpty ? "User" : lastName,
+            createdAt: Date(),
+            favoriteGyms: [],
+            favoriteEvents: []
+        )
+        
+        try await db.collection(usersCollection).document(user.id).setData(user.toFirestoreData())
+        
+        return user
     }
     
     // MARK: - User Data

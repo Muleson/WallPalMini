@@ -488,12 +488,15 @@ class GymDetailManagementViewModel: ObservableObject {
         
         geocodingTask?.cancel()
         
-        geocodingTask = Task {
+        geocodingTask = Task { [weak self] in
+            guard let self = self else { return }
+            
             try? await Task.sleep(nanoseconds: 800_000_000)
             
             guard !Task.isCancelled else { return }
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isSearchingAddresses = true
                 self.errorMessage = nil
             }
@@ -501,14 +504,16 @@ class GymDetailManagementViewModel: ObservableObject {
             do {
                 let suggestions = try await locationService.searchAddresses(trimmedAddress)
                 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.addressSuggestions = suggestions
                     self.showAddressSuggestions = !suggestions.isEmpty
                     self.isSearchingAddresses = false
                 }
                 
             } catch {
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.isSearchingAddresses = false
                     self.hideAddressSuggestions()
                     print("Address search error: \(error)")

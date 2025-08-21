@@ -14,51 +14,79 @@ struct HomeView: View {
     @State private var navigateToPasses = false
     @State private var selectedEvent: EventItem?
     @State private var navigateToPassCreation = false // Renamed for clarity
+    @State private var showMenuBar = false
     
     var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // Header Section
-                    headerSection
-                    
-                    // Greeting Section
-                    greetingSection
-                    
-                    // Nearby Gym Card
-                    nearbyGymSection
-                    
-                    // Events Sections
-                    VStack(spacing: 24) {
-                        happeningNextSection
-                        comingUpSection
+        GeometryReader { geometry in
+            NavigationStack {
+                ZStack {
+                    // Main HomeView Content
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            // Header Section
+                            headerSection
+                            
+                            // Greeting Section
+                            greetingSection
+                            
+                            // Nearby Gym Card
+                            nearbyGymSection
+                            
+                            // Events Sections
+                            VStack(spacing: 24) {
+                                happeningNextSection
+                                comingUpSection
+                            }
+                            .padding(.top, 16)
+                        }
                     }
-                    .padding(.top, 16)
+                    .background(Color(AppTheme.appBackgroundBG))
+                    .offset(x: showMenuBar ? -geometry.size.width * 0.5 : 0)
+                    .animation(.easeInOut(duration: 0.3), value: showMenuBar)
+                    
+                    // Menu Overlay
+                    if showMenuBar {
+                        // Background overlay to dismiss menu
+                        Color.black.opacity(0.3)
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                showMenuBar = false
+                            }
+                        
+                        // Menu Bar View
+                        HStack {
+                            Spacer()
+                            
+                            MenuBarView(appState: appState)
+                                .frame(width: geometry.size.width * 0.5)
+                                .transition(.move(edge: .trailing))
+                        }
+                        .animation(.easeInOut(duration: 0.3), value: showMenuBar)
+                    }
                 }
-            }
-            .background(Color(AppTheme.appBackgroundBG))
-            .navigationBarHidden(true)
-            .navigationDestination(isPresented: $navigateToPasses) {
-                PassesRootView(appState: appState)
-            }
-            // Add navigation destination for event details
-            .navigationDestination(item: $selectedEvent) { event in
-                EventPageView(event: event)
-            }
-            // Updated navigation destination for pass creation flow
-            .navigationDestination(isPresented: $navigateToPassCreation) {
-                PassCreationFlowView(
-                    onPassAdded: {
-                        // This callback is triggered when a pass is successfully added
-                        // Navigate to PassRootView instead of going back to HomeView
-                        print("Pass added successfully from HomeView, navigating to PassRootView")
-                        navigateToPassCreation = false
-                        navigateToPasses = true
-                    },
-                    onCancel: {
-                        navigateToPassCreation = false
-                    }
-                )
+                .navigationBarHidden(true)
+                .navigationDestination(isPresented: $navigateToPasses) {
+                    PassesRootView(appState: appState)
+                }
+                // Add navigation destination for event details
+                .navigationDestination(item: $selectedEvent) { event in
+                    EventPageView(event: event)
+                }
+                // Updated navigation destination for pass creation flow
+                .navigationDestination(isPresented: $navigateToPassCreation) {
+                    PassCreationFlowView(
+                        onPassAdded: {
+                            // This callback is triggered when a pass is successfully added
+                            // Navigate to PassRootView instead of going back to HomeView
+                            print("Pass added successfully from HomeView, navigating to PassRootView")
+                            navigateToPassCreation = false
+                            navigateToPasses = true
+                        },
+                        onCancel: {
+                            navigateToPassCreation = false
+                        }
+                    )
+                }
             }
         }
         .onAppear {
@@ -90,23 +118,13 @@ struct HomeView: View {
             
             Spacer()
             
-            // Search and menu buttons
-            HStack(spacing: 16) {
-                Button(action: {
-                    // Search action
-                }) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.title2)
-                        .foregroundColor(AppTheme.appPrimary)
-                }
-                
-                Button(action: {
-                    // Menu action
-                }) {
-                    Image(systemName: "ellipsis")
-                        .font(.title2)
-                        .foregroundColor(AppTheme.appPrimary)
-                }
+            // Menu button
+            Button(action: {
+                showMenuBar = true
+            }) {
+                Image(systemName: "ellipsis")
+                    .font(.title2)
+                    .foregroundColor(AppTheme.appPrimary)
             }
         }
         .padding(.horizontal, 20)
@@ -156,7 +174,7 @@ struct HomeView: View {
                     HStack(spacing: 12) {
                         // Combine nearby events with fallback events sorted by date
                         ForEach(upcomingEventsForDisplay.prefix(5)) { event in
-                            CompactEventCard(event: event) {
+                            HomeCompactEventCard(event: event) {
                                 selectedEvent = event // Set selected event for navigation
                             }
                         }
@@ -181,7 +199,7 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else if let featuredEvent = viewModel.featuredEvents.first {
-                FeaturedEventCard(
+                HomeFeaturedEventCard(
                     event: featuredEvent,
                     onView: {
                         selectedEvent = featuredEvent
@@ -207,23 +225,35 @@ struct HomeView: View {
     
     // MARK: - Helper computed property for upcoming events
     private var upcomingEventsForDisplay: [EventItem] {
-        let nearbyEvents = viewModel.nearbyEvents
-        let minEventsToShow = 5
+        // Define allowed event types for display
+        let allowedEventTypes: Set<EventType> = [.competition, .opening, .settingTaster, .openDay]
         
-        // If we have enough nearby events, use them
-        if nearbyEvents.count >= minEventsToShow {
-            return Array(nearbyEvents.prefix(minEventsToShow))
+        // Filter nearby events with additional criteria
+        let filteredNearbyEvents = viewModel.nearbyEvents.filter { event in
+            event.mediaItems?.isEmpty == false &&
+            allowedEventTypes.contains(event.eventType)
         }
         
-        // Otherwise, combine nearby events with other events sorted by date
+        let minEventsToShow = 5
+        
+        // If we have enough filtered nearby events, use them
+        if filteredNearbyEvents.count >= minEventsToShow {
+            return Array(filteredNearbyEvents.prefix(minEventsToShow))
+        }
+        
+        // Otherwise, combine filtered nearby events with other filtered events sorted by date
         let allOtherEvents = viewModel.allEvents
             .filter { otherEvent in
+                // Must meet the same criteria
+                otherEvent.startDate > Date() &&
+                otherEvent.mediaItems?.isEmpty == false &&
+                allowedEventTypes.contains(otherEvent.eventType) &&
                 // Exclude events that are already in nearby events
-                !nearbyEvents.contains { $0.id == otherEvent.id }
+                !filteredNearbyEvents.contains { $0.id == otherEvent.id }
             }
             .sorted { $0.startDate < $1.startDate } // Sort by nearest date
         
-        let combinedEvents = nearbyEvents + allOtherEvents
+        let combinedEvents = filteredNearbyEvents + allOtherEvents
         return Array(combinedEvents.prefix(minEventsToShow))
     }
 }

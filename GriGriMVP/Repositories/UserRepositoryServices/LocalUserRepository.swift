@@ -44,6 +44,45 @@ class LocalUserRepository: UserRepositoryProtocol {
         return currentUserId
     }
     
+    func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws -> User {
+            // For local testing, we'll simulate the Apple Sign In flow
+            // In a real app, this would never be called for LocalUserRepository
+            
+            // Extract name components or use defaults
+            let firstName = fullName?.givenName ?? "Apple"
+            let lastName = fullName?.familyName ?? "User"
+            
+            // Generate a unique Apple-style user ID for local testing
+            let appleUserId = "apple_user_" + UUID().uuidString.prefix(8)
+            
+            // Check if this "Apple user" already exists (simulate returning user)
+            if let existingUser = users.first(where: { $0.email.contains("appleid.com") && $0.firstName == firstName && $0.lastName == lastName }) {
+                currentUserId = existingUser.id
+                return existingUser
+            }
+            
+            // Create new Apple user for local testing
+            let newAppleUser = User(
+                id: appleUserId,
+                email: "apple.user.\(UUID().uuidString.prefix(6))@privaterelay.appleid.com",
+                firstName: firstName,
+                lastName: lastName,
+                createdAt: Date(),
+                favoriteGyms: [],
+                favoriteEvents: []
+            )
+            
+            // Add to local users array
+            users.append(newAppleUser)
+            currentUserId = newAppleUser.id
+            
+            // Simulate network delay for realistic testing
+            try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            
+            return newAppleUser
+        }
+
+    
     // User data methods
     func getUser(id: String) async throws -> User? {
         return users.first { $0.id == id }

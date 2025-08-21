@@ -130,20 +130,28 @@ class GymCreationViewModel: ObservableObject {
         isLocationLoading = true
         hideAddressSuggestions()
         
-        Task {
+        Task { [weak self] in
+            guard let self = self else { return }
+            
             do {
                 // Try to get cached location first
                 let location = try await locationService.requestCurrentLocation()
                 
-                self.latitude = location.coordinate.latitude
-                self.longitude = location.coordinate.longitude
-                self.useCurrentLocation = true
-                self.isLocationLoading = false
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.latitude = location.coordinate.latitude
+                    self.longitude = location.coordinate.longitude
+                    self.useCurrentLocation = true
+                    self.isLocationLoading = false
+                }
                 
                 // Get address for the location
                 do {
                     let address = try await locationService.reverseGeocode(location)
-                    self.address = address
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
+                        self.address = address
+                    }
                 } catch {
                     // Don't fail the whole operation if reverse geocoding fails
                     print("Failed to get address: \(error)")
@@ -156,29 +164,41 @@ class GymCreationViewModel: ObservableObject {
                     // Retry getting the location
                     let location = try await locationService.requestCurrentLocation()
                     
-                    self.latitude = location.coordinate.latitude
-                    self.longitude = location.coordinate.longitude
-                    self.useCurrentLocation = true
-                    self.isLocationLoading = false
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
+                        self.latitude = location.coordinate.latitude
+                        self.longitude = location.coordinate.longitude
+                        self.useCurrentLocation = true
+                        self.isLocationLoading = false
+                    }
                     
                     // Get address for the location
                     do {
                         let address = try await locationService.reverseGeocode(location)
-                        self.address = address
+                        await MainActor.run { [weak self] in
+                            guard let self = self else { return }
+                            self.address = address
+                        }
                     } catch {
                         print("Failed to get address: \(error)")
                     }
                     
                 } catch {
-                    self.isLocationLoading = false
-                    self.errorMessage = "Failed to get location: \(error.localizedDescription)"
+                    await MainActor.run { [weak self] in
+                        guard let self = self else { return }
+                        self.isLocationLoading = false
+                        self.errorMessage = "Failed to get location: \(error.localizedDescription)"
+                    }
                 }
             } catch {
-                self.isLocationLoading = false
-                if let locationError = error as? LocationError {
-                    self.errorMessage = locationError.localizedDescription
-                } else {
-                    self.errorMessage = "Failed to get location: \(error.localizedDescription)"
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.isLocationLoading = false
+                    if let locationError = error as? LocationError {
+                        self.errorMessage = locationError.localizedDescription
+                    } else {
+                        self.errorMessage = "Failed to get location: \(error.localizedDescription)"
+                    }
                 }
             }
         }
@@ -194,12 +214,15 @@ class GymCreationViewModel: ObservableObject {
         
         geocodingTask?.cancel()
         
-        geocodingTask = Task {
+        geocodingTask = Task { [weak self] in
+            guard let self = self else { return }
+            
             try? await Task.sleep(nanoseconds: 800_000_000)
             
             guard !Task.isCancelled else { return }
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isSearchingAddresses = true
                 self.errorMessage = nil
             }
@@ -207,14 +230,16 @@ class GymCreationViewModel: ObservableObject {
             do {
                 let suggestions = try await locationService.searchAddresses(trimmedAddress)
                 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.addressSuggestions = suggestions
                     self.showAddressSuggestions = !suggestions.isEmpty
                     self.isSearchingAddresses = false
                 }
                 
             } catch {
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
                     self.isSearchingAddresses = false
                     self.hideAddressSuggestions()
                     print("Address search error: \(error)")
@@ -308,14 +333,16 @@ class GymCreationViewModel: ObservableObject {
             
             _ = try await gymRepository.createGym(gym)
             
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isLoading = false
                 self.showSuccessAlert = true
                 self.resetForm()
             }
             
         } catch {
-            await MainActor.run {
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
                 self.isLoading = false
                 self.errorMessage = "Failed to create gym: \(error.localizedDescription)"
             }
