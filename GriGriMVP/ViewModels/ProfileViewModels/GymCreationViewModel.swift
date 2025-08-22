@@ -37,7 +37,9 @@ class GymCreationViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var showSuccessAlert: Bool = false
+    @Published var showVerificationConfirmation: Bool = false
     @Published var isLocationLoading: Bool = false
+    @Published var createdGymName: String = ""
     
     // Address search - consolidated
     @Published var addressSuggestions: [AddressSuggestion] = []
@@ -50,37 +52,174 @@ class GymCreationViewModel: ObservableObject {
     private let locationService = LocationService.shared
     private var geocodingTask: Task<Void, Never>?
     
-    init() {
-        self.userRepository = RepositoryFactory.createUserRepository()
-        self.gymRepository = RepositoryFactory.createGymRepository()
-        self.mediaRepository = RepositoryFactory.createMediaRepository()
-    }
-    
-    init(userRepository: UserRepositoryProtocol, gymRepository: GymRepositoryProtocol, mediaRepository: MediaRepositoryProtocol) {
+    init(userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
+         gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
+         mediaRepository: MediaRepositoryProtocol = RepositoryFactory.createMediaRepository()) {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
         self.mediaRepository = mediaRepository
+        
+        // Observe location service status changes
+        observeLocationServiceChanges()
+        
+        // Initialize location status
+        Task { @MainActor in
+            checkInitialLocationStatus()
+        }
     }
     
-    // MARK: - Validation
+    private func observeLocationServiceChanges() {
+        // Watch for authorization status changes
+        Task { @MainActor in
+            // This will reactively update when the location service properties change
+            // The @Published properties in LocationService will trigger UI updates
+        }
+    }
+    
+    private func checkInitialLocationStatus() {
+        // Check if we have a cached location available at startup
+        if locationService.hasCachedLocation && canUseCurrentLocation {
+            // Location is available but don't auto-fill unless user explicitly requests it
+            print("Location cache available for gym creation")
+        }
+    }
+    
+    // MARK: - Computed Properties
     
     var isFormValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         email.contains("@") &&
         !selectedClimbingTypes.isEmpty &&
-        (!address.isEmpty || (latitude != 0.0 && longitude != 0.0))
+        hasValidLocation
+    }
+    
+    var hasValidLocation: Bool {
+        // Either we have a valid address OR we have valid coordinates
+        return (!address.isEmpty || (latitude != 0.0 && longitude != 0.0))
     }
     
     var locationPermissionGranted: Bool {
-        locationService.authorizationStatus == .authorizedWhenInUse || 
+        locationService.authorizationStatus == .authorizedWhenInUse ||
         locationService.authorizationStatus == .authorizedAlways
     }
     
-    // MARK: - Image Management - Simplified
+    var canUseCurrentLocation: Bool {
+        return locationPermissionGranted && locationService.isLocationServicesEnabled
+    }
+    
+    var shouldShowLocationButton: Bool {
+        return locationService.isLocationServicesEnabled
+    }
+    
+    // MARK: - Location Management
+    
+    func getCurrentLocation() {
+        useCurrentLocation = true
+        isLocationLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                // Try to get cached location first
+                if let cachedLocation = locationService.getCachedLocation() {
+                    await updateLocationData(cachedLocation)
+                    await reverseGeocode(location: cachedLocation)
+                    return
+                }
+                
+                // If no cached location, try to refresh the cache
+                try await locationService.refreshLocationCache()
+                
+                // Get the newly cached location
+                guard let location = locationService.getCachedLocation() else {
+                    throw LocationError.cacheExpired
+                }
+                
+                await updateLocationData(location)
+                await reverseGeocode(location: location)
+                
+            } catch {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.isLocationLoading = false
+                    self.useCurrentLocation = false
+                    
+                    if error is LocationError {
+                        switch error as! LocationError {
+                        case .permissionDenied:
+                            self.errorMessage = "Location permission is required. Please enable location access in Settings."
+                        case .servicesDisabled:
+                            self.errorMessage = "Location services are disabled. Please enable them in Settings."
+                        case .cacheExpired:
+                            self.errorMessage = "Location data is unavailable. Please check your location settings and try again."
+                        case .timeout:
+                            self.errorMessage = "Location request timed out. Please try again."
+                        case .networkError:
+                            self.errorMessage = "Network error while getting location. Please check your connection."
+                        default:
+                            self.errorMessage = "Failed to get current location: \(error.localizedDescription)"
+                        }
+                    } else {
+                        self.errorMessage = "Failed to get current location: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+    }
+    
+    private func updateLocationData(_ location: CLLocation) async {
+        await MainActor.run { [weak self] in
+            guard let self = self else { return }
+            self.latitude = location.coordinate.latitude
+            self.longitude = location.coordinate.longitude
+            self.isLocationLoading = false
+        }
+    }
+    
+    private func reverseGeocode(location: CLLocation) async {
+        do {
+            let formattedAddress = try await locationService.reverseGeocode(location)
+            
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.address = formattedAddress
+            }
+        } catch {
+            print("Reverse geocoding failed: \(error)")
+            // Don't show error to user for reverse geocoding failure
+            // The location coordinates are still valid
+        }
+    }
+    
+    func requestLocationPermission() {
+        if !locationPermissionGranted {
+            locationService.openLocationSettings()
+        }
+    }
+    
+    var locationStatusMessage: String {
+        switch locationService.authorizationStatus {
+        case .notDetermined:
+            return "Location permission not requested"
+        case .denied, .restricted:
+            return "Location access denied. Tap to open Settings."
+        case .authorizedWhenInUse, .authorizedAlways:
+            if locationService.hasCachedLocation {
+                return "Location available"
+            } else {
+                return "Getting location..."
+            }
+        @unknown default:
+            return "Unknown location status"
+        }
+    }
+    
+    // MARK: - Image Management
     
     func handleImageSelected(_ image: UIImage) {
         selectedProfileImage = image
+        // Any additional logic after image selection can be added here
     }
     
     // MARK: - Climbing Types Management
@@ -123,111 +262,37 @@ class GymCreationViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Location Methods
-    
-    func getCurrentLocation() {
-        errorMessage = nil
-        isLocationLoading = true
-        hideAddressSuggestions()
-        
-        Task { [weak self] in
-            guard let self = self else { return }
-            
-            do {
-                // Try to get cached location first
-                let location = try await locationService.requestCurrentLocation()
-                
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    self.latitude = location.coordinate.latitude
-                    self.longitude = location.coordinate.longitude
-                    self.useCurrentLocation = true
-                    self.isLocationLoading = false
-                }
-                
-                // Get address for the location
-                do {
-                    let address = try await locationService.reverseGeocode(location)
-                    await MainActor.run { [weak self] in
-                        guard let self = self else { return }
-                        self.address = address
-                    }
-                } catch {
-                    // Don't fail the whole operation if reverse geocoding fails
-                    print("Failed to get address: \(error)")
-                }
-                
-            } catch LocationError.cacheExpired {
-                // Cache expired, try to refresh
-                do {
-                    try await locationService.refreshLocationCache()
-                    // Retry getting the location
-                    let location = try await locationService.requestCurrentLocation()
-                    
-                    await MainActor.run { [weak self] in
-                        guard let self = self else { return }
-                        self.latitude = location.coordinate.latitude
-                        self.longitude = location.coordinate.longitude
-                        self.useCurrentLocation = true
-                        self.isLocationLoading = false
-                    }
-                    
-                    // Get address for the location
-                    do {
-                        let address = try await locationService.reverseGeocode(location)
-                        await MainActor.run { [weak self] in
-                            guard let self = self else { return }
-                            self.address = address
-                        }
-                    } catch {
-                        print("Failed to get address: \(error)")
-                    }
-                    
-                } catch {
-                    await MainActor.run { [weak self] in
-                        guard let self = self else { return }
-                        self.isLocationLoading = false
-                        self.errorMessage = "Failed to get location: \(error.localizedDescription)"
-                    }
-                }
-            } catch {
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    self.isLocationLoading = false
-                    if let locationError = error as? LocationError {
-                        self.errorMessage = locationError.localizedDescription
-                    } else {
-                        self.errorMessage = "Failed to get location: \(error.localizedDescription)"
-                    }
-                }
-            }
-        }
-    }
+    // MARK: - Address Search Management
     
     func searchAddresses() {
+        // Don't search if we're using current location
+        if useCurrentLocation {
+            return
+        }
+        
+        // Cancel any existing search
+        geocodingTask?.cancel()
+        
         let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        guard trimmedAddress.count >= 3 else {
+        guard !trimmedAddress.isEmpty && trimmedAddress.count >= 3 else {
             hideAddressSuggestions()
             return
         }
         
-        geocodingTask?.cancel()
-        
-        geocodingTask = Task { [weak self] in
-            guard let self = self else { return }
-            
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            
-            guard !Task.isCancelled else { return }
-            
-            await MainActor.run { [weak self] in
-                guard let self = self else { return }
-                self.isSearchingAddresses = true
-                self.errorMessage = nil
-            }
-            
+        geocodingTask = Task {
             do {
+                // Debounce the search
+                try await Task.sleep(nanoseconds: 800_000_000)
+                
+                guard !Task.isCancelled else { return }
+                
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.isSearchingAddresses = true
+                    self.errorMessage = nil
+                }
+                
                 let suggestions = try await locationService.searchAddresses(trimmedAddress)
                 
                 await MainActor.run { [weak self] in
@@ -242,7 +307,10 @@ class GymCreationViewModel: ObservableObject {
                     guard let self = self else { return }
                     self.isSearchingAddresses = false
                     self.hideAddressSuggestions()
-                    print("Address search error: \(error)")
+                    // Don't log cancellation errors
+                    if !Task.isCancelled {
+                        print("Address search error: \(error)")
+                    }
                 }
             }
         }
@@ -261,6 +329,14 @@ class GymCreationViewModel: ObservableObject {
         addressSuggestions = []
     }
     
+    func handleManualAddressChange() {
+        // Clear current location flag when user manually edits address
+        if useCurrentLocation {
+            useCurrentLocation = false
+        }
+        searchAddresses()
+    }
+    
     // MARK: - Amenities Management
     
     func toggleAmenity(_ amenity: Amenities) {
@@ -277,9 +353,38 @@ class GymCreationViewModel: ObservableObject {
     
     // MARK: - Gym Creation
     
+    func validateForm() -> String? {
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Gym name is required"
+        }
+        
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedEmail.isEmpty {
+            return "Email is required"
+        }
+        
+        if !trimmedEmail.contains("@") {
+            return "Please enter a valid email address"
+        }
+        
+        if selectedClimbingTypes.isEmpty {
+            return "Please select at least one climbing facility type"
+        }
+        
+        if !hasValidLocation {
+            if !locationPermissionGranted && shouldShowLocationButton {
+                return "Please enter an address or enable location access to use your current location"
+            } else {
+                return "Please enter the gym's address"
+            }
+        }
+        
+        return nil
+    }
+    
     func createGym() async {
-        guard isFormValid else {
-            errorMessage = "Please fill in all required fields"
+        if let validationError = validateForm() {
+            errorMessage = validationError
             return
         }
         
@@ -328,7 +433,8 @@ class GymCreationViewModel: ObservableObject {
                 profileImage: profileImageMedia,
                 createdAt: Date(),
                 ownerId: currentUserId,
-                staffUserIds: []
+                staffUserIds: [],
+                verificationStatus: .pending // New gyms start as pending verification
             )
             
             _ = try await gymRepository.createGym(gym)
@@ -336,7 +442,8 @@ class GymCreationViewModel: ObservableObject {
             await MainActor.run { [weak self] in
                 guard let self = self else { return }
                 self.isLoading = false
-                self.showSuccessAlert = true
+                self.createdGymName = gym.name
+                self.showVerificationConfirmation = true
                 self.resetForm()
             }
             
@@ -361,11 +468,48 @@ class GymCreationViewModel: ObservableObject {
         selectedAmenities.removeAll()
         selectedProfileImage = nil
         errorMessage = nil
+        isLocationLoading = false
         hideAddressSuggestions()
         
         // Cancel any pending geocoding
         geocodingTask?.cancel()
         geocodingTask = nil
+    }
+    
+    func clearLocation() {
+        latitude = 0.0
+        longitude = 0.0
+        address = ""
+        useCurrentLocation = false
+        errorMessage = nil
+    }
+    
+    func refreshLocationIfNeeded() async {
+        // If user is using current location but we don't have cached location, try to refresh
+        if useCurrentLocation && !locationService.hasCachedLocation && canUseCurrentLocation {
+            do {
+                try await locationService.refreshLocationCache()
+                if let location = locationService.getCachedLocation() {
+                    await updateLocationData(location)
+                    await reverseGeocode(location: location)
+                }
+            } catch {
+                print("Failed to refresh location: \(error)")
+                // Don't show error to user for background refresh
+            }
+        }
+    }
+    
+    var locationDisplayText: String {
+        if useCurrentLocation && !address.isEmpty {
+            return "Current location: \(address)"
+        } else if !address.isEmpty {
+            return address
+        } else if useCurrentLocation {
+            return "Getting your current location..."
+        } else {
+            return ""
+        }
     }
     
     deinit {

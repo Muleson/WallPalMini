@@ -10,14 +10,14 @@ import SwiftUI
 struct CompactEventCard: View {
     let event: EventItem
     let onTap: () -> Void
-    @State private var selectedGym: Gym?
+    var onGymTap: ((Gym) -> Void)? = nil
     
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 6) {
                 // Host/venue info with small profile image - similar to HomeFeaturedEventCard
                 Button(action: {
-                    selectedGym = event.host
+                    onGymTap?(event.host)
                 }) {
                     HStack(spacing: 4) {
                         AsyncImage(url: event.host.profileImage?.url) { image in
@@ -75,12 +75,9 @@ struct CompactEventCard: View {
             .frame(width: 180, height: 170)
             .background(Color(AppTheme.appContentBG))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+            .appCardShadow()
         }
-        .buttonStyle(PlainButtonStyle())
-        .navigationDestination(item: $selectedGym) { gym in
-            GymProfileView(gym: gym)
-        }
+    .buttonStyle(PlainButtonStyle())
     }
     
     // MARK: - Date/Time Formatting

@@ -79,4 +79,21 @@ class LocalGymRepository: GymRepositoryProtocol {
     func getGymsUserCanManage(userId: String) async throws -> [Gym] {
         return SampleData.getGymsForUser(userId: userId)
     }
+    
+    func updateGymVerificationStatus(gymId: String, status: GymVerificationStatus, notes: String?, verifiedBy: String?) async throws -> Gym {
+        guard let index = gyms.firstIndex(where: { $0.id == gymId }) else {
+            throw NSError(domain: "GymRepository", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "Gym not found"
+            ])
+        }
+        
+        let updatedGym = gyms[index].updatingVerificationStatus(status, notes: notes, verifiedBy: verifiedBy)
+        gyms[index] = updatedGym
+        
+        return updatedGym
+    }
+    
+    func getGymsByVerificationStatus(_ status: GymVerificationStatus) async throws -> [Gym] {
+        return gyms.filter { $0.verificationStatus == status }
+    }
 }

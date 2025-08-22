@@ -95,7 +95,7 @@ struct LargeGymCardView: View {
         .padding(12)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .appCardShadow()
         .gymVisitDialog(
             isPresented: $showingVisitOptions,
             gym: gymToVisit,

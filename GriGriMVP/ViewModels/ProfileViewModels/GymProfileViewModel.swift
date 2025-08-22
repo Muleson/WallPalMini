@@ -26,6 +26,23 @@ class GymProfileViewModel: ObservableObject {
             event.eventType.rawValue.capitalized
         }
     }
+
+    // Next featured event (exclude social and class types) - future events only
+    var nextFeaturedEvent: EventItem? {
+        let now = Date()
+        return gymEvents
+            .filter { $0.startDate > now && $0.eventType != .social && $0.eventType != .gymClass }
+            .sorted { $0.startDate < $1.startDate }
+            .first
+    }
+
+    // Upcoming class events for this gym (future-only, sorted)
+    var upcomingClassEvents: [EventItem] {
+        let now = Date()
+        return gymEvents
+            .filter { $0.startDate > now && $0.eventType == .gymClass }
+            .sorted { $0.startDate < $1.startDate }
+    }
     
     // Services
     private var cancellables = Set<AnyCancellable>()

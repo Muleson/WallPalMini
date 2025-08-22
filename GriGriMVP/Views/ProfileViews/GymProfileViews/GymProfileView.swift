@@ -9,6 +9,9 @@ import SwiftUI
 
 struct GymProfileView: View {
     @StateObject private var viewModel: GymProfileViewModel
+    @Environment(\.openURL) private var openURL
+    @State private var showVisitOptions: Bool = false
+    @State private var selectedEvent: EventItem? = nil
     
     init(gym: Gym) {
         _viewModel = StateObject(wrappedValue: GymProfileViewModel(gym: gym))
@@ -16,23 +19,32 @@ struct GymProfileView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 // Profile Image
                 profileImageView
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal)
                 
                 // Gym Name
                 Text(viewModel.gym.name)
                     .font(.appHeadline)
                     .foregroundStyle(AppTheme.appTextPrimary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal)
                 
                 // Gym Location
                 locationView
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal)
                 
                 // Climbing Types Icons
                 climbingTypesIconsView
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.horizontal)
                 
                 // Action Buttons (Favorite & Visit)
                 actionButtonsView
+                    .frame(maxWidth: .infinity, alignment: .center)
                 
                 // Divider
                 Rectangle()
@@ -46,7 +58,6 @@ struct GymProfileView: View {
                 // Amenities Section
                 amenitiesSection
             }
-            .padding()
         }
         .navigationBarTitleDisplayMode(.inline)
         .background(AppTheme.appBackgroundBG)
@@ -61,6 +72,20 @@ struct GymProfileView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(viewModel.error ?? "")
+        }
+        .confirmationDialog("Visit \(viewModel.gym.name)", isPresented: $showVisitOptions, titleVisibility: .visible) {
+            Button("Open in Maps") {
+                openMap()
+            }
+
+            Button("View Website (TODO)") {
+                // TODO: open website when gym website property is available
+            }
+
+            Button("Cancel", role: .cancel) { }
+        }
+        .navigationDestination(item: $selectedEvent) { event in
+            EventPageView(event: event)
         }
     }
     
@@ -147,43 +172,72 @@ struct GymProfileView: View {
             
             // Visit Button (Placeholder)
             PrimaryActionButton.primary("Visit") {
-                // Placeholder action
+                showVisitOptions = true
             }
         }
         .padding(.horizontal, 24)
     }
+
+    private func openMap() {
+        let lat = viewModel.gym.location.latitude
+        let lon = viewModel.gym.location.longitude
+        let name = viewModel.gym.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "http://maps.apple.com/?ll=\(lat),\(lon)&q=\(name)"
+        if let url = URL(string: urlString) {
+            openURL(url)
+        }
+    }
     
     private var upcomingEventsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Upcoming Events")
-                    .font(.appSubheadline)
-                    .foregroundStyle(AppTheme.appTextPrimary)
-                Spacer()
-            }
-            
-            if viewModel.isLoadingEvents {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else if viewModel.gymEvents.isEmpty {
-                Text("No upcoming events")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        ForEach(viewModel.gymEvents.prefix(5)) { event in
-                            EventCardView(
-                                event: event,
-                                onFavorite: { viewModel.toggleEventFavorite(event: event) },
-                                isFavorite: viewModel.isEventFavorited(event: event)
-                            )
-                        }
+        VStack(alignment: .leading, spacing: 16) {
+            // Featured Event Section - show if there's a next featured event
+            if let featuredEvent = viewModel.nextFeaturedEvent {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Upcoming Event")
+                            .font(.appSubheadline)
+                            .foregroundStyle(AppTheme.appTextPrimary)
+                        Spacer()
                     }
                     .padding(.horizontal)
+                    
+                    HomeFeaturedEventCard(
+                        event: featuredEvent,
+                        onView: {
+                            selectedEvent = featuredEvent
+                        },
+                        onRegister: {
+                            // TODO: Handle registration
+                        },
+                        onAddToCalendar: {
+                            // TODO: Add to calendar
+                        }
+                    )
+                    .padding(.horizontal)
+                }
+            }
+            
+            // Gym Classes Section - show if there are upcoming classes
+            if !viewModel.upcomingClassEvents.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Classes")
+                            .font(.appSubheadline)
+                            .foregroundStyle(AppTheme.appTextPrimary)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(viewModel.upcomingClassEvents.prefix(10)) { event in
+                                CompactEventCard(event: event) {
+                                    selectedEvent = event
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                    }
                 }
             }
         }
@@ -199,6 +253,7 @@ struct GymProfileView: View {
                         .foregroundStyle(AppTheme.appTextPrimary)
                     Spacer()
                 }
+                .padding(.horizontal)
                 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 12) {
                     ForEach(viewModel.gym.amenities, id: \.self) { amenity in
@@ -215,6 +270,7 @@ struct GymProfileView: View {
                         .cornerRadius(8)
                     }
                 }
+                .padding(.horizontal)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -223,6 +279,6 @@ struct GymProfileView: View {
 
 #Preview {
     NavigationView {
-        GymProfileView(gym: SampleData.gyms[0])
+        GymProfileView(gym: SampleData.gyms[1])
     }
 }

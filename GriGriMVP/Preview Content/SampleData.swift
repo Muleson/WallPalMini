@@ -158,7 +158,11 @@ struct SampleData {
             profileImage: mediaItems[0], // Uses media1
             createdAt: Date(timeIntervalSince1970: 1610000000),
             ownerId: "user1", // John Doe is the owner
-            staffUserIds: ["user2", "user4"] // Jane and Sarah are staff
+            staffUserIds: ["user2", "user4"], // Jane and Sarah are staff
+            verificationStatus: .approved,
+            verificationNotes: "Excellent facility meeting all requirements",
+            verifiedAt: Date(timeIntervalSince1970: 1610086400),
+            verifiedBy: "admin1"
         ),
         Gym(
             id: "gym2",
@@ -176,7 +180,11 @@ struct SampleData {
             profileImage: mediaItems[1], // Uses media2
             createdAt: Date(timeIntervalSince1970: 1615000000),
             ownerId: "user2", // Jane Smith is the owner
-            staffUserIds: ["user3", "user5"] // Alex and Mike are staff
+            staffUserIds: ["user3", "user5"], // Alex and Mike are staff
+            verificationStatus: .approved,
+            verificationNotes: "Professional climbing facility with safety standards met",
+            verifiedAt: Date(timeIntervalSince1970: 1615086400),
+            verifiedBy: "admin1"
         ),
         Gym(
             id: "gym3",
@@ -194,7 +202,11 @@ struct SampleData {
             profileImage: mediaItems[2], // Uses media3
             createdAt: Date(timeIntervalSince1970: 1620000000),
             ownerId: "user3", // Alex Wilson is the owner
-            staffUserIds: [] // No staff yet
+            staffUserIds: [], // No staff yet
+            verificationStatus: .approved,
+            verificationNotes: "Family-friendly facility with excellent safety measures",
+            verifiedAt: Date(timeIntervalSince1970: 1620086400),
+            verifiedBy: "admin2"
         ),
         Gym(
             id: "gym4",
@@ -209,10 +221,14 @@ struct SampleData {
             climbingType: [.bouldering, .gym],
             amenities: [.changingRooms, .food, .bathrooms],
             events: [],
-            profileImage: mediaItems[3], // Uses media3
+            profileImage: mediaItems[3], // Uses media4
             createdAt: Date(timeIntervalSince1970: 1620000000),
-            ownerId: "user3", // Alex Wilson is the owner
-            staffUserIds: [] // No staff yet
+            ownerId: "user4", // Sarah Johnson is the owner
+            staffUserIds: [], // No staff yet
+            verificationStatus: .approved,
+            verificationNotes: "Unique and beautiful climbing facility in historic building",
+            verifiedAt: Date(timeIntervalSince1970: 1620172800),
+            verifiedBy: "admin2"
         )
 
     ]

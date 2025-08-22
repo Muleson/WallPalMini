@@ -92,7 +92,7 @@ struct HomeCompactEventCard: View {
                 .frame(width: 180, height: 270)
             }
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
+            .appCardShadow()
         }
         .buttonStyle(PlainButtonStyle())
     }

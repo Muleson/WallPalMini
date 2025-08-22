@@ -330,6 +330,42 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         return Array(uniqueGyms.values)
     }
     
+    // MARK: - Verification Methods
+    
+    func updateGymVerificationStatus(gymId: String, status: GymVerificationStatus, notes: String?, verifiedBy: String?) async throws -> Gym {
+        guard let gym = try await getGym(id: gymId) else {
+            throw NSError(domain: "GymRepository", code: 404, userInfo: [
+                NSLocalizedDescriptionKey: "Gym not found"
+            ])
+        }
+        
+        let updatedGym = gym.updatingVerificationStatus(status, notes: notes, verifiedBy: verifiedBy)
+        
+        // Update the gym in Firestore
+        try await updateGym(updatedGym)
+        
+        return updatedGym
+    }
+    
+    func getGymsByVerificationStatus(_ status: GymVerificationStatus) async throws -> [Gym] {
+        let query = db.collection(gymsCollection)
+            .whereField("verificationStatus", isEqualTo: status.rawValue)
+        
+        let snapshot = try await query.getDocuments()
+        
+        return snapshot.documents.compactMap { document -> Gym? in
+            var data = document.data()
+            data["id"] = document.documentID
+            
+            let gym = Gym(firestoreData: data)
+            if gym == nil {
+                print("DEBUG: Failed to decode gym with ID: \(document.documentID)")
+                print("DEBUG: Available data keys: \(data.keys.sorted())")
+            }
+            return gym
+        }
+    }
+    
     // MARK: - Helper Methods
     
     private func getUserById(_ userId: String) async throws -> User? {

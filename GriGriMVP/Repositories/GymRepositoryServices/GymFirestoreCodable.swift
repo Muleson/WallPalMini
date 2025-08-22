@@ -20,7 +20,8 @@ extension Gym: FirestoreCodable {
             "events": events,
             "ownerId": ownerId,
             "staffUserIds": staffUserIds,
-            "createdAt": createdAt.firestoreTimestamp
+            "createdAt": createdAt.firestoreTimestamp,
+            "verificationStatus": verificationStatus.rawValue
         ]
         
         // Add optional fields if they exist
@@ -30,6 +31,18 @@ extension Gym: FirestoreCodable {
         
         if let profileImage = profileImage {
             data["profileImage"] = profileImage.toFirestoreData()
+        }
+        
+        if let verificationNotes = verificationNotes {
+            data["verificationNotes"] = verificationNotes
+        }
+        
+        if let verifiedAt = verifiedAt {
+            data["verifiedAt"] = verifiedAt.firestoreTimestamp
+        }
+        
+        if let verifiedBy = verifiedBy {
+            data["verifiedBy"] = verifiedBy
         }
         
         return data
@@ -82,6 +95,22 @@ extension Gym: FirestoreCodable {
             profileImage = MediaItem(firestoreData: imageData)
         }
         
+        // Handle verification status
+        let verificationStatusString = firestoreData["verificationStatus"] as? String ?? "pending"
+        let verificationStatus = GymVerificationStatus(rawValue: verificationStatusString) ?? .pending
+        
+        // Handle verification notes
+        let verificationNotes = firestoreData["verificationNotes"] as? String
+        
+        // Handle verifiedAt timestamp
+        var verifiedAt: Date?
+        if let timestamp = firestoreData["verifiedAt"] as? Timestamp {
+            verifiedAt = timestamp.dateValue()
+        }
+        
+        // Handle verifiedBy
+        let verifiedBy = firestoreData["verifiedBy"] as? String
+        
         self.init(
             id: id,
             email: email,
@@ -94,7 +123,11 @@ extension Gym: FirestoreCodable {
             profileImage: profileImage,
             createdAt: createdAt,
             ownerId: ownerId,
-            staffUserIds: staffUserIds
+            staffUserIds: staffUserIds,
+            verificationStatus: verificationStatus,
+            verificationNotes: verificationNotes,
+            verifiedAt: verifiedAt,
+            verifiedBy: verifiedBy
         )
     }
 }

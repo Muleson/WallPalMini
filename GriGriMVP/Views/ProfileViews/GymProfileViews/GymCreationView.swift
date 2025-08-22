@@ -15,7 +15,7 @@ struct GymCreationView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 16) {
                     // Profile Image Selection
                     profileImageSelection
                     
@@ -65,12 +65,11 @@ struct GymCreationView: View {
                     onImageConfirmed: viewModel.handleImageSelected
                 )
             }
-            .alert("Success", isPresented: $viewModel.showSuccessAlert) {
-                Button("OK") {
-                    dismiss()
-                }
-            } message: {
-                Text("Gym created successfully!")
+            .sheet(isPresented: $viewModel.showVerificationConfirmation) {
+                GymVerificationConfirmationView(gymName: viewModel.createdGymName)
+                    .onDisappear {
+                        dismiss() // Dismiss the main creation view when confirmation is closed
+                    }
             }
             .alert("Error", isPresented: Binding<Bool>(
                 get: { viewModel.errorMessage != nil },
@@ -114,66 +113,21 @@ struct GymCreationView: View {
     
     private var addressInput: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                TextField("Gym Address", text: $viewModel.address)
-                    .font(.subheadline)
-                    .foregroundColor(AppTheme.appTextPrimary)
-                    .onChange(of: viewModel.address) { _ in
-                        viewModel.searchAddresses()
-                    }
-                
-                if viewModel.isSearchingAddresses {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-                
-                if viewModel.locationPermissionGranted {
-                    Button(action: viewModel.getCurrentLocation) {
-                        Image(systemName: "location")
-                            .foregroundColor(AppTheme.appPrimary)
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(AppTheme.appContentBG)
-            .cornerRadius(12)
-            
-            // Address suggestions dropdown
-            if viewModel.showAddressSuggestions {
-                VStack(spacing: 0) {
-                    ForEach(viewModel.addressSuggestions) { suggestion in
-                        Button(action: {
-                            viewModel.selectAddressSuggestion(suggestion)
-                        }) {
-                            HStack {
-                                Image(systemName: "location.fill")
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
-                                
-                                Text(suggestion.displayAddress)
-                                    .font(.subheadline)
-                                    .foregroundColor(AppTheme.appTextPrimary)
-                                    .multilineTextAlignment(.leading)
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(Color.clear)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        if suggestion.id != viewModel.addressSuggestions.last?.id {
-                            Divider()
-                                .padding(.leading, 40)
-                        }
-                    }
-                }
-                .background(AppTheme.appContentBG)
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-            }
+            LocationInputView(
+                address: $viewModel.address,
+                isSearchingAddresses: $viewModel.isSearchingAddresses,
+                showAddressSuggestions: $viewModel.showAddressSuggestions,
+                addressSuggestions: $viewModel.addressSuggestions,
+                isLocationLoading: $viewModel.isLocationLoading,
+                useCurrentLocation: $viewModel.useCurrentLocation,
+                shouldShowLocationButton: viewModel.shouldShowLocationButton,
+                canUseCurrentLocation: viewModel.canUseCurrentLocation,
+                locationStatusMessage: viewModel.locationStatusMessage,
+                onAddressChange: viewModel.handleManualAddressChange,
+                onGetCurrentLocation: viewModel.getCurrentLocation,
+                onSelectSuggestion: viewModel.selectAddressSuggestion,
+                onRequestLocationPermission: viewModel.requestLocationPermission
+            )
         }
     }
     
@@ -186,7 +140,8 @@ struct GymCreationView: View {
                 Spacer()
             }
             
-            HStack(spacing: 36) {
+            HStack(alignment: .center, spacing: 36) {
+                Spacer()
                 ForEach(ClimbingTypes.allCases, id: \.self) { type in
                     VStack(spacing: 8) {
                         Button(action: {
@@ -201,24 +156,15 @@ struct GymCreationView: View {
                                 
                                 Text(viewModel.formatClimbingType(type))
                                     .font(.caption)
-                                    .foregroundColor(viewModel.isClimbingTypeSelected(type) ? AppTheme.appTextPrimary : .secondary)
+                                    .foregroundColor(viewModel.isClimbingTypeSelected(type) ? AppTheme.appPrimary : Color.gray.opacity(0.7))
                             }
                         }
-                        
-                        // Fixed height container for checkmark to prevent layout shift
-                        VStack {
-                            if viewModel.isClimbingTypeSelected(type) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.system(size: 16))
-                            }
-                        }
-                        .frame(height: 16) // Fixed height to prevent layout shift
+                        .background(viewModel.isClimbingTypeSelected(type) ? Color.gray.opacity(0.1) : Color.clear)
+                        .cornerRadius(8)
                     }
-                    .frame(maxWidth: .infinity) // Equal width distribution
                 }
+                Spacer()
             }
-            .frame(maxWidth: .infinity) // Center align the entire HStack
         }
     }
     
@@ -231,29 +177,23 @@ struct GymCreationView: View {
                 Spacer()
             }
             
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 16) {
                 ForEach(Amenities.allCases, id: \.self) { amenity in
                     Button(action: {
                         viewModel.toggleAmenity(amenity)
                     }) {
-                        HStack(spacing: 8) {
-                            AmmenitiesIcons.icon(for: amenity)
+                        VStack(spacing: 8) {
+                            Image(systemName: amenityIcon(for: amenity))
+                                .font(.title2)
                                 .foregroundColor(viewModel.isAmenitySelected(amenity) ? AppTheme.appPrimary : Color.gray.opacity(0.5))
                             
                             Text(amenity.rawValue)
-                                .font(.subheadline)
-                                .foregroundColor(viewModel.isAmenitySelected(amenity) ? AppTheme.appTextPrimary : .secondary)
-                            
-                            Spacer()
-                            
-                            if viewModel.isAmenitySelected(amenity) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                    .font(.system(size: 16))
-                            }
+                                .font(.caption)
+                                .foregroundColor(viewModel.isAmenitySelected(amenity) ? AppTheme.appPrimary : Color.gray.opacity(0.7))
+                                .multilineTextAlignment(.center)
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                         .background(viewModel.isAmenitySelected(amenity) ? Color.gray.opacity(0.1) : Color.clear)
                         .cornerRadius(8)
                     }
@@ -330,6 +270,34 @@ struct GymCreationView: View {
             .fill(AppTheme.appSecondary)
             .frame(height: 1)
             .padding(.horizontal, 24)
+    }
+    
+    // Helper function for amenity icons
+    private func amenityIcon(for amenity: Amenities) -> String {
+        switch amenity {
+        case .showers:
+            return "shower.fill"
+        case .lockers:
+            return "lock.fill"
+        case .bar:
+            return "wineglass.fill"
+        case .food:
+            return "fork.knife"
+        case .changingRooms:
+            return "tshirt.fill"
+        case .bathrooms:
+            return "toilet.fill"
+        case .cafe:
+            return "cup.and.saucer.fill"
+        case .bikeStorage:
+            return "bicycle"
+        case .workSpace:
+            return "laptopcomputer"
+        case .shop:
+            return "bag.fill"
+        case .wifi:
+            return "wifi"
+        }
     }
 }
 

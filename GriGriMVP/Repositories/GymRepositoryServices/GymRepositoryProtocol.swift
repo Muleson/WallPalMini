@@ -47,4 +47,10 @@ protocol GymRepositoryProtocol {
     
     /// Get gyms that a user can manage (as owner or staff)
     func getGymsUserCanManage(userId: String) async throws -> [Gym]
+    
+    /// Update gym verification status
+    func updateGymVerificationStatus(gymId: String, status: GymVerificationStatus, notes: String?, verifiedBy: String?) async throws -> Gym
+    
+    /// Get gyms by verification status
+    func getGymsByVerificationStatus(_ status: GymVerificationStatus) async throws -> [Gym]
 }

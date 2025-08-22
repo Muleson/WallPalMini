@@ -18,7 +18,6 @@ struct GymsMapView: View {
     @State private var selectedGym: Gym?
     @State private var showingGymProfile = false
     @State private var isStandardMapStyle = true
-    @State private var dragOffset: CGFloat = 0
     @State private var showingVisitOptions = false
     @State private var gymToVisit: Gym?
     @State private var navigateToGymProfile = false
@@ -58,7 +57,17 @@ struct GymsMapView: View {
             
             // Bottom Sheet for Selected Gym
             if let selectedGym = selectedGym {
-                bottomSheetView(for: selectedGym)
+                MapBottomSheet(
+                    gym: selectedGym,
+                    viewModel: viewModel,
+                    onDismiss: {
+                        self.selectedGym = nil
+                    },
+                    onVisit: { gym in
+                        gymToVisit = gym
+                        showingVisitOptions = true
+                    }
+                )
             }
         }
         .navigationTitle("Gyms Map")
@@ -143,149 +152,7 @@ struct GymsMapView: View {
         }
         .disabled(!locationService.hasCachedLocation && locationService.isLoading)
     }
-    
-// MARK: - Bottom Sheet
 
-private func bottomSheetView(for gym: Gym) -> some View {
-    VStack {
-        Spacer() // Pushes the sheet to the bottom
-        
-        VStack(spacing: 0) {
-            // Handle indicator
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.gray.opacity(0.4))
-                .frame(width: 40, height: 4)
-                .padding(.top, 8)
-            
-            // 24px spacing from top to gym info
-            gymInfoSection(for: gym)
-                .padding(.top, 24)
-            
-            // 16px spacing from gym info to climbing types
-            climbingTypesSection(for: gym)
-                .padding(.top, 12)
-            
-            // 16px spacing from climbing types to action buttons
-            actionButtons(for: gym)
-                .padding(.top, 24)
-                .padding(.bottom, 16) // 16px from buttons to bottom
-        }
-        .padding(.horizontal, 20)
-        .frame(height: 300)
-        .background(.white)
-        .cornerRadius(16, corners: [.topLeft, .topRight])
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -2)
-        .offset(y: dragOffset)
-        .clipped()
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    if value.translation.height > 0 {
-                        dragOffset = value.translation.height
-                    }
-                }
-                .onEnded { value in
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        if value.translation.height > 100 {
-                            selectedGym = nil
-                        }
-                        dragOffset = 0
-                    }
-                }
-            )
-    }
-    .clipped()
-  //  .zIndex(1)
-}
-
-// MARK: - Component Sections (Updated for Precise Spacing)
-
-private func gymInfoSection(for gym: Gym) -> some View {
-    HStack(spacing: 8) {
-        if let profileImage = gym.profileImage {
-            AsyncImage(url: profileImage.url) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .clipShape(Circle())
-            } placeholder: {
-                gymImagePlaceholder(size: 80)
-            }
-        } else {
-            gymImagePlaceholder(size: 80)
-        }
-        VStack(alignment: .leading, spacing: 4) {
-            Text(gym.name)
-                .font(.appHeadline)
-                .foregroundColor(AppTheme.appTextPrimary)
-                .multilineTextAlignment(.leading)
-            
-            if let distance = viewModel.distanceToGym(gym) {
-                Text(distance)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-        }
-        Spacer()
-    }
-}
-
-    private func climbingTypesSection(for gym: Gym) -> some View {
-        HStack(spacing: 32) {
-            Spacer()
-            
-            ForEach(gym.climbingType, id: \.self) { type in
-                VStack(spacing: 4) {
-                    climbingTypeIcon(for: type)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 54, height: 54)
-                        .foregroundColor(AppTheme.appPrimary)
-                    
-                    Text(formatClimbingType(type))
-                        .font(.system(size: 14, weight: .light))
-                        .foregroundColor(.primary)
-                }
-            }
-            
-            Spacer()
-        }
-    }
-    
-    private func climbingTypeIcon(for type: ClimbingTypes) -> Image {
-        switch type {
-        case .bouldering:
-            return AppIcons.boulder
-        case .sport:
-            return AppIcons.sport
-        case .board:
-            return AppIcons.board
-        case .gym:
-            return AppIcons.gym
-        }
-    }
-        
- private func actionButtons(for gym: Gym) -> some View {
-    HStack(spacing: 12) {
-        // Favorite button
-        PrimaryActionButton.toggle(
-            viewModel.isGymFavorited(gym) ? "Favourited" : "Favourite",
-            isEngaged: viewModel.isGymFavorited(gym)
-        ) {
-            Task {
-                await viewModel.toggleFavoriteGym(gym)
-            }
-        }
-        
-        // Visit button
-        PrimaryActionButton.primary("Visit") {
-            gymToVisit = gym
-            showingVisitOptions = true
-        }
-    }
-}
-    
     // MARK: - Helper Methods
     
     private func setupMapRegion() {
@@ -350,48 +217,6 @@ private func gymInfoSection(for gym: Gym) -> some View {
         } else {
             return .orange
         }
-    }
-    
-    private func formatClimbingType(_ type: ClimbingTypes) -> String {
-        switch type {
-        case .bouldering: return "Boulder"
-        case .sport: return "Sport"
-        case .board: return "Board"
-        case .gym: return "Gym"
-        }
-    }
-    
-    private func gymImagePlaceholder(size: CGFloat) -> some View {
-        Circle()
-            .fill(AppTheme.appSecondary.opacity(0.2))
-            .frame(width: size, height: size)
-            .overlay(
-                Image(systemName: "building.2.fill")
-                    .font(.system(size: size * 0.4, weight: .medium))
-                    .foregroundColor(AppTheme.appPrimary)
-            )
-    }
-}
-
-// MARK: - Corner Radius Extension
-
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
     }
 }
 

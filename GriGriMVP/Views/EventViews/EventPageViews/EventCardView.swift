@@ -106,7 +106,7 @@ struct EventCardView: View {
             }
             .frame(width: 200, height: 316)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 4)
+            .appCardShadow()
         }
         .buttonStyle(PlainButtonStyle()) // Prevents the NavigationLink from interfering with button interactions
     }

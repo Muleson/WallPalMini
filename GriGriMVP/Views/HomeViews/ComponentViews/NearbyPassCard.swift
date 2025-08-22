@@ -71,7 +71,7 @@ struct NearbyGymCard: View {
         .padding(.vertical, 16)
         .background(Color(AppTheme.appContentBG))
         .clipShape(RoundedRectangle(cornerRadius: 15))
-        .shadow(color: Color.black.opacity(0.25), radius: 2, x: 2, y: 2)
+        .appCardShadow()
         .alert("Pass Not Available", isPresented: $showingAlert) {
             Button("OK") { }
         } message: {
@@ -109,7 +109,7 @@ struct AddPassButton: View {
             .frame(width: 80, height: 80)
             .background(AppTheme.appPrimary)
             .clipShape(RoundedRectangle(cornerRadius: 15))
-            .shadow(color: Color.black.opacity(0.25), radius: 2, x: 2, y: 2)
+            .appCardShadow()
         }
     }
 }

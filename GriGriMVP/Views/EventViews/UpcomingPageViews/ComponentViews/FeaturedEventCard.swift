@@ -11,8 +11,8 @@ struct FeaturedEventCard: View {
     let event: EventItem
     let onView: () -> Void
     let onRegister: () -> Void
-    let onAddToCalendar: (() -> Void)? 
-    @State private var selectedGym: Gym?
+    let onAddToCalendar: (() -> Void)?
+    var onGymTap: ((Gym) -> Void)? = nil
     
     private var eventDateFormatted: String {
         let formatter = DateFormatter()
@@ -72,7 +72,7 @@ struct FeaturedEventCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(AppTheme.appPrimary, lineWidth: 2)
         )
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .appCardShadow()
     }
     
     private var eventMediaSection: some View {
@@ -102,7 +102,7 @@ struct FeaturedEventCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Host/venue info - made tappable
             Button(action: {
-                selectedGym = event.host
+                onGymTap?(event.host)
             }) {
                 HStack(spacing: 4) {
                     // Display host gym's profile image instead of house icon
@@ -185,12 +185,9 @@ struct FeaturedEventCard: View {
                 }
             }
         }
-        .padding(12)
-        .frame(height: 240)
-        .background(AppTheme.appPrimary.opacity(0.15))
-        .navigationDestination(item: $selectedGym) { gym in
-            GymProfileView(gym: gym)
-        }
+    .padding(12)
+    .frame(height: 240)
+    .background(AppTheme.appPrimary.opacity(0.15))
     }
     
     private var tagBackgroundColor: Color {

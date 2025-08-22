@@ -20,11 +20,17 @@ struct Gym: Identifiable, Equatable, Hashable {
     var profileImage: MediaItem?
     var createdAt: Date
     
+    // Verification status for gym approval process
+    var verificationStatus: GymVerificationStatus
+    var verificationNotes: String?
+    var verifiedAt: Date?
+    var verifiedBy: String?
+    
     // staff management
     let ownerId: String
     let staffUserIds: [String]
     
-    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [Amenities], events: [String], profileImage: MediaItem?, createdAt: Date, ownerId: String, staffUserIds: [String] = []) {
+    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [Amenities], events: [String], profileImage: MediaItem?, createdAt: Date, ownerId: String, staffUserIds: [String] = [], verificationStatus: GymVerificationStatus = .pending, verificationNotes: String? = nil, verifiedAt: Date? = nil, verifiedBy: String? = nil) {
         self.id = id
         self.email = email
         self.name = name
@@ -37,6 +43,23 @@ struct Gym: Identifiable, Equatable, Hashable {
         self.createdAt = createdAt
         self.ownerId = ownerId
         self.staffUserIds = staffUserIds
+        self.verificationStatus = verificationStatus
+        self.verificationNotes = verificationNotes
+        self.verifiedAt = verifiedAt
+        self.verifiedBy = verifiedBy
+    }
+    
+    // Verification status checks
+    var isLive: Bool {
+        return verificationStatus == .approved
+    }
+    
+    var isPendingVerification: Bool {
+        return verificationStatus == .pending
+    }
+    
+    var isRejected: Bool {
+        return verificationStatus == .rejected
     }
     
     // Simple permission checks
@@ -71,7 +94,8 @@ struct Gym: Identifiable, Equatable, Hashable {
             id: id, email: email, name: name, description: description,
             location: location, climbingType: climbingType, amenities: amenities,
             events: events, profileImage: profileImage, createdAt: createdAt,
-            ownerId: ownerId, staffUserIds: newStaffIds
+            ownerId: ownerId, staffUserIds: newStaffIds, verificationStatus: verificationStatus,
+            verificationNotes: verificationNotes, verifiedAt: verifiedAt, verifiedBy: verifiedBy
         )
     }
     
@@ -82,8 +106,49 @@ struct Gym: Identifiable, Equatable, Hashable {
             id: id, email: email, name: name, description: description,
             location: location, climbingType: climbingType, amenities: amenities,
             events: events, profileImage: profileImage, createdAt: createdAt,
-            ownerId: ownerId, staffUserIds: newStaffIds
+            ownerId: ownerId, staffUserIds: newStaffIds, verificationStatus: verificationStatus,
+            verificationNotes: verificationNotes, verifiedAt: verifiedAt, verifiedBy: verifiedBy
         )
+    }
+    
+    // Verification status management
+    func updatingVerificationStatus(_ status: GymVerificationStatus, notes: String? = nil, verifiedBy: String? = nil) -> Gym {
+        return Gym(
+            id: id, email: email, name: name, description: description,
+            location: location, climbingType: climbingType, amenities: amenities,
+            events: events, profileImage: profileImage, createdAt: createdAt,
+            ownerId: ownerId, staffUserIds: staffUserIds, verificationStatus: status,
+            verificationNotes: notes, verifiedAt: status != .pending ? Date() : nil, verifiedBy: verifiedBy
+        )
+    }
+}
+
+// MARK: - Verification Status Enum
+enum GymVerificationStatus: String, Codable, CaseIterable {
+    case pending = "pending"
+    case approved = "approved"
+    case rejected = "rejected"
+    
+    var displayName: String {
+        switch self {
+        case .pending:
+            return "Pending Verification"
+        case .approved:
+            return "Approved"
+        case .rejected:
+            return "Rejected"
+        }
+    }
+    
+    var systemImageName: String {
+        switch self {
+        case .pending:
+            return "clock.fill"
+        case .approved:
+            return "checkmark.circle.fill"
+        case .rejected:
+            return "xmark.circle.fill"
+        }
     }
 }
 
@@ -122,7 +187,6 @@ enum Amenities: String, Codable, CaseIterable, Hashable {
     case shop = "Gear Shop"
     case wifi = "Wifi"
 }
-
 
 struct GymFavorite: Identifiable, Codable, Equatable {
     let userId: String

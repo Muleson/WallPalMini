@@ -21,6 +21,8 @@ struct AppTheme {
     static let appTextAccent = Color("TextAccent")
     static let appTextButton = Color("TextButton")
     
+    // Shadow
+    static let appCardShadow = Color.black.opacity(0.1)
 }
 
 // MARK: - Typography
@@ -88,5 +90,12 @@ struct AmmenitiesIcons {
         case .wifi:
             return wifi
         }
+    }
+}
+
+// MARK: - View Extensions
+extension View {
+    func appCardShadow() -> some View {
+        self.shadow(color: AppTheme.appCardShadow, radius: 4, x: 0, y: 4)
     }
 }
