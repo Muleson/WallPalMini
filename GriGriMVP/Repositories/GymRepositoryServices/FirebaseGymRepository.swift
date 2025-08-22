@@ -8,86 +8,46 @@
 import Foundation
 import FirebaseFirestore
 
-class FirebaseGymRepository: GymRepositoryProtocol {
+class FirebaseGymRepository: GymRepositoryProtocol {    
     private let db = Firestore.firestore()
     private let gymsCollection = "gyms"
     private let usersCollection = "users"
     private let mediaRepository: MediaRepositoryProtocol
+    private let permissionRepository: PermissionRepositoryProtocol
     
-    init(mediaRepository: MediaRepositoryProtocol = RepositoryFactory.createMediaRepository()) {
+    init(mediaRepository: MediaRepositoryProtocol = RepositoryFactory.createMediaRepository(),
+         permissionRepository: PermissionRepositoryProtocol? = nil) {
         self.mediaRepository = mediaRepository
+        // Use injected permission repository or create default
+        self.permissionRepository = permissionRepository ?? FirebaseGymPermissionRepository()
     }
     
-    // MARK: - Fetch Methods
+    // MARK: - Fetch Methods (mostly unchanged)
     
     func fetchAllGyms() async throws -> [Gym] {
         let snapshot = try await db.collection(gymsCollection).getDocuments()
         return snapshot.documents.compactMap { document -> Gym? in
             var data = document.data()
-            data["id"] = document.documentID  // Add document ID to data
-            
-            let gym = Gym(firestoreData: data)
-            if gym == nil {
-                print("Error decoding gym with ID: \(document.documentID)")
-            }
-            return gym
+            data["id"] = document.documentID
+            return Gym(firestoreData: data)
         }
     }
     
     func searchGyms(query: String) async throws -> [Gym] {
-        // If query is empty, return all gyms
-        if query.isEmpty {
-            return try await fetchAllGyms()
-        }
-        
-        // Create a query that searches by name
         let lowercaseQuery = query.lowercased()
         
-        // Using multiple queries for more comprehensive search
         let nameQuery = db.collection(gymsCollection)
             .whereField("name", isGreaterThanOrEqualTo: lowercaseQuery)
             .whereField("name", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
+            .limit(to: 20)
         
-        let locationQuery = db.collection(gymsCollection)
-            .whereField("location.address", isGreaterThanOrEqualTo: lowercaseQuery)
-            .whereField("location.address", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
+        let snapshot = try await nameQuery.getDocuments()
         
-        // Execute both queries
-        async let nameSnapshot = nameQuery.getDocuments()
-        async let locationSnapshot = locationQuery.getDocuments()
-        
-        // Combine results
-        let (nameResults, locationResults) = try await (nameSnapshot, locationSnapshot)
-        var uniqueGyms = [String: Gym]()
-        
-        // Process name results
-        for document in nameResults.documents {
+        return snapshot.documents.compactMap { document -> Gym? in
             var data = document.data()
             data["id"] = document.documentID
-            
-            if let gym = Gym(firestoreData: data) {
-                uniqueGyms[document.documentID] = gym
-            } else {
-                print("Error decoding gym from name search with ID: \(document.documentID)")
-            }
+            return Gym(firestoreData: data)
         }
-        
-        // Process location results
-        for document in locationResults.documents {
-            // Only add if not already in results
-            if uniqueGyms[document.documentID] == nil {
-                var data = document.data()
-                data["id"] = document.documentID
-                
-                if let gym = Gym(firestoreData: data) {
-                    uniqueGyms[document.documentID] = gym
-                } else {
-                    print("Error decoding gym from location search with ID: \(document.documentID)")
-                }
-            }
-        }
-        
-        return Array(uniqueGyms.values)
     }
     
     func getGym(id: String) async throws -> Gym? {
@@ -121,6 +81,30 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         }
     }
     
+    // NEW: Get multiple gyms by IDs
+    func getGyms(ids: [String]) async throws -> [Gym] {
+        guard !ids.isEmpty else { return [] }
+        
+        var allGyms: [Gym] = []
+        
+        // Firestore 'in' queries are limited to 10 items
+        for chunk in ids.chunked(into: 10) {
+            let snapshot = try await db.collection(gymsCollection)
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            
+            let gyms = snapshot.documents.compactMap { document -> Gym? in
+                var data = document.data()
+                data["id"] = document.documentID
+                return Gym(firestoreData: data)
+            }
+            
+            allGyms.append(contentsOf: gyms)
+        }
+        
+        return allGyms
+    }
+    
     func updateUserFavoriteGyms(userId: String, favoritedGymIds: [String]) async throws {
         // Update the user document with the new favorite gyms
         try await db.collection("users").document(userId).updateData([
@@ -128,14 +112,25 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         ])
     }
     
-    // MARK: - Create Methods
+    // MARK: - Create Methods (UPDATED)
     
-    func createGym(_ gym: Gym) async throws -> Gym {
+    func createGym(_ gym: Gym, ownerId: String) async throws -> Gym {
         // Convert gym to Firestore data using FirestoreCodable
         let gymData = gym.toFirestoreData()
         
         // Add to Firestore
         let documentRef = try await db.collection(gymsCollection).addDocument(data: gymData)
+        
+        // Create owner permission in the permissions collection
+        let ownerPermission = GymPermission(
+            userId: ownerId,
+            gymId: documentRef.documentID,
+            role: .owner,
+            grantedBy: ownerId,
+            notes: "Gym creator"
+        )
+        
+        try await permissionRepository.grantPermission(ownerPermission)
         
         // Create updated gym with the generated ID
         var updatedGymData = gymData
@@ -150,7 +145,7 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         return updatedGym
     }
     
-    // MARK: - Update Methods
+    // MARK: - Update Methods (mostly unchanged)
      
     func updateGym(_ gym: Gym) async throws -> Gym {
         let gymData = gym.toFirestoreData()
@@ -206,9 +201,15 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         ])
     }
     
-    // MARK: - Delete Methods
+    // MARK: - Delete Methods (UPDATED)
      
     func deleteGym(id: String) async throws {
+        // NEW: Delete all permissions for this gym
+        let permissions = try await permissionRepository.getPermissionsForGym(gymId: id)
+        for permission in permissions {
+            try await permissionRepository.revokePermission(permissionId: permission.id)
+        }
+        
         // Get gym to check for image
         if let gym = try await getGym(id: id),
            let profileImage = gym.profileImage {
@@ -220,45 +221,7 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         try await db.collection(gymsCollection).document(id).delete()
     }
     
-    // MARK: - Staff Management Methods
-    
-    func addStaffMember(to gymId: String, userId: String) async throws {
-        let gymRef = db.collection(gymsCollection).document(gymId)
-        
-        try await gymRef.updateData([
-            "staffUserIds": FieldValue.arrayUnion([userId])
-        ])
-    }
-    
-    func removeStaffMember(from gymId: String, userId: String) async throws {
-        let gymRef = db.collection(gymsCollection).document(gymId)
-        
-        try await gymRef.updateData([
-            "staffUserIds": FieldValue.arrayRemove([userId])
-        ])
-    }
-    
-    func getStaffMembers(for gymId: String) async throws -> [StaffMember] {
-        guard let gym = try await getGym(id: gymId) else {
-            throw NSError(domain: "GymRepository", code: 404, userInfo: [
-                NSLocalizedDescriptionKey: "Gym not found"
-            ])
-        }
-        
-        var staffMembers: [StaffMember] = []
-        
-        // Get user details for each staff member
-        for staffUserId in gym.staffUserIds {
-            if let user = try await getUserById(staffUserId) {
-                let staffMember = StaffMember(user: user)
-                staffMembers.append(staffMember)
-            }
-        }
-        
-        return staffMembers
-    }
-    
-    // MARK: - User Search for Staff Addition
+    // MARK: - User Search (kept for user search functionality)
     
     func searchUsers(query: String) async throws -> [User] {
         let lowercaseQuery = query.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -286,51 +249,7 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         return users
     }
     
-    // MARK: - Gym Access Check
-    
-    func getGymsUserCanManage(userId: String) async throws -> [Gym] {
-        // Query for gyms where user is owner
-        let ownerQuery = db.collection(gymsCollection)
-            .whereField("ownerId", isEqualTo: userId)
-        
-        // Query for gyms where user is staff
-        let staffQuery = db.collection(gymsCollection)
-            .whereField("staffUserIds", arrayContains: userId)
-        
-        // Execute both queries concurrently
-        async let ownerSnapshot = ownerQuery.getDocuments()
-        async let staffSnapshot = staffQuery.getDocuments()
-        
-        let (ownerResults, staffResults) = try await (ownerSnapshot, staffSnapshot)
-
-        var uniqueGyms = [String: Gym]()
-        
-        // Process owned gyms
-        for document in ownerResults.documents {
-            var data = document.data()
-            data["id"] = document.documentID  // Add document ID to data
-            
-            if let gym = Gym(firestoreData: data) {
-                uniqueGyms[document.documentID] = gym
-            }
-        }
-        
-        // Process staff gyms
-        for document in staffResults.documents {
-            if uniqueGyms[document.documentID] == nil {
-                var data = document.data()
-                data["id"] = document.documentID  // Add document ID to data
-                
-                if let gym = Gym(firestoreData: data) {
-                    uniqueGyms[document.documentID] = gym
-                }
-            }
-        }
-        
-        return Array(uniqueGyms.values)
-    }
-    
-    // MARK: - Verification Methods
+    // MARK: - Verification Methods (unchanged)
     
     func updateGymVerificationStatus(gymId: String, status: GymVerificationStatus, notes: String?, verifiedBy: String?) async throws -> Gym {
         guard let gym = try await getGym(id: gymId) else {
@@ -366,7 +285,7 @@ class FirebaseGymRepository: GymRepositoryProtocol {
         }
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Helper Methods (kept from original)
     
     private func getUserById(_ userId: String) async throws -> User? {
         let userDoc = try await db.collection("users").document(userId).getDocument()
@@ -383,8 +302,8 @@ class FirebaseGymRepository: GymRepositoryProtocol {
     private func checkRequiredGymFields(_ data: [String: Any]) -> [String] {
         var missingFields: [String] = []
         
-        // Add all required fields for a Gym object
-        let requiredFields = ["name", "email", "location", "ownerId"]
+        // Add all required fields for a Gym object (without ownerId and staffUserIds now)
+        let requiredFields = ["name", "email", "location"]
         
         for field in requiredFields {
             if data[field] == nil {

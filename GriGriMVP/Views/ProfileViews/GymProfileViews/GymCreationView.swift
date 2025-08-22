@@ -140,8 +140,7 @@ struct GymCreationView: View {
                 Spacer()
             }
             
-            HStack(alignment: .center, spacing: 36) {
-                Spacer()
+            HStack(spacing: 36) {
                 ForEach(ClimbingTypes.allCases, id: \.self) { type in
                     VStack(spacing: 8) {
                         Button(action: {
@@ -156,15 +155,22 @@ struct GymCreationView: View {
                                 
                                 Text(viewModel.formatClimbingType(type))
                                     .font(.caption)
-                                    .foregroundColor(viewModel.isClimbingTypeSelected(type) ? AppTheme.appPrimary : Color.gray.opacity(0.7))
+                                    .foregroundColor(viewModel.isClimbingTypeSelected(type) ? AppTheme.appTextPrimary : .secondary)
                             }
                         }
-                        .background(viewModel.isClimbingTypeSelected(type) ? Color.gray.opacity(0.1) : Color.clear)
-                        .cornerRadius(8)
+                        VStack {
+                            if viewModel.isClimbingTypeSelected(type) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 16))
+                            }
+                        }
+                        .frame(height: 16) // Fixed height to prevent layout shift
                     }
+                    .frame(maxWidth: .infinity)
                 }
-                Spacer()
             }
+            .frame(maxWidth: .infinity)
         }
     }
     

@@ -157,8 +157,6 @@ struct SampleData {
             events: [],
             profileImage: mediaItems[0], // Uses media1
             createdAt: Date(timeIntervalSince1970: 1610000000),
-            ownerId: "user1", // John Doe is the owner
-            staffUserIds: ["user2", "user4"], // Jane and Sarah are staff
             verificationStatus: .approved,
             verificationNotes: "Excellent facility meeting all requirements",
             verifiedAt: Date(timeIntervalSince1970: 1610086400),
@@ -179,8 +177,6 @@ struct SampleData {
             events: ["event2"],
             profileImage: mediaItems[1], // Uses media2
             createdAt: Date(timeIntervalSince1970: 1615000000),
-            ownerId: "user2", // Jane Smith is the owner
-            staffUserIds: ["user3", "user5"], // Alex and Mike are staff
             verificationStatus: .approved,
             verificationNotes: "Professional climbing facility with safety standards met",
             verifiedAt: Date(timeIntervalSince1970: 1615086400),
@@ -201,8 +197,6 @@ struct SampleData {
             events: [],
             profileImage: mediaItems[2], // Uses media3
             createdAt: Date(timeIntervalSince1970: 1620000000),
-            ownerId: "user3", // Alex Wilson is the owner
-            staffUserIds: [], // No staff yet
             verificationStatus: .approved,
             verificationNotes: "Family-friendly facility with excellent safety measures",
             verifiedAt: Date(timeIntervalSince1970: 1620086400),
@@ -223,8 +217,6 @@ struct SampleData {
             events: [],
             profileImage: mediaItems[3], // Uses media4
             createdAt: Date(timeIntervalSince1970: 1620000000),
-            ownerId: "user4", // Sarah Johnson is the owner
-            staffUserIds: [], // No staff yet
             verificationStatus: .approved,
             verificationNotes: "Unique and beautiful climbing facility in historic building",
             verifiedAt: Date(timeIntervalSince1970: 1620172800),
@@ -486,42 +478,6 @@ struct SampleData {
     ]
     
     // MARK: - Helper Methods
-    
-    /// Get staff members for a specific gym
-    static func getStaffMembers(for gymId: String) -> [StaffMember] {
-        guard let gym = gyms.first(where: { $0.id == gymId }) else { return [] }
-        
-        return gym.staffUserIds.compactMap { staffId in
-            guard let user = users.first(where: { $0.id == staffId }) else { return nil }
-            return StaffMember(user: user)
-        }
-    }
-    
-    /// Check if user can manage a specific gym
-    static func canUserManageGym(userId: String, gymId: String) -> Bool {
-        guard let gym = gyms.first(where: { $0.id == gymId }) else { return false }
-        return gym.canManageGym(userId: userId)
-    }
-    
-    /// Get user's role for a specific gym
-    static func getUserRole(userId: String, gymId: String) -> String {
-        guard let gym = gyms.first(where: { $0.id == gymId }) else { return "None" }
-        
-        if gym.isOwner(userId: userId) {
-            return "Owner"
-        } else if gym.isStaff(userId: userId) {
-            return "Staff"
-        } else {
-            return "Member"
-        }
-    }
-    
-    /// Get all gyms a user can manage (owner or staff)
-    static func getGymsForUser(userId: String) -> [Gym] {
-        return gyms.filter { gym in
-            gym.canManageGym(userId: userId)
-        }
-    }
     
     /// Get events created by a specific user
     static func getEventsCreatedBy(userId: String) -> [EventItem] {

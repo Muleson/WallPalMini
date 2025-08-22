@@ -18,8 +18,6 @@ extension Gym: FirestoreCodable {
             "climbingType": climbingType.map { $0.rawValue },
             "amenities": amenities.map { $0.rawValue },
             "events": events,
-            "ownerId": ownerId,
-            "staffUserIds": staffUserIds,
             "createdAt": createdAt.firestoreTimestamp,
             "verificationStatus": verificationStatus.rawValue
         ]
@@ -54,7 +52,6 @@ extension Gym: FirestoreCodable {
             let id = firestoreData["id"] as? String,
             let name = firestoreData["name"] as? String,
             let email = firestoreData["email"] as? String,
-            let ownerId = firestoreData["ownerId"] as? String,
             let locationData = firestoreData["location"] as? [String: Any]
         else {
             print("DEBUG: Failed to decode required Gym fields")
@@ -87,30 +84,30 @@ extension Gym: FirestoreCodable {
         // Handle other fields
         let description = firestoreData["description"] as? String
         let events = firestoreData["events"] as? [String] ?? []
-        let staffUserIds = firestoreData["staffUserIds"] as? [String] ?? []
         
         // Handle profile image
-        var profileImage: MediaItem?
+        let profileImage: MediaItem?
         if let imageData = firestoreData["profileImage"] as? [String: Any] {
             profileImage = MediaItem(firestoreData: imageData)
+        } else {
+            profileImage = nil
         }
         
-        // Handle verification status
+        // Handle verification fields
         let verificationStatusString = firestoreData["verificationStatus"] as? String ?? "pending"
         let verificationStatus = GymVerificationStatus(rawValue: verificationStatusString) ?? .pending
-        
-        // Handle verification notes
         let verificationNotes = firestoreData["verificationNotes"] as? String
         
-        // Handle verifiedAt timestamp
-        var verifiedAt: Date?
-        if let timestamp = firestoreData["verifiedAt"] as? Timestamp {
-            verifiedAt = timestamp.dateValue()
+        let verifiedAt: Date?
+        if let verifiedTimestamp = firestoreData["verifiedAt"] as? Timestamp {
+            verifiedAt = verifiedTimestamp.dateValue()
+        } else {
+            verifiedAt = nil
         }
         
-        // Handle verifiedBy
         let verifiedBy = firestoreData["verifiedBy"] as? String
-        
+                
+        // Initialize with new structure (without ownerId and staffUserIds)
         self.init(
             id: id,
             email: email,
@@ -122,8 +119,6 @@ extension Gym: FirestoreCodable {
             events: events,
             profileImage: profileImage,
             createdAt: createdAt,
-            ownerId: ownerId,
-            staffUserIds: staffUserIds,
             verificationStatus: verificationStatus,
             verificationNotes: verificationNotes,
             verifiedAt: verifiedAt,

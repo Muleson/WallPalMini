@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 import PhotosUI
 
 // MARK: - Repository Factory
@@ -37,6 +38,10 @@ struct RepositoryFactory {
     static func createMediaRepository() -> MediaRepositoryProtocol {
         return LocalMediaRepository()
     }
+    
+    static func createGymPermissionRepository() -> PermissionRepositoryProtocol {
+        return LocalGymPermissionRepository()
+    }
         
     #else
     static func createGymRepository() -> GymRepositoryProtocol {
@@ -54,6 +59,10 @@ struct RepositoryFactory {
     
     static func createMediaRepository() -> MediaRepositoryProtocol {
         return FirebaseMediaRepository() // Assuming you have this
+    }
+    
+    static func createGymPermissionRepository() -> PermissionRepositoryProtocol {
+        return FirebaseGymPermissionRepository()
     }
     #endif
 }

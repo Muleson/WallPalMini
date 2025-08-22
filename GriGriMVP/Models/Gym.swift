@@ -26,11 +26,8 @@ struct Gym: Identifiable, Equatable, Hashable {
     var verifiedAt: Date?
     var verifiedBy: String?
     
-    // staff management
-    let ownerId: String
-    let staffUserIds: [String]
     
-    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [Amenities], events: [String], profileImage: MediaItem?, createdAt: Date, ownerId: String, staffUserIds: [String] = [], verificationStatus: GymVerificationStatus = .pending, verificationNotes: String? = nil, verifiedAt: Date? = nil, verifiedBy: String? = nil) {
+    init(id: String, email: String, name: String, description: String?, location: LocationData, climbingType: [ClimbingTypes], amenities: [Amenities], events: [String], profileImage: MediaItem?, createdAt: Date, verificationStatus: GymVerificationStatus = .pending, verificationNotes: String? = nil, verifiedAt: Date? = nil, verifiedBy: String? = nil) {
         self.id = id
         self.email = email
         self.name = name
@@ -41,8 +38,6 @@ struct Gym: Identifiable, Equatable, Hashable {
         self.events = events
         self.profileImage = profileImage
         self.createdAt = createdAt
-        self.ownerId = ownerId
-        self.staffUserIds = staffUserIds
         self.verificationStatus = verificationStatus
         self.verificationNotes = verificationNotes
         self.verifiedAt = verifiedAt
@@ -62,54 +57,6 @@ struct Gym: Identifiable, Equatable, Hashable {
         return verificationStatus == .rejected
     }
     
-    // Simple permission checks
-    func isOwner(userId: String) -> Bool {
-        return ownerId == userId
-    }
-    
-    func isStaff(userId: String) -> Bool {
-        return staffUserIds.contains(userId)
-    }
-    
-    func canManageGym(userId: String) -> Bool {
-        return isOwner(userId: userId) || isStaff(userId: userId)
-    }
-    
-    func canAddStaff(userId: String) -> Bool {
-        return isOwner(userId: userId) // Only owner can add/remove staff
-    }
-    
-    func canCreateEvents(userId: String) -> Bool {
-        return canManageGym(userId: userId) // Both owner and staff can create events
-    }
-    
-    // Helper methods for staff management
-    func addingStaff(_ userId: String) -> Gym {
-        guard !staffUserIds.contains(userId) && userId != ownerId else { return self }
-        
-        var newStaffIds = staffUserIds
-        newStaffIds.append(userId)
-        
-        return Gym(
-            id: id, email: email, name: name, description: description,
-            location: location, climbingType: climbingType, amenities: amenities,
-            events: events, profileImage: profileImage, createdAt: createdAt,
-            ownerId: ownerId, staffUserIds: newStaffIds, verificationStatus: verificationStatus,
-            verificationNotes: verificationNotes, verifiedAt: verifiedAt, verifiedBy: verifiedBy
-        )
-    }
-    
-    func removingStaff(_ userId: String) -> Gym {
-        let newStaffIds = staffUserIds.filter { $0 != userId }
-        
-        return Gym(
-            id: id, email: email, name: name, description: description,
-            location: location, climbingType: climbingType, amenities: amenities,
-            events: events, profileImage: profileImage, createdAt: createdAt,
-            ownerId: ownerId, staffUserIds: newStaffIds, verificationStatus: verificationStatus,
-            verificationNotes: verificationNotes, verifiedAt: verifiedAt, verifiedBy: verifiedBy
-        )
-    }
     
     // Verification status management
     func updatingVerificationStatus(_ status: GymVerificationStatus, notes: String? = nil, verifiedBy: String? = nil) -> Gym {
@@ -117,7 +64,7 @@ struct Gym: Identifiable, Equatable, Hashable {
             id: id, email: email, name: name, description: description,
             location: location, climbingType: climbingType, amenities: amenities,
             events: events, profileImage: profileImage, createdAt: createdAt,
-            ownerId: ownerId, staffUserIds: staffUserIds, verificationStatus: status,
+            verificationStatus: status,
             verificationNotes: notes, verifiedAt: status != .pending ? Date() : nil, verifiedBy: verifiedBy
         )
     }
@@ -227,8 +174,6 @@ extension Gym {
             events: [],
             profileImage: nil,
             createdAt: Date(),
-            ownerId: "",
-            staffUserIds: []
         )
     }
 }
