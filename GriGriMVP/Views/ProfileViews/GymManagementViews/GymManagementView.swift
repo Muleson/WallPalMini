@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+/*
+// COMMENTED OUT FOR TESTING - Sam 2025-08-23
 struct GymManagementView: View {
     @ObservedObject var appState: AppState
     @StateObject private var viewModel = GymManagementViewModel()
@@ -181,17 +183,6 @@ struct GymRowView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
-            // Staff count
-            HStack {
-                Image(systemName: "person.2")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Text("\(gym.staffUserIds.count) staff members")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
         }
         .padding(.vertical, 4)
     }
@@ -233,13 +224,14 @@ struct GymRowView: View {
 }
 
 struct GymDetailManagementView: View {
+    @ObservedObject var appState: AppState
     @StateObject private var viewModel: GymDetailManagementViewModel
     @State private var showProfileImagePicker = false
     @State private var showImageActionDialog = false
     @State private var showImageViewer = false
     
-    init(gym: Gym) {
-        self._viewModel = StateObject(wrappedValue: GymDetailManagementViewModel(gym: gym))
+    init(gym: Gym, appState: AppState) {
+        self._viewModel = StateObject(wrappedValue: GymDetailManagementViewModel(gym: gym, appState: appState))
     }
     
     var body: some View {
@@ -534,12 +526,12 @@ struct GymDetailManagementView: View {
             
             VStack(spacing: 12) {
                 if viewModel.canManageStaff {
-                    NavigationLink(destination: StaffManagementView(gym: viewModel.gym)) {
+                   /* NavigationLink(destination: StaffManagementView(gym: viewModel.gym)) {
                         managementRowView(
                             icon: "person.2",
                             title: "Manage Staff"
                         )
-                    }
+                    } */
                 }
                 
                 if viewModel.canManageEvents {
@@ -551,7 +543,11 @@ struct GymDetailManagementView: View {
                     }
                 }
                 
-                NavigationLink(destination: GymProfileView(gym: viewModel.gym)) {
+                NavigationLink {
+                    // TODO: Fix this - should use proper gym from list or different view model
+                    // GymProfileView(gym: viewModel.gym, appState: appState)
+                    Text("Gym Profile - Fix Required")
+                } label: {
                     managementRowView(
                         icon: "eye",
                         title: "View Public Profile"
@@ -774,3 +770,5 @@ struct ImageViewerSheet: View {
 #Preview {
     GymManagementView(appState: AppState())
 }
+*/
+// END COMMENTED OUT FOR TESTING - Sam 2025-08-23

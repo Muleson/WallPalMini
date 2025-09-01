@@ -157,7 +157,7 @@ struct HomeView: View {
         .padding(.top, 24)
     }
     
-    // MARK: - Coming Up Section
+        // MARK: - Coming Up Section
     private var comingUpSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Coming Up")
@@ -172,8 +172,8 @@ struct HomeView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        // Combine nearby events with fallback events sorted by date
-                        ForEach(upcomingEventsForDisplay.prefix(5)) { event in
+                        // Use the processed upcoming events from the view model
+                        ForEach(viewModel.upcomingEvents.prefix(4)) { event in
                             HomeCompactEventCard(event: event) {
                                 selectedEvent = event // Set selected event for navigation
                             }
@@ -185,6 +185,9 @@ struct HomeView: View {
         }
         .padding(.bottom, 32)
     }
+    
+    // Note: The upcomingEventsForDisplay computed property is no longer needed
+    // since we're using batch loading with processed events from the view model
     
     // MARK: - Happening Next Section
     private var happeningNextSection: some View {
@@ -198,7 +201,7 @@ struct HomeView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
-            } else if let featuredEvent = viewModel.featuredEvents.first {
+            } else if let featuredEvent = viewModel.featuredEvent {
                 HomeFeaturedEventCard(
                     event: featuredEvent,
                     onView: {
@@ -221,40 +224,6 @@ struct HomeView: View {
                     .padding()
             }
         }
-    }
-    
-    // MARK: - Helper computed property for upcoming events
-    private var upcomingEventsForDisplay: [EventItem] {
-        // Define allowed event types for display
-        let allowedEventTypes: Set<EventType> = [.competition, .opening, .settingTaster, .openDay]
-        
-        // Filter nearby events with additional criteria
-        let filteredNearbyEvents = viewModel.nearbyEvents.filter { event in
-            event.mediaItems?.isEmpty == false &&
-            allowedEventTypes.contains(event.eventType)
-        }
-        
-        let minEventsToShow = 5
-        
-        // If we have enough filtered nearby events, use them
-        if filteredNearbyEvents.count >= minEventsToShow {
-            return Array(filteredNearbyEvents.prefix(minEventsToShow))
-        }
-        
-        // Otherwise, combine filtered nearby events with other filtered events sorted by date
-        let allOtherEvents = viewModel.allEvents
-            .filter { otherEvent in
-                // Must meet the same criteria
-                otherEvent.startDate > Date() &&
-                otherEvent.mediaItems?.isEmpty == false &&
-                allowedEventTypes.contains(otherEvent.eventType) &&
-                // Exclude events that are already in nearby events
-                !filteredNearbyEvents.contains { $0.id == otherEvent.id }
-            }
-            .sorted { $0.startDate < $1.startDate } // Sort by nearest date
-        
-        let combinedEvents = filteredNearbyEvents + allOtherEvents
-        return Array(combinedEvents.prefix(minEventsToShow))
     }
 }
 

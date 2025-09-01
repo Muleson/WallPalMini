@@ -24,6 +24,10 @@ class GymsViewModel: ObservableObject {
     @Published var showGymProfile = false
     @Published var selectedGym: Gym?
     
+    // Gym Profile specific properties
+    @Published var selectedGymEvents: [EventItem] = []
+    @Published var isLoadingEvents = false
+    
     private let locationService = LocationService.shared
     private let gymRepository: GymRepositoryProtocol
     private let eventRepository: EventRepositoryProtocol
@@ -34,6 +38,11 @@ class GymsViewModel: ObservableObject {
     // Get current user ID from AppState
     private var currentUserId: String? {
         return appState.user?.id
+    }
+    
+    // Public getter for appState
+    var currentAppState: AppState {
+        return appState
     }
     
     // MARK: - Updated Location Methods
@@ -99,6 +108,35 @@ class GymsViewModel: ObservableObject {
         selectedFilterTypes = newSelection
     }
     
+    // MARK: - Gym Profile Computed Properties
+    
+    var groupedEventsForSelectedGym: [String: [EventItem]] {
+        guard selectedGym != nil else { return [:] }
+        return Dictionary(grouping: selectedGymEvents) { event in
+            event.eventType.rawValue.capitalized
+        }
+    }
+
+    // Next featured event (exclude social and class types) - future events only
+    var nextFeaturedEventForSelectedGym: EventItem? {
+        let now = Date()
+        let featuredEvents = selectedGymEvents
+            .filter { $0.startDate > now && $0.eventType != .social && $0.eventType != .gymClass }
+            .sorted { $0.startDate < $1.startDate }
+        
+        return featuredEvents.first
+    }
+
+    // Upcoming class events for selected gym (future-only, sorted)
+    var upcomingClassEventsForSelectedGym: [EventItem] {
+        let now = Date()
+        let classEvents = selectedGymEvents
+            .filter { $0.startDate > now && $0.eventType == .gymClass }
+            .sorted { $0.startDate < $1.startDate }
+        
+        return classEvents
+    }
+    
     init(
         gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
         eventRepository: EventRepositoryProtocol = RepositoryFactory.createEventRepository(),
@@ -149,6 +187,17 @@ class GymsViewModel: ObservableObject {
     
     func refreshData() async {
         await loadData()
+    }
+    
+    func loadFavoriteGymsOnly() async {
+        errorMessage = nil
+        
+        do {
+            let loadedFavorites = try await loadFavoriteGyms()
+            self.favoriteGyms = loadedFavorites
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     private func loadUserLocation() async {
@@ -270,31 +319,97 @@ class GymsViewModel: ObservableObject {
     }
     
     func isGymFavorited(_ gym: Gym) -> Bool {
-        return favoriteGyms.contains(where: { $0.id == gym.id })
+        // First check the loaded favoriteGyms array
+        if favoriteGyms.contains(where: { $0.id == gym.id }) {
+            return true
+        }
+        
+        // Fallback: check directly from appState user favoriteGyms
+        if let user = appState.user,
+           let favoriteGymIds = user.favoriteGyms {
+            return favoriteGymIds.contains(gym.id)
+        }
+        
+        return false
+    }
+    
+    // MARK: - Gym Profile Methods
+    
+    func loadEventsForSelectedGym() async {
+        guard let selectedGym = selectedGym else { 
+            return 
+        }
+        
+        await loadEventsForGym(selectedGym)
+    }
+    
+    func loadEventsForGym(_ gym: Gym) async {
+        isLoadingEvents = true
+        
+        do {
+            // Use optimized display method to reduce database calls
+            let events = try await eventRepository.fetchEventsForGymDisplay(gymId: gym.id)
+            
+            // Only update selectedGymEvents if this is still the selected gym
+            if selectedGym?.id == gym.id {
+                self.selectedGymEvents = events
+            }
+        } catch {
+            errorMessage = "Failed to load gym events: \(error.localizedDescription)"
+        }
+        
+        isLoadingEvents = false
+    }
+    
+    func refreshSelectedGymDetails() async {
+        guard let selectedGym = selectedGym else { return }
+        
+        do {
+            if let updatedGym = try await gymRepository.getGym(id: selectedGym.id) {
+                self.selectedGym = updatedGym
+                
+                // Update in main arrays too
+                if let index = gyms.firstIndex(where: { $0.id == updatedGym.id }) {
+                    gyms[index] = updatedGym
+                }
+                if let favoriteIndex = favoriteGyms.firstIndex(where: { $0.id == updatedGym.id }) {
+                    favoriteGyms[favoriteIndex] = updatedGym
+                }
+            }
+        } catch {
+            errorMessage = "Failed to refresh gym details: \(error.localizedDescription)"
+        }
+    }
+    
+    func isEventFavorited(_ event: EventItem) -> Bool {
+        return appState.user?.favoriteEvents?.contains(event.id) ?? false
+    }
+    
+    func toggleEventFavorite(_ event: EventItem) async {
+        guard let userId = currentUserId else {
+            errorMessage = "Please sign in to favorite events"
+            return
+        }
+        
+        do {
+            let isCurrentlyFavorite = isEventFavorited(event)
+            
+            _ = try await userRepository.updateUserFavoriteEvents(
+                userId: userId,
+                eventId: event.id,
+                isFavorite: !isCurrentlyFavorite
+            )
+            
+            // Refresh user data to update favorites
+            if let updatedUser = try await userRepository.getUser(id: userId) {
+                appState.updateAuthState(user: updatedUser)
+            }
+        } catch {
+            errorMessage = "Failed to update event favorite: \(error.localizedDescription)"
+        }
     }
     
     // MARK: - Gym Management Methods (for gym owners/staff)
-    
-    func getGymsUserCanManage() async throws -> [Gym] {
-        guard let userId = currentUserId else {
-            throw NSError(domain: "GymsViewModel", code: 401, userInfo: [
-                NSLocalizedDescriptionKey: "User not authenticated"
-            ])
-        }
-        
-        return try await gymRepository.getGymsUserCanManage(userId: userId)
-    }
-    
-    func createGym(_ gym: Gym) async throws -> Gym {
-        let createdGym = try await gymRepository.createGym(gym)
-        
-        // Add to local array if it's not already there
-        if !gyms.contains(where: { $0.id == createdGym.id }) {
-            gyms.append(createdGym)
-        }
-        
-        return createdGym
-    }
     
     func updateGym(_ gym: Gym) async throws -> Gym {
         let updatedGym = try await gymRepository.updateGym(gym)
@@ -323,6 +438,14 @@ class GymsViewModel: ObservableObject {
     func selectGym(_ gym: Gym) {
         selectedGym = gym
         showGymProfile = true
+        
+        // Clear previous events first to avoid showing stale data
+        selectedGymEvents = []
+        
+        // Load events for the selected gym
+        Task {
+            await loadEventsForGym(gym)
+        }
     }
 }
 

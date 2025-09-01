@@ -12,7 +12,6 @@ struct CompactGymCard: View {
     @ObservedObject var viewModel: GymsViewModel
     @State private var showingVisitOptions = false
     @State private var gymToVisit: Gym?
-    @State private var navigateToGymProfile = false
     
     var body: some View {
         VStack(spacing: 6) {
@@ -97,14 +96,11 @@ struct CompactGymCard: View {
                 gymToVisit = nil
             },
             onViewProfile: {
-                navigateToGymProfile = true
+                viewModel.selectGym(gym)
                 showingVisitOptions = false
                 gymToVisit = nil
             }
         )
-        .navigationDestination(isPresented: $navigateToGymProfile) {
-            GymProfileView(gym: gym)
-        }
     }
     
     private func climbingTypeIcon(for type: ClimbingTypes) -> Image {

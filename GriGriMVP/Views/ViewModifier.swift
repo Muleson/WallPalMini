@@ -32,6 +32,7 @@ extension Font {
     static let appNavTitle = Font.system(size: 34, weight: .regular, design: .rounded)
     static let appHeadline = Font.system(size: 28, weight: .light, design: .rounded)
     static let appSubheadline = Font.system(size: 20, weight: .light, design: .rounded)
+    static let appEventHost = Font.system(size: 20, weight: .regular, design: .rounded)
     static let appCardTitleLarge = Font.system(size: 20, weight: .light, design: .rounded)
     static let appCardTitleSmall = Font.system(size: 18, weight: .light, design: .rounded)
     static let appUnderline = Font.system(size: 15, weight: .light, design: .rounded)

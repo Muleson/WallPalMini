@@ -38,17 +38,18 @@ struct PassesRootView: View {
                 }
             }
             
-            // Floating Add Pass Button
-            VStack {
-                Spacer()
-                HStack {
+            // Floating Add Pass Button - only show when user has passes
+            if !displayViewModel.allPasses.isEmpty {
+                VStack {
                     Spacer()
-                    PrimaryActionButton.primary("Add Pass") {
-                        showPassCreation = true
+                    HStack {
+                        PrimaryActionButton.primary("Add Pass") {
+                            showPassCreation = true
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 40)
+                        .padding(.bottom, 20)
                     }
-                    .frame(width: 120)
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
                 }
             }
         }

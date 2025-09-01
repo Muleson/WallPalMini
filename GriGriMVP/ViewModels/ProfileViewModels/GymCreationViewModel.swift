@@ -49,6 +49,7 @@ class GymCreationViewModel: ObservableObject {
     private let userRepository: UserRepositoryProtocol
     private let gymRepository: GymRepositoryProtocol
     private let mediaRepository: MediaRepositoryProtocol
+    // REMOVED: No longer need permissionRepository here as gymRepository handles it
     private let locationService = LocationService.shared
     private var geocodingTask: Task<Void, Never>?
     
@@ -112,7 +113,14 @@ class GymCreationViewModel: ObservableObject {
         return locationService.isLocationServicesEnabled
     }
     
-    // MARK: - Location Management
+    // MARK: - Image Management
+    
+    func handleImageSelected(_ image: UIImage) {
+        selectedProfileImage = image
+        // Any additional logic after image selection can be added here
+    }
+    
+    // MARK: - Location Management (unchanged)
     
     func getCurrentLocation() {
         useCurrentLocation = true
@@ -205,21 +213,90 @@ class GymCreationViewModel: ObservableObject {
         case .denied, .restricted:
             return "Location access denied. Tap to open Settings."
         case .authorizedWhenInUse, .authorizedAlways:
-            if locationService.hasCachedLocation {
-                return "Location available"
-            } else {
-                return "Getting location..."
-            }
+            return "Location access granted"
         @unknown default:
             return "Unknown location status"
         }
     }
     
-    // MARK: - Image Management
+    // MARK: - Address Search (unchanged)
     
-    func handleImageSelected(_ image: UIImage) {
-        selectedProfileImage = image
-        // Any additional logic after image selection can be added here
+    func searchAddresses() {
+        let query = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard query.count >= 3 else {
+            hideAddressSuggestions()
+            return
+        }
+        
+        // Cancel previous task if still running
+        geocodingTask?.cancel()
+        
+        geocodingTask = Task {
+            await MainActor.run { [weak self] in
+                self?.isSearchingAddresses = true
+            }
+            
+            do {
+                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 second debounce
+                
+                guard !Task.isCancelled else { return }
+                
+                let suggestions = try await locationService.searchAddresses(query)
+                
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.addressSuggestions = suggestions
+                    self.showAddressSuggestions = !suggestions.isEmpty
+                    self.isSearchingAddresses = false
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.isSearchingAddresses = false
+                    self.hideAddressSuggestions()
+                    // Don't log cancellation errors
+                    if !Task.isCancelled {
+                        print("Address search error: \(error)")
+                    }
+                }
+            }
+        }
+    }
+    
+    func selectAddressSuggestion(_ suggestion: AddressSuggestion) {
+        address = suggestion.displayAddress
+        latitude = suggestion.locationData.latitude
+        longitude = suggestion.locationData.longitude
+        useCurrentLocation = false
+        hideAddressSuggestions()
+    }
+    
+    private func hideAddressSuggestions() {
+        showAddressSuggestions = false
+        addressSuggestions = []
+    }
+    
+    func handleManualAddressChange() {
+        // Clear current location flag when user manually edits address
+        if useCurrentLocation {
+            useCurrentLocation = false
+        }
+        searchAddresses()
+    }
+    
+    // MARK: - Amenities Management (unchanged)
+    
+    func toggleAmenity(_ amenity: Amenities) {
+        if selectedAmenities.contains(amenity) {
+            selectedAmenities.remove(amenity)
+        } else {
+            selectedAmenities.insert(amenity)
+        }
+    }
+    
+    func isAmenitySelected(_ amenity: Amenities) -> Bool {
+        selectedAmenities.contains(amenity)
     }
     
     // MARK: - Climbing Types Management
@@ -262,96 +339,7 @@ class GymCreationViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Address Search Management
-    
-    func searchAddresses() {
-        // Don't search if we're using current location
-        if useCurrentLocation {
-            return
-        }
-        
-        // Cancel any existing search
-        geocodingTask?.cancel()
-        
-        let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard !trimmedAddress.isEmpty && trimmedAddress.count >= 3 else {
-            hideAddressSuggestions()
-            return
-        }
-        
-        geocodingTask = Task {
-            do {
-                // Debounce the search
-                try await Task.sleep(nanoseconds: 800_000_000)
-                
-                guard !Task.isCancelled else { return }
-                
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    self.isSearchingAddresses = true
-                    self.errorMessage = nil
-                }
-                
-                let suggestions = try await locationService.searchAddresses(trimmedAddress)
-                
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    self.addressSuggestions = suggestions
-                    self.showAddressSuggestions = !suggestions.isEmpty
-                    self.isSearchingAddresses = false
-                }
-                
-            } catch {
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    self.isSearchingAddresses = false
-                    self.hideAddressSuggestions()
-                    // Don't log cancellation errors
-                    if !Task.isCancelled {
-                        print("Address search error: \(error)")
-                    }
-                }
-            }
-        }
-    }
-    
-    func selectAddressSuggestion(_ suggestion: AddressSuggestion) {
-        address = suggestion.displayAddress
-        latitude = suggestion.locationData.latitude
-        longitude = suggestion.locationData.longitude
-        useCurrentLocation = false
-        hideAddressSuggestions()
-    }
-    
-    private func hideAddressSuggestions() {
-        showAddressSuggestions = false
-        addressSuggestions = []
-    }
-    
-    func handleManualAddressChange() {
-        // Clear current location flag when user manually edits address
-        if useCurrentLocation {
-            useCurrentLocation = false
-        }
-        searchAddresses()
-    }
-    
-    // MARK: - Amenities Management
-    
-    func toggleAmenity(_ amenity: Amenities) {
-        if selectedAmenities.contains(amenity) {
-            selectedAmenities.remove(amenity)
-        } else {
-            selectedAmenities.insert(amenity)
-        }
-    }
-    
-    func isAmenitySelected(_ amenity: Amenities) -> Bool {
-        selectedAmenities.contains(amenity)
-    }
-    
-    // MARK: - Gym Creation
+    // MARK: - Gym Creation 
     
     func validateForm() -> String? {
         if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -392,37 +380,36 @@ class GymCreationViewModel: ObservableObject {
         errorMessage = nil
         
         do {
+            // Get current user ID - REQUIRED for owner permission
+            guard let currentUserId = userRepository.getCurrentAuthUser() else {
+                await MainActor.run { [weak self] in
+                    self?.isLoading = false
+                    self?.errorMessage = "You must be logged in to create a gym"
+                }
+                return
+            }
+            
+            // Upload profile image if selected
+            var profileImageMedia: MediaItem? = nil
+            if let profileImage = selectedProfileImage {
+                isUploadingImage = true
+                profileImageMedia = try await mediaRepository.uploadImage(
+                    profileImage,
+                    ownerId: "gym_pending", // Temporary ID for image upload
+                    compressionQuality: 0.8
+                )
+                isUploadingImage = false
+            }
+            
             let locationData = LocationData(
                 latitude: latitude,
                 longitude: longitude,
                 address: address.isEmpty ? nil : address
             )
             
-            guard let currentUserId = userRepository.getCurrentAuthUser() else {
-                throw NSError(domain: "GymCreation", code: 401, userInfo: [NSLocalizedDescriptionKey: "You must be signed in to create a gym"])
-            }
-            
-            // Upload profile image if selected
-            var profileImageMedia: MediaItem?
-            if let profileImage = selectedProfileImage {
-                isUploadingImage = true
-                do {
-                    profileImageMedia = try await mediaRepository.uploadImage(
-                        profileImage,
-                        ownerId: currentUserId,
-                        compressionQuality: 0.8
-                    )
-                } catch {
-                    isUploadingImage = false
-                    self.errorMessage = "Failed to upload profile image: \(error.localizedDescription)"
-                    self.isLoading = false
-                    return
-                }
-                isUploadingImage = false
-            }
-            
+            // Create gym WITHOUT ownerId and staffUserIds (new model)
             let gym = Gym(
-                id: UUID().uuidString,
+                id: UUID().uuidString, // Generate ID client-side
                 email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                 description: description.isEmpty ? nil : description,
@@ -432,12 +419,14 @@ class GymCreationViewModel: ObservableObject {
                 events: [],
                 profileImage: profileImageMedia,
                 createdAt: Date(),
-                ownerId: currentUserId,
-                staffUserIds: [],
+                // REMOVED: ownerId: currentUserId,
+                // REMOVED: staffUserIds: [],
                 verificationStatus: .pending // New gyms start as pending verification
             )
             
-            _ = try await gymRepository.createGym(gym)
+            // Use the updated createGym method that takes ownerId as parameter
+            // This will create both the gym and the owner permission
+            _ = try await gymRepository.createGym(gym, ownerId: currentUserId)
             
             await MainActor.run { [weak self] in
                 guard let self = self else { return }

@@ -47,7 +47,7 @@ struct SignUpView: View {
                             .scaledToFit()
                             .frame(width: 120, height: 120)
                         
-                        Text("Join GriGri")
+                        Text("Join Crahg")
                             .font(.appHeadline)
                             .foregroundColor(AppTheme.appTextPrimary)
                     }
@@ -198,7 +198,7 @@ struct SignInView: View {
                             .frame(width: 140, height: 140)
                         
                         VStack(spacing: 8) {
-                            Text("Welcome to GriGri")
+                            Text("Welcome to Crahg")
                                 .font(.appHeadline)
                                 .foregroundColor(AppTheme.appTextPrimary)
                             

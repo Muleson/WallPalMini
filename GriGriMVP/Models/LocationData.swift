@@ -7,6 +7,7 @@
 
 import Foundation
 import FirebaseFirestore
+import CoreLocation
 
 struct LocationData: Equatable, Hashable, FirestoreCodable {
     let latitude: Double
@@ -46,6 +47,14 @@ struct LocationData: Equatable, Hashable, FirestoreCodable {
         self.latitude = latitude
         self.longitude = longitude
         self.address = address
+    }
+}
+
+// MARK: - CoreLocation Integration
+extension LocationData {
+    /// Convert LocationData to CLLocation for distance calculations
+    func toCLLocation() -> CLLocation {
+        return CLLocation(latitude: latitude, longitude: longitude)
     }
 }
 

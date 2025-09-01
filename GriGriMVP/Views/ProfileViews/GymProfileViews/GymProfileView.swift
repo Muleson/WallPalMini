@@ -8,13 +8,28 @@
 import SwiftUI
 
 struct GymProfileView: View {
-    @StateObject private var viewModel: GymProfileViewModel
+    @StateObject private var fallbackViewModel: GymsViewModel
+    var passedViewModel: GymsViewModel?
+    let gym: Gym
     @Environment(\.openURL) private var openURL
     @State private var showVisitOptions: Bool = false
     @State private var selectedEvent: EventItem? = nil
+    @State private var favoriteButtonKey: UUID = UUID() // Force button refresh
     
-    init(gym: Gym) {
-        _viewModel = StateObject(wrappedValue: GymProfileViewModel(gym: gym))
+    private var viewModel: GymsViewModel {
+        passedViewModel ?? fallbackViewModel
+    }
+    
+    init(gym: Gym, viewModel: GymsViewModel? = nil, appState: AppState? = nil) {
+        self.gym = gym
+        self.passedViewModel = viewModel
+        
+        // Create fallback view model with proper AppState - fix StateObject initialization
+        if let appState = appState {
+            self._fallbackViewModel = StateObject(wrappedValue: GymsViewModel(appState: appState))
+        } else {
+            self._fallbackViewModel = StateObject(wrappedValue: GymsViewModel(appState: AppState()))
+        }
     }
     
     var body: some View {
@@ -26,7 +41,7 @@ struct GymProfileView: View {
                     .padding(.horizontal)
                 
                 // Gym Name
-                Text(viewModel.gym.name)
+                Text((viewModel.selectedGym ?? gym).name)
                     .font(.appHeadline)
                     .foregroundStyle(AppTheme.appTextPrimary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -62,18 +77,18 @@ struct GymProfileView: View {
         .navigationBarTitleDisplayMode(.inline)
         .background(AppTheme.appBackgroundBG)
         .refreshable {
-            viewModel.refreshGymDetails()
-            viewModel.loadGymEvents()
+            await viewModel.refreshSelectedGymDetails()
+            await loadEventsForGym()
         }
         .alert("Error", isPresented: Binding<Bool>(
-            get: { viewModel.error != nil },
-            set: { if !$0 { viewModel.error = nil } }
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
         )) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(viewModel.error ?? "")
+            Text(viewModel.errorMessage ?? "")
         }
-        .confirmationDialog("Visit \(viewModel.gym.name)", isPresented: $showVisitOptions, titleVisibility: .visible) {
+        .confirmationDialog("Visit \((viewModel.selectedGym ?? gym).name)", isPresented: $showVisitOptions, titleVisibility: .visible) {
             Button("Open in Maps") {
                 openMap()
             }
@@ -87,11 +102,25 @@ struct GymProfileView: View {
         .navigationDestination(item: $selectedEvent) { event in
             EventPageView(event: event)
         }
+        .task {
+            // Ensure we have the correct gym selected
+            viewModel.selectedGym = gym
+            
+            // If using fallback view model, load only the necessary data
+            if passedViewModel == nil {
+                await viewModel.loadFavoriteGymsOnly()
+                // Refresh favorite button after loading favorites
+                favoriteButtonKey = UUID()
+            }
+            
+            // Always load events for this specific gym, regardless of viewModel state
+            await loadEventsForGym()
+        }
     }
     
     private var profileImageView: some View {
         Group {
-            if let profileImage = viewModel.gym.profileImage {
+            if let profileImage = (viewModel.selectedGym ?? gym).profileImage {
                 AsyncImage(url: profileImage.url) { image in
                     image
                         .resizable()
@@ -122,7 +151,7 @@ struct GymProfileView: View {
     
     private var locationView: some View {
         HStack {
-            Text(viewModel.gym.location.formattedAddress)
+            Text((viewModel.selectedGym ?? gym).location.formattedAddress)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -131,7 +160,7 @@ struct GymProfileView: View {
     
     private var climbingTypesIconsView: some View {
         HStack(spacing: 36) {
-            ForEach(viewModel.gym.climbingType, id: \.self) { type in
+            ForEach((viewModel.selectedGym ?? gym).climbingType, id: \.self) { type in
                 VStack(spacing: -4) {
                     climbingTypeIcon(for: type)
                         .resizable()
@@ -139,7 +168,7 @@ struct GymProfileView: View {
                         .frame(width: 48, height: 48)
                         .foregroundColor(AppTheme.appPrimary)
                     
-                    Text(viewModel.formatClimbingType(type))
+                    Text(formatClimbingType(type))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -160,15 +189,34 @@ struct GymProfileView: View {
         }
     }
     
+    private func formatClimbingType(_ type: ClimbingTypes) -> String {
+        switch type {
+        case .bouldering:
+            return "Bouldering"
+        case .sport:
+            return "Sport"
+        case .board:
+            return "Board"
+        case .gym:
+            return "Gym"
+        }
+    }
+    
     private var actionButtonsView: some View {
         HStack(spacing: 8) {
-            // Favorite Button
+            // Favorite Button - use computed property for real-time updates
+            let isFavorite = viewModel.isGymFavorited(gym)
             PrimaryActionButton.toggle(
-                viewModel.isFavorite ? "Favourited" : "Favourite",
-                isEngaged: viewModel.isFavorite
+                isFavorite ? "Favourited" : "Favourite",
+                isEngaged: isFavorite
             ) {
-                viewModel.toggleFavorite()
+                Task {
+                    await viewModel.toggleFavoriteGym(gym)
+                    // Force button refresh after toggle
+                    favoriteButtonKey = UUID()
+                }
             }
+            .id(favoriteButtonKey) // Force re-render when key changes
             
             // Visit Button (Placeholder)
             PrimaryActionButton.primary("Visit") {
@@ -179,9 +227,10 @@ struct GymProfileView: View {
     }
 
     private func openMap() {
-        let lat = viewModel.gym.location.latitude
-        let lon = viewModel.gym.location.longitude
-        let name = viewModel.gym.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let currentGym = viewModel.selectedGym ?? gym
+        let lat = currentGym.location.latitude
+        let lon = currentGym.location.longitude
+        let name = currentGym.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlString = "http://maps.apple.com/?ll=\(lat),\(lon)&q=\(name)"
         if let url = URL(string: urlString) {
             openURL(url)
@@ -190,8 +239,26 @@ struct GymProfileView: View {
     
     private var upcomingEventsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Debug info (can remove later)
+            if viewModel.isLoadingEvents {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Loading events...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+            } else if !viewModel.isLoadingEvents {
+                // Show debug info about loaded events
+                Text("Events loaded: \(viewModel.selectedGymEvents.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+            }
+            
             // Featured Event Section - show if there's a next featured event
-            if let featuredEvent = viewModel.nextFeaturedEvent {
+            if let featuredEvent = viewModel.nextFeaturedEventForSelectedGym {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Upcoming Event")
@@ -218,7 +285,7 @@ struct GymProfileView: View {
             }
             
             // Gym Classes Section - show if there are upcoming classes
-            if !viewModel.upcomingClassEvents.isEmpty {
+            if !viewModel.upcomingClassEventsForSelectedGym.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Classes")
@@ -230,7 +297,7 @@ struct GymProfileView: View {
                     
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            ForEach(viewModel.upcomingClassEvents.prefix(10)) { event in
+                            ForEach(viewModel.upcomingClassEventsForSelectedGym.prefix(10)) { event in
                                 CompactEventCard(event: event) {
                                     selectedEvent = event
                                 }
@@ -246,7 +313,8 @@ struct GymProfileView: View {
     
     private var amenitiesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if !viewModel.gym.amenities.isEmpty {
+            let currentGym = viewModel.selectedGym ?? gym
+            if !currentGym.amenities.isEmpty {
                 HStack {
                     Text("Amenities")
                         .font(.appSubheadline)
@@ -256,7 +324,7 @@ struct GymProfileView: View {
                 .padding(.horizontal)
                 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 12) {
-                    ForEach(viewModel.gym.amenities, id: \.self) { amenity in
+                    ForEach(currentGym.amenities, id: \.self) { amenity in
                         HStack(spacing: 8) {
                             AmmenitiesIcons.icon(for: amenity)
                                 .foregroundColor(AppTheme.appPrimary)
@@ -274,6 +342,12 @@ struct GymProfileView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func loadEventsForGym() async {
+        await viewModel.loadEventsForGym(gym)
     }
 }
 

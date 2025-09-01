@@ -26,7 +26,6 @@ struct GymsListView: View {
                                 Text("Favourites")
                                     .font(.appHeadline)
                                     .foregroundColor(AppTheme.appTextPrimary)
-                                    .padding(.horizontal, 16)
                                 Spacer()
                             }
                             .padding(.horizontal, 16)
@@ -91,7 +90,7 @@ struct GymsListView: View {
                             // Loading state
                             ForEach(0..<3, id: \.self) { _ in
                                 GymCardViewSkeleton()
-                                    .padding(.horizontal, 16)
+                                        .padding(.horizontal, 12)
                             }
                         } else {
                             ForEach(viewModel.nonFavoriteGymsByDistance) { gym in
@@ -129,7 +128,7 @@ struct GymsListView: View {
             }
             .navigationDestination(isPresented: $viewModel.showGymProfile) {
                 if let selectedGym = viewModel.selectedGym {
-                    GymProfileView(gym: selectedGym)
+                    GymProfileView(gym: selectedGym, viewModel: viewModel, appState: viewModel.currentAppState)
                 }
             }
         }

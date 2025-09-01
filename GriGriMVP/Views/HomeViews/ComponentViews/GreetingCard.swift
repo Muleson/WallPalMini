@@ -16,13 +16,13 @@ struct GreetingSection: View {
         
         switch hour {
         case 5..<12:
-            return "Good Morning,"
+            return "Good morning,"
         case 12..<17:
-            return "Good Afternoon,"
+            return "Good afternoon,"
         case 17..<22:
-            return "Good Evening,"
+            return "Good evening,"
         default:
-            return "Good Night,"
+            return "Good night,"
         }
     }
     

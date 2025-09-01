@@ -17,19 +17,19 @@ struct UpcomingEventsView: View {
     @State private var showingSearchBar = false
     @FocusState private var searchFieldFocused: Bool
     
-    // Featured events for carousel (first 3 events)
+    // Featured events for carousel (optimized section loading)
     private var featuredEvents: [EventItem] {
-        Array(viewModel.filteredEvents.prefix(3))
+        viewModel.featuredCarouselEvents
     }
     
-    // Gym class events for horizontal scroll
+    // Gym class events for horizontal scroll (optimized section loading)
     private var gymClassEvents: [EventItem] {
-        viewModel.filteredEvents.filter { $0.eventType == .gymClass }
+        viewModel.classEvents
     }
     
-    // Social events for horizontal scroll
+    // Social events for horizontal scroll (optimized section loading)
     private var socialEvents: [EventItem] {
-        viewModel.filteredEvents.filter { $0.eventType == .social }
+        viewModel.socialEvents
     }
     
     var body: some View {
@@ -61,9 +61,25 @@ struct UpcomingEventsView: View {
                         .padding(.horizontal)
                     }
                     // Gym Classes Horizontal Scroll
-                    if !gymClassEvents.isEmpty {
+                    if viewModel.isSectionLoading {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Upgrade your beta")
+                            Text("Classes")
+                                .font(.appHeadline)
+                                .padding(.horizontal)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(0..<3, id: \.self) { _ in
+                                        CompactEventCardSkeleton()
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                            .frame(height: 200)
+                        }
+                    } else if !gymClassEvents.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Classes")
                                 .font(.appHeadline)
                                 .padding(.horizontal)
                             
@@ -84,7 +100,24 @@ struct UpcomingEventsView: View {
                     }
                     
                     // Featured Events Carousel
-                    if !featuredEvents.isEmpty {
+                    if viewModel.isSectionLoading {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Next big sends")
+                                .font(.appHeadline)
+                                .padding(.horizontal)
+
+                            VStack(spacing: 4) {
+                                TabView {
+                                    ForEach(0..<3, id: \.self) { _ in
+                                        FeaturedEventCardSkeleton()
+                                            .padding(.horizontal)
+                                    }
+                                }
+                                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                                .frame(height: 260)
+                            }
+                        }
+                    } else if !featuredEvents.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Next big sends")
                                 .font(.appHeadline)
@@ -132,7 +165,23 @@ struct UpcomingEventsView: View {
                     }
                     
                     // Social Events Horizontal Scroll
-                    if !socialEvents.isEmpty {
+                    if viewModel.isSectionLoading {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Social Sessions")
+                                .font(.appHeadline)
+                                .padding(.horizontal)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(0..<3, id: \.self) { _ in
+                                        SocialEventCardSkeleton()
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                            .frame(height: 170)
+                        }
+                    } else if !socialEvents.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Social Sessions")
                                 .font(.appHeadline)
@@ -168,7 +217,20 @@ struct UpcomingEventsView: View {
                     .padding(.horizontal)
 
                     // Search results (show when user has typed something)
-                    if !viewModel.searchText.isEmpty {
+                    if viewModel.isLoadingEvents {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Search Results")
+                                .font(.appHeadline)
+                                .padding(.horizontal)
+
+                            VStack(spacing: 8) {
+                                ForEach(0..<3, id: \.self) { _ in
+                                    StandardEventCardSkeleton()
+                                        .padding(.horizontal)
+                                }
+                            }
+                        }
+                    } else if !viewModel.searchText.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Search Results")
                                 .font(.appHeadline)
@@ -214,10 +276,10 @@ struct UpcomingEventsView: View {
                 EventPageView(event: event)
             }
             .navigationDestination(item: $selectedGym) { gym in
-                GymProfileView(gym: gym)
+                GymProfileView(gym: gym, appState: appState)
             }
             .refreshable {
-                viewModel.fetchEvents()
+                viewModel.loadHomeSections(forceRefresh: true)
             }
         }
     }

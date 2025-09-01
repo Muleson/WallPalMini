@@ -73,7 +73,7 @@ struct EventPageView: View {
                             .foregroundColor(.gray)
                     }
                     Text(event.host.name)
-                        .font(.appSubheadline)
+                        .font(.appEventHost)
                         .foregroundStyle(AppTheme.appPrimary)
                     
                     Spacer()

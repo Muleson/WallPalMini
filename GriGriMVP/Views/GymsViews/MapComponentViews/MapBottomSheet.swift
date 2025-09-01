@@ -10,36 +10,32 @@ import MapKit
 
 struct MapBottomSheet: View {
     let gym: Gym
-    let viewModel: GymsViewModel
-    @State private var dragOffset: CGFloat = 0
-    @State private var showingVisitOptions = false
-    @State private var navigateToGymProfile = false
-    
+    @ObservedObject var viewModel: GymsViewModel
     let onDismiss: () -> Void
     let onVisit: (Gym) -> Void
+    @State private var favoriteButtonKey: UUID = UUID() // Force button refresh
+    @State private var dragOffset: CGFloat = 0 // For drag gesture
     
     var body: some View {
         VStack {
             Spacer() // Pushes the sheet to the bottom
             
-            VStack(spacing: 16) {
+            VStack(spacing: 8) {
                 // Handle indicator
-                VStack(spacing: 12) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.gray.opacity(0.4))
-                        .frame(width: 40, height: 4)
-                    
-                    gymInfoSection
-                }
-                .padding(.top, 8)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.gray.opacity(0.4))
+                    .frame(width: 40, height: 4)
+                    .padding(.top, 8)
+                
+                gymInfoSection
+                    .padding(.top, 4)
                 
                 climbingTypesSection
                 
                 actionButtons
+                    .padding(.bottom, 8)
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-            .frame(height: 300)
             .background(AppTheme.appContentBG)
             .cornerRadius(16, corners: [.topLeft, .topRight])
             .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -2)
@@ -105,14 +101,18 @@ struct MapBottomSheet: View {
     
     private var actionButtons: some View {
         HStack(spacing: 12) {
+            let isFavorite = viewModel.isGymFavorited(gym)
             PrimaryActionButton.toggle(
-                viewModel.isGymFavorited(gym) ? "Favourited" : "Favourite",
-                isEngaged: viewModel.isGymFavorited(gym)
+                isFavorite ? "Favourited" : "Favourite",
+                isEngaged: isFavorite
             ) {
                 Task {
                     await viewModel.toggleFavoriteGym(gym)
+                    // Force button refresh after toggle
+                    favoriteButtonKey = UUID()
                 }
             }
+            .id(favoriteButtonKey) // Force re-render when key changes
             
             PrimaryActionButton.primary("Visit") {
                 onVisit(gym)
@@ -123,15 +123,15 @@ struct MapBottomSheet: View {
     private var climbingTypesSection: some View {
         HStack {
             ForEach(gym.climbingType, id: \.self) { type in
-                VStack(spacing: 6) {
+                VStack(spacing: 2) {
                     climbingTypeIcon(for: type)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 32, height: 32)
                         .foregroundColor(AppTheme.appPrimary)
                     
                     Text(formatClimbingType(type))
-                        .font(.system(size: 12, weight: .light))
+                        .font(.system(size: 11, weight: .light))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -139,6 +139,7 @@ struct MapBottomSheet: View {
                 .frame(maxWidth: .infinity)
             }
         }
+        .padding(.vertical, 4)
     }
     
     // MARK: - Helper Methods

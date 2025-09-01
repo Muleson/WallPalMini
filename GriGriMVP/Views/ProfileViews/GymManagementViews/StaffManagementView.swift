@@ -5,6 +5,8 @@
 //  Created by Sam Quested on 23/05/2025.
 //
 
+/*
+
 import SwiftUI
 
 struct StaffManagementView: View {
@@ -288,3 +290,4 @@ struct UserSearchRowView: View {
 #Preview {
     StaffManagementView(gym: SampleData.gyms[0])
 }
+*/

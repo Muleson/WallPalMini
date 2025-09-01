@@ -137,6 +137,122 @@ struct SampleData {
             type: .image,
             uploadedAt: Date(timeIntervalSince1970: 1653000000),
             ownerId: "event8"
+        ),
+        
+        // Additional logos for new gyms
+        MediaItem(
+            id: "media12",
+            url: URL(string: "local-asset://SampleLogo5")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1654000000),
+            ownerId: "gym5"
+        ),
+        MediaItem(
+            id: "media13",
+            url: URL(string: "local-asset://SampleLogo6")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1655000000),
+            ownerId: "gym6"
+        ),
+        MediaItem(
+            id: "media14",
+            url: URL(string: "local-asset://SampleLogo7")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1656000000),
+            ownerId: "gym7"
+        ),
+        
+        // Additional posters for new events
+        MediaItem(
+            id: "media15",
+            url: URL(string: "local-asset://SamplePoster5")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1657000000),
+            ownerId: "event_poster1"
+        ),
+        MediaItem(
+            id: "media16",
+            url: URL(string: "local-asset://SamplePoster6")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1658000000),
+            ownerId: "event_poster2"
+        ),
+        MediaItem(
+            id: "media17",
+            url: URL(string: "local-asset://SamplePoster7")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1659000000),
+            ownerId: "event_poster3"
+        ),
+        MediaItem(
+            id: "media18",
+            url: URL(string: "local-asset://SamplePoster8")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1660000000),
+            ownerId: "event_poster4"
+        ),
+        MediaItem(
+            id: "media19",
+            url: URL(string: "local-asset://SamplePoster9")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1661000000),
+            ownerId: "event_poster5"
+        ),
+        MediaItem(
+            id: "media20",
+            url: URL(string: "local-asset://SamplePoster10")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1662000000),
+            ownerId: "event_poster6"
+        ),
+        MediaItem(
+            id: "media21",
+            url: URL(string: "local-asset://SamplePoster11")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1663000000),
+            ownerId: "event_poster7"
+        ),
+        MediaItem(
+            id: "media22",
+            url: URL(string: "local-asset://SamplePoster12")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1664000000),
+            ownerId: "event_poster8"
+        ),
+        MediaItem(
+            id: "media23",
+            url: URL(string: "local-asset://SamplePoster13")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1665000000),
+            ownerId: "event_poster9"
+        ),
+        MediaItem(
+            id: "media24",
+            url: URL(string: "local-asset://SamplePoster14")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1666000000),
+            ownerId: "event_poster10"
+        ),
+        MediaItem(
+            id: "media25",
+            url: URL(string: "local-asset://SamplePoster15")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1667000000),
+            ownerId: "event_poster11"
+        ),
+        MediaItem(
+            id: "media26",
+            url: URL(string: "local-asset://SamplePoster16")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1668000000),
+            ownerId: "event_poster12"
+        ),
+        MediaItem(
+            id: "media27",
+            url: URL(string: "local-asset://SamplePoster17")!,
+            type: .image,
+            uploadedAt: Date(timeIntervalSince1970: 1669000000),
+            ownerId: "event_poster13"
         )
     ]
     
@@ -221,6 +337,68 @@ struct SampleData {
             verificationNotes: "Unique and beautiful climbing facility in historic building",
             verifiedAt: Date(timeIntervalSince1970: 1620172800),
             verifiedBy: "admin2"
+        ),
+        
+        // New gyms using additional logos
+        Gym(
+            id: "gym5",
+            email: "info@peakperformance.com",
+            name: "Peak Performance",
+            description: "High-altitude training facility focusing on advanced climbing techniques",
+            location: LocationData(
+                latitude: 51.4994,
+                longitude: -0.1270,
+                address: "42 Summit Lane, London"
+            ),
+            climbingType: [.sport, .bouldering, .board],
+            amenities: [.shop, .cafe, .workSpace],
+            events: [],
+            profileImage: mediaItems[12], // Uses media12 (SampleLogo5)
+            createdAt: Date(timeIntervalSince1970: 1625000000),
+            verificationStatus: .approved,
+            verificationNotes: "Modern facility with excellent training equipment",
+            verifiedAt: Date(timeIntervalSince1970: 1625086400),
+            verifiedBy: "admin1"
+        ),
+        Gym(
+            id: "gym6",
+            email: "hello@climbhigh.co.uk",
+            name: "Northern Rocks",
+            description: "Community-focused climbing center with routes for every skill level",
+            location: LocationData(
+                latitude: 51.5155,
+                longitude: -0.0922,
+                address: "78 Ascent Street, London"
+            ),
+            climbingType: [.bouldering, .gym, .sport],
+            amenities: [.changingRooms, .lockers, .cafe, .wifi],
+            events: [],
+            profileImage: mediaItems[13], // Uses media13 (SampleLogo6)
+            createdAt: Date(timeIntervalSince1970: 1630000000),
+            verificationStatus: .approved,
+            verificationNotes: "Excellent community programs and beginner-friendly environment",
+            verifiedAt: Date(timeIntervalSince1970: 1630086400),
+            verifiedBy: "admin2"
+        ),
+        Gym(
+            id: "gym7",
+            email: "contact@urbanclimb.com",
+            name: "Urban Climb",
+            description: "Modern urban climbing facility with cutting-edge route setting",
+            location: LocationData(
+                latitude: 51.5311,
+                longitude: -0.1611,
+                address: "156 City Heights, London"
+            ),
+            climbingType: [.bouldering, .sport, .board],
+            amenities: [.showers, .shop, .food, .workSpace],
+            events: [],
+            profileImage: mediaItems[14], // Uses media14 (SampleLogo7)
+            createdAt: Date(timeIntervalSince1970: 1635000000),
+            verificationStatus: .approved,
+            verificationNotes: "Innovative route setting and modern facilities",
+            verifiedAt: Date(timeIntervalSince1970: 1635086400),
+            verifiedBy: "admin1"
         )
 
     ]
@@ -473,6 +651,389 @@ struct SampleData {
             registrationRequired: true,
             frequency: .weekly,
             recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date()) // Ongoing program
+        ),
+        
+        // Additional .gymClass events without media
+        EventItem(
+            id: "event_class9",
+            author: users[1], // Jane Smith
+            host: gyms[4], // Peak Performance
+            name: "Advanced Boulder Training",
+            eventType: .gymClass,
+            climbingType: [.bouldering],
+            location: "Peak Performance, Training Wall",
+            description: "High-intensity bouldering sessions for experienced climbers. Focus on dynamic movements and power endurance.",
+            mediaItems: nil,
+            registrationLink: "https://peakperformance.com/advanced-boulder",
+            createdAt: Date(timeIntervalSince1970: 1679000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 3, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM, 3 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 3, to: Date())!.addingTimeInterval(21 * 3600), // 2 hour class
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .weekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .month, value: 6, to: Date())
+        ),
+        
+        EventItem(
+            id: "event_class10",
+            author: users[3], // Sarah Johnson
+            host: gyms[5], // Climb High
+            name: "Teen Climbing Academy",
+            eventType: .gymClass,
+            climbingType: [.bouldering, .sport],
+            location: "Climb High, Youth Area",
+            description: "Weekly climbing sessions for teenagers aged 13-18. Develop skills, strength, and confidence in a supportive environment.",
+            mediaItems: nil,
+            registrationLink: "https://climbhigh.co.uk/teen-academy",
+            createdAt: Date(timeIntervalSince1970: 1680000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!.addingTimeInterval(17 * 3600), // 5 PM Friday
+            endDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!.addingTimeInterval(18.5 * 3600), // 1.5 hour class
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .weekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date())
+        ),
+        
+        EventItem(
+            id: "event_class11",
+            author: users[4], // Mike Brown
+            host: gyms[6], // Urban Climb
+            name: "Morning Power Hour",
+            eventType: .gymClass,
+            climbingType: [.bouldering, .board],
+            location: "Urban Climb, Training Zone",
+            description: "Early morning high-intensity training focusing on power and coordination. Perfect for working professionals.",
+            mediaItems: nil,
+            registrationLink: nil, // Drop-in class
+            createdAt: Date(timeIntervalSince1970: 1681000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(7 * 3600), // 7 AM tomorrow
+            endDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(8 * 3600), // 1 hour class
+            isFeatured: false,
+            registrationRequired: false,
+            frequency: .daily,
+            recurrenceEndDate: Calendar.current.date(byAdding: .month, value: 12, to: Date())
+        ),
+        
+        // .social events without media
+        EventItem(
+            id: "event_social1",
+            author: users[0], // John Doe
+            host: gyms[4], // Peak Performance
+            name: "Friday Night Climb & Chill",
+            eventType: .social,
+            climbingType: [.bouldering, .sport],
+            location: "Peak Performance, Main Area",
+            description: "End the week with relaxed climbing and good company. All levels welcome, snacks provided!",
+            mediaItems: nil,
+            registrationLink: nil,
+            createdAt: Date(timeIntervalSince1970: 1682000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM Friday
+            endDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(21 * 3600), // 3 hours
+            isFeatured: false,
+            registrationRequired: false,
+            frequency: .weekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .month, value: 6, to: Date())
+        ),
+        
+        EventItem(
+            id: "event_social2",
+            author: users[2], // Alex Wilson
+            host: gyms[5], // Climb High
+            name: "Women's Climbing Circle",
+            eventType: .social,
+            climbingType: [.bouldering],
+            location: "Climb High, Community Space",
+            description: "A supportive space for women and non-binary climbers to connect, share beta, and climb together.",
+            mediaItems: nil,
+            registrationLink: "https://climbhigh.co.uk/womens-circle",
+            createdAt: Date(timeIntervalSince1970: 1683000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 9, to: Date())!.addingTimeInterval(18.5 * 3600), // 6:30 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 9, to: Date())!.addingTimeInterval(20.5 * 3600), // 2 hours
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .biweekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date())
+        ),
+        
+        EventItem(
+            id: "event_social3",
+            author: users[1], // Jane Smith
+            host: gyms[6], // Urban Climb
+            name: "Sunday Family Climbing",
+            eventType: .social,
+            climbingType: [.gym, .bouldering],
+            location: "Urban Climb, Family Area",
+            description: "Bring the whole family for a fun climbing session. Special rates for families and activities for kids.",
+            mediaItems: nil,
+            registrationLink: nil,
+            createdAt: Date(timeIntervalSince1970: 1684000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM Sunday
+            endDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!.addingTimeInterval(17 * 3600), // 3 hours
+            isFeatured: false,
+            registrationRequired: false,
+            frequency: .weekly,
+            recurrenceEndDate: Calendar.current.date(byAdding: .year, value: 1, to: Date())
+        ),
+        
+        // Events with poster media (SamplePoster5-17)
+        EventItem(
+            id: "event_poster1",
+            author: users[0], // John Doe
+            host: gyms[0], // Rock Valley
+            name: "Spring Bouldering Championship",
+            eventType: .competition,
+            climbingType: [.bouldering],
+            location: "Rock Valley, Competition Area",
+            description: "Annual spring bouldering competition with prizes for all categories. Registration includes lunch and event t-shirt.",
+            mediaItems: [mediaItems[15]], // SamplePoster5
+            registrationLink: "https://rockvalley.com/spring-comp",
+            createdAt: Date(timeIntervalSince1970: 1685000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM, 3 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!.addingTimeInterval(17 * 3600), // All day event
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster2",
+            author: users[1], // Jane Smith
+            host: gyms[1], // The Vault
+            name: "Open House Weekend",
+            eventType: .openDay,
+            climbingType: [.sport, .bouldering],
+            location: "The Vault, All Areas",
+            description: "Come explore our facility! Free climbing for first-time visitors, gear demos, and meet our instructors.",
+            mediaItems: [mediaItems[16]], // SamplePoster6
+            registrationLink: nil,
+            createdAt: Date(timeIntervalSince1970: 1686000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM, 2 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(18 * 3600), // Weekend event
+            isFeatured: true,
+            registrationRequired: false,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster3",
+            author: users[2], // Alex Wilson
+            host: gyms[2], // Gravity Climbing
+            name: "New Route Setting Preview",
+            eventType: .settingTaster,
+            climbingType: [.bouldering, .sport],
+            location: "Gravity Climbing, Main Wall",
+            description: "Be the first to try our brand new routes! Join us for an exclusive preview with the route setters.",
+            mediaItems: [mediaItems[17]], // SamplePoster7
+            registrationLink: "https://gravity.com/new-routes",
+            createdAt: Date(timeIntervalSince1970: 1687000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(21 * 3600), // 3 hours
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster4",
+            author: users[3], // Sarah Johnson
+            host: gyms[3], // The Church
+            name: "Grand Reopening Celebration",
+            eventType: .opening,
+            climbingType: [.bouldering, .sport],
+            location: "The Church, All Areas",
+            description: "Join us for our grand reopening after renovations! Free climbing all day, food trucks, and live music.",
+            mediaItems: [mediaItems[18]], // SamplePoster8
+            registrationLink: nil,
+            createdAt: Date(timeIntervalSince1970: 1688000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 28, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM, 4 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 28, to: Date())!.addingTimeInterval(22 * 3600), // 12 hour celebration
+            isFeatured: true,
+            registrationRequired: false,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster5",
+            author: users[4], // Mike Brown
+            host: gyms[4], // Peak Performance
+            name: "Elite Training Camp",
+            eventType: .competition,
+            climbingType: [.bouldering, .sport],
+            location: "Peak Performance, Training Facility",
+            description: "Intensive 3-day training camp for competitive climbers. Limited spots available.",
+            mediaItems: [mediaItems[19]], // SamplePoster9
+            registrationLink: "https://peakperformance.com/elite-camp",
+            createdAt: Date(timeIntervalSince1970: 1689000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 35, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM, 5 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 37, to: Date())!.addingTimeInterval(17 * 3600), // 3-day event
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster6",
+            author: users[0], // John Doe
+            host: gyms[5], // Climb High
+            name: "Community Open Day",
+            eventType: .openDay,
+            climbingType: [.bouldering, .gym],
+            location: "Climb High, Community Space",
+            description: "Free community climbing day! Bring friends and family to experience climbing in a welcoming environment.",
+            mediaItems: [mediaItems[20]], // SamplePoster10
+            registrationLink: nil,
+            createdAt: Date(timeIntervalSince1970: 1690000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!.addingTimeInterval(12 * 3600), // 12 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!.addingTimeInterval(18 * 3600), // 6 hours
+            isFeatured: false,
+            registrationRequired: false,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster7",
+            author: users[1], // Jane Smith
+            host: gyms[6], // Urban Climb
+            name: "Setter's Special: Beta Testing",
+            eventType: .settingTaster,
+            climbingType: [.bouldering, .board],
+            location: "Urban Climb, Beta Wall",
+            description: "Help our setters test new problems! Your feedback shapes our future routes.",
+            mediaItems: [mediaItems[21]], // SamplePoster11
+            registrationLink: "https://urbanclimb.com/beta-test",
+            createdAt: Date(timeIntervalSince1970: 1691000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(21 * 3600), // 2 hours
+            isFeatured: false,
+            registrationRequired: true,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster8",
+            author: users[2], // Alex Wilson
+            host: gyms[0], // Rock Valley (spreading across gyms)
+            name: "Autumn Climbing Festival",
+            eventType: .competition,
+            climbingType: [.bouldering, .sport],
+            location: "Rock Valley, Festival Grounds",
+            description: "Multi-day climbing festival with competitions, workshops, and vendor village. The biggest climbing event of the year!",
+            mediaItems: [mediaItems[22]], // SamplePoster12
+            registrationLink: "https://rockvalley.com/autumn-festival",
+            createdAt: Date(timeIntervalSince1970: 1692000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 45, to: Date())!.addingTimeInterval(8 * 3600), // 8 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 47, to: Date())!.addingTimeInterval(20 * 3600), // 3-day festival
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster9",
+            author: users[3], // Sarah Johnson
+            host: gyms[1], // The Vault
+            name: "New Member Open House",
+            eventType: .openDay,
+            climbingType: [.sport, .bouldering],
+            location: "The Vault, Welcome Center",
+            description: "Special rates for new members! Tour the facility, meet our staff, and start your climbing journey.",
+            mediaItems: [mediaItems[23]], // SamplePoster13
+            registrationLink: "https://thevault.com/new-member",
+            createdAt: Date(timeIntervalSince1970: 1693000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(16 * 3600), // 4 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(20 * 3600), // 4 hours
+            isFeatured: false,
+            registrationRequired: false,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster10",
+            author: users[4], // Mike Brown
+            host: gyms[2], // Gravity Climbing
+            name: "Route Setting Workshop",
+            eventType: .settingTaster,
+            climbingType: [.bouldering],
+            location: "Gravity Climbing, Setting Area",
+            description: "Learn the art of route setting! Hands-on workshop with our experienced setters.",
+            mediaItems: [mediaItems[24]], // SamplePoster14
+            registrationLink: "https://gravity.com/setting-workshop",
+            createdAt: Date(timeIntervalSince1970: 1694000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!.addingTimeInterval(13 * 3600), // 1 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!.addingTimeInterval(17 * 3600), // 4 hours
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster11",
+            author: users[0], // John Doe
+            host: gyms[3], // The Church
+            name: "New Wing Grand Opening",
+            eventType: .opening,
+            climbingType: [.bouldering, .sport, .board],
+            location: "The Church, New Wing",
+            description: "Celebrate the opening of our brand new climbing wing! Extended hours and special programming all week.",
+            mediaItems: [mediaItems[25]], // SamplePoster15
+            registrationLink: nil,
+            createdAt: Date(timeIntervalSince1970: 1695000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 30, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 30, to: Date())!.addingTimeInterval(21 * 3600), // 12 hours
+            isFeatured: true,
+            registrationRequired: false,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster12",
+            author: users[1], // Jane Smith
+            host: gyms[4], // Peak Performance
+            name: "Winter Skills Competition",
+            eventType: .competition,
+            climbingType: [.bouldering, .sport],
+            location: "Peak Performance, Competition Arena",
+            description: "Technical climbing competition focusing on precision and problem-solving skills. Categories for all levels.",
+            mediaItems: [mediaItems[26]], // SamplePoster16
+            registrationLink: "https://peakperformance.com/winter-comp",
+            createdAt: Date(timeIntervalSince1970: 1696000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 60, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 60, to: Date())!.addingTimeInterval(18 * 3600), // 8 hours
+            isFeatured: true,
+            registrationRequired: true,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
+        ),
+        
+        EventItem(
+            id: "event_poster13",
+            author: users[2], // Alex Wilson
+            host: gyms[5], // Climb High
+            name: "Innovation in Climbing Class",
+            eventType: .gymClass,
+            climbingType: [.bouldering, .sport, .board],
+            location: "Climb High, Innovation Lab",
+            description: "Explore the future of climbing! Try new holds, interactive walls, and cutting-edge training tools.",
+            mediaItems: [], // SamplePoster17
+            registrationLink: "https://climbhigh.co.uk/innovation-day",
+            createdAt: Date(timeIntervalSince1970: 1697000000),
+            startDate: Calendar.current.date(byAdding: .day, value: 25, to: Date())!.addingTimeInterval(11 * 3600), // 11 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 25, to: Date())!.addingTimeInterval(19 * 3600), // 8 hours
+            isFeatured: false,
+            registrationRequired: false,
+            frequency: .oneTime,
+            recurrenceEndDate: nil
         )
       
     ]

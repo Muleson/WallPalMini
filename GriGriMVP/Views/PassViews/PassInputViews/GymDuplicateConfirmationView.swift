@@ -144,22 +144,3 @@ struct GymDuplicateConfirmationView: View {
             )
     }
 }
-
-#Preview {
-    let viewModel = PassCreationViewModel()
-    // Set up some sample data for preview
-    viewModel.selectedGym = SampleData.gyms[0]
-    viewModel.duplicateGymPassFound = Pass(
-        mainInformation: MainInformation(title: "Existing Pass", date: Date()),
-        barcodeData: BarcodeData(code: "123456", codeType: "QR"),
-        passType: .membership,
-        gymId: "gym1"
-    )
-    
-    return GymDuplicateConfirmationView(
-        viewModel: viewModel,
-        isPrimary: false,
-        onPassSaved: {},
-        onCancel: {}
-    )
-}

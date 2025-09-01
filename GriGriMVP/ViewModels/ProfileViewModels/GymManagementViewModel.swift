@@ -8,19 +8,25 @@
 import Foundation
 import SwiftUI
 
+/*
+// COMMENTED OUT FOR TESTING - Sam 2025-08-23
 @MainActor
 class GymManagementViewModel: ObservableObject {
     @Published var gyms: [Gym] = []
+    @Published var userPermissions: [GymPermission] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     
     private let gymRepository: GymRepositoryProtocol
     private let userRepository: UserRepositoryProtocol
+    private let permissionRepository: PermissionRepositoryProtocol
     
     init(gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
-         userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository()) {
+         userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
+         permissionRepository: PermissionRepositoryProtocol = RepositoryFactory.createPermissionRepository()) {
         self.gymRepository = gymRepository
         self.userRepository = userRepository
+        self.permissionRepository = permissionRepository
     }
     
     func loadGyms() async {
@@ -38,12 +44,22 @@ class GymManagementViewModel: ObservableObject {
             
             print("DEBUG: Loading gyms for user ID: \(currentUserId)")
             
-            // Load only gyms that the current user can manage (owner or staff)
-            let managedGyms = try await gymRepository.getGymsUserCanManage(userId: currentUserId)
-            print("DEBUG: Repository returned \(managedGyms.count) gyms")
+            // Step 1: Get all permissions for the current user
+            userPermissions = try await permissionRepository.getPermissionsForUser(userId: currentUserId)
+            print("DEBUG: User has \(userPermissions.count) gym permissions")
             
-            gyms = managedGyms.sorted { $0.createdAt > $1.createdAt } // Most recent first
-            print("DEBUG: View model now has \(gyms.count) gyms")
+            // Step 2: Extract gym IDs from permissions
+            let gymIds = userPermissions.map { $0.gymId }
+            
+            // Step 3: Batch fetch only the gyms the user has access to
+            if !gymIds.isEmpty {
+                let managedGyms = try await gymRepository.getGyms(ids: gymIds)
+                gyms = managedGyms.sorted { $0.createdAt > $1.createdAt } // Most recent first
+                print("DEBUG: Loaded \(gyms.count) gyms")
+            } else {
+                gyms = []
+                print("DEBUG: User has no gym permissions")
+            }
             
         } catch {
             print("DEBUG: Error loading gyms: \(error)")
@@ -60,70 +76,61 @@ class GymManagementViewModel: ObservableObject {
         }
         
         do {
-            // Only owners can delete gyms
-            guard gym.isOwner(userId: currentUserId) else {
+            // Check if user has owner permission
+            guard let permission = userPermissions.first(where: { $0.gymId == gym.id }),
+                  permission.role == .owner else {
                 errorMessage = "Only the gym owner can delete this gym"
                 return
             }
             
-            // Delete the gym
+            // Delete the gym (this will also delete all permissions in the repository)
             try await gymRepository.deleteGym(id: gym.id)
             
-            // Remove from local array
+            // Remove from local arrays
             gyms.removeAll { $0.id == gym.id }
+            userPermissions.removeAll { $0.gymId == gym.id }
             
         } catch {
             errorMessage = "Failed to delete gym: \(error.localizedDescription)"
         }
     }
     
-    // MARK: - Permission Helpers
+    // MARK: - Permission Helpers (Updated)
+    
+    func getUserPermissionForGym(_ gym: Gym) -> GymPermission? {
+        return userPermissions.first { $0.gymId == gym.id }
+    }
     
     func canUserDeleteGym(_ gym: Gym) -> Bool {
-        guard let currentUserId = userRepository.getCurrentAuthUser() else {
-            return false
-        }
-        
-        // Only owners can delete gyms
-        return gym.isOwner(userId: currentUserId)
+        guard let permission = getUserPermissionForGym(gym) else { return false }
+        return permission.role.canDeleteGym && permission.isValid
     }
     
     func canUserManageStaff(_ gym: Gym) -> Bool {
-        guard let currentUserId = userRepository.getCurrentAuthUser() else {
-            return false
-        }
-        
-        // Only owners can manage staff
-        return gym.canAddStaff(userId: currentUserId)
+        guard let permission = getUserPermissionForGym(gym) else { return false }
+        return permission.role.canManageStaff && permission.isValid
     }
     
     func canUserCreateEvents(_ gym: Gym) -> Bool {
-        guard let currentUserId = userRepository.getCurrentAuthUser() else {
-            return false
-        }
-        
-        // Both owners and staff can create events
-        return gym.canCreateEvents(userId: currentUserId)
+        guard let permission = getUserPermissionForGym(gym) else { return false }
+        return permission.role.canCreateEvents && permission.isValid
     }
     
     func getUserRoleForGym(_ gym: Gym) -> String {
-        guard let currentUserId = userRepository.getCurrentAuthUser() else {
-            return "Unknown"
-        }
-        
-        if gym.isOwner(userId: currentUserId) {
-            return "Owner"
-        } else if gym.isStaff(userId: currentUserId) {
-            return "Staff"
-        } else {
-            return "Member"
-        }
+        guard let permission = getUserPermissionForGym(gym) else { return "Member" }
+        return permission.role.displayName
     }
     
-    // MARK: - Gym Statistics
+    // MARK: - Gym Statistics (Updated)
     
-    func getStaffCount(for gym: Gym) -> Int {
-        return gym.staffUserIds.count
+    func getStaffCount(for gym: Gym) async -> Int {
+        do {
+            let permissions = try await permissionRepository.getPermissionsForGym(gymId: gym.id)
+            return permissions.filter { $0.role == .staff }.count
+        } catch {
+            print("Failed to get staff count: \(error)")
+            return 0
+        }
     }
     
     func getEventCount(for gym: Gym) -> Int {
@@ -131,15 +138,12 @@ class GymManagementViewModel: ObservableObject {
     }
     
     func getGymSummary(for gym: Gym) -> String {
-        let staffCount = getStaffCount(for: gym)
         let eventCount = getEventCount(for: gym)
         
         var components: [String] = []
         
-        if staffCount > 0 {
-            components.append("\(staffCount) staff")
-        }
-        
+        // Note: Staff count would need to be loaded asynchronously
+        // For now, just show events
         if eventCount > 0 {
             components.append("\(eventCount) events")
         }
@@ -147,7 +151,7 @@ class GymManagementViewModel: ObservableObject {
         return components.isEmpty ? "No activity" : components.joined(separator: " • ")
     }
     
-    // MARK: - Search and Filtering
+    // MARK: - Search and Filtering (Updated)
     
     func filterGyms(by searchText: String) -> [Gym] {
         guard !searchText.isEmpty else { return gyms }
@@ -163,19 +167,15 @@ class GymManagementViewModel: ObservableObject {
     }
     
     func getOwnedGyms() -> [Gym] {
-        guard let currentUserId = userRepository.getCurrentAuthUser() else { return [] }
-        
-        return gyms.filter { gym in
-            gym.isOwner(userId: currentUserId)
-        }
+        let ownerPermissions = userPermissions.filter { $0.role == .owner }
+        let ownerGymIds = Set(ownerPermissions.map { $0.gymId })
+        return gyms.filter { ownerGymIds.contains($0.id) }
     }
     
     func getStaffGyms() -> [Gym] {
-        guard let currentUserId = userRepository.getCurrentAuthUser() else { return [] }
-        
-        return gyms.filter { gym in
-            gym.isStaff(userId: currentUserId) && !gym.isOwner(userId: currentUserId)
-        }
+        let staffPermissions = userPermissions.filter { $0.role == .staff }
+        let staffGymIds = Set(staffPermissions.map { $0.gymId })
+        return gyms.filter { staffGymIds.contains($0.id) }
     }
     
     // MARK: - Data Refresh
@@ -206,7 +206,7 @@ class GymDetailManagementViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    // Replace isEditing with more specific property
+    // Edit mode state
     @Published var isEditingProfile = false
     @Published var hasUnsavedChanges = false
     @Published var showSuccessAlert = false
@@ -214,15 +214,11 @@ class GymDetailManagementViewModel: ObservableObject {
     // Climbing types and amenities editing state
     @Published var isEditingClimbingTypes = false
     @Published var isEditingAmenities = false
-
     
-    // Editable properties - mirror GymCreationViewModel
+    // Editable properties (REMOVED location-related properties)
     @Published var editedName: String = ""
     @Published var editedEmail: String = ""
     @Published var editedDescription: String = ""
-    @Published var editedAddress: String = ""
-    @Published var editedLatitude: Double = 0.0
-    @Published var editedLongitude: Double = 0.0
     @Published var editedClimbingTypes: Set<ClimbingTypes> = []
     @Published var editedAmenities: Set<Amenities> = []
     
@@ -231,28 +227,32 @@ class GymDetailManagementViewModel: ObservableObject {
     @Published var isUploadingImage = false
     @Published var hasImageChanged = false
     
-    // Address search functionality
-    @Published var addressSuggestions: [AddressSuggestion] = []
-    @Published var showAddressSuggestions = false
-    @Published var isSearchingAddresses = false
+    // REMOVED: Address search functionality
+    // REMOVED: Location service
+    // REMOVED: Geocoding task
     
     private let gymRepository: GymRepositoryProtocol
     private let userRepository: UserRepositoryProtocol
     private let mediaRepository: MediaRepositoryProtocol
-    private let locationService = LocationService.shared
-    private var geocodingTask: Task<Void, Never>?
     
     init(gym: Gym,
-         gymRepository: GymRepositoryProtocol = FirebaseGymRepository(),
-         userRepository: UserRepositoryProtocol = FirebaseUserRepository(),
-         mediaRepository: MediaRepositoryProtocol = FirebaseMediaRepository()) {
+         gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
+         userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
+         mediaRepository: MediaRepositoryProtocol = RepositoryFactory.createMediaRepository(),
+         permissionRepository: PermissionRepositoryProtocol = RepositoryFactory.createPermissionRepository()) {
         self.gym = gym
         self.gymRepository = gymRepository
         self.userRepository = userRepository
         self.mediaRepository = mediaRepository
+        self.permissionRepository = permissionRepository
         
         // Initialize edited values with current gym data
         initializeEditedValues()
+        
+        // Load user's permission for this gym
+        Task {
+            await loadUserPermission()
+        }
     }
     
     // MARK: - Initialization
@@ -261,59 +261,60 @@ class GymDetailManagementViewModel: ObservableObject {
         editedName = gym.name
         editedEmail = gym.email
         editedDescription = gym.description ?? ""
-        editedAddress = gym.location.address ?? ""
-        editedLatitude = gym.location.latitude
-        editedLongitude = gym.location.longitude
         editedClimbingTypes = Set(gym.climbingType)
         editedAmenities = Set(gym.amenities)
+        // REMOVED: Location initialization
     }
     
-    // MARK: - User Permission Logic
+    // MARK: - User Permission Logic (Updated for new permission system)
+    
+    @Published var userPermission: GymPermission?
+    private let permissionRepository: PermissionRepositoryProtocol
     
     var currentUserId: String? {
         userRepository.getCurrentAuthUser()
     }
     
     var canManageStaff: Bool {
-        guard let userId = currentUserId else { return false }
-        return gym.canAddStaff(userId: userId)
+        guard let permission = userPermission else { return false }
+        return permission.role.canManageStaff && permission.isValid
     }
     
     var canManageEvents: Bool {
-        guard let userId = currentUserId else { return false }
-        return gym.canCreateEvents(userId: userId)
+        guard let permission = userPermission else { return false }
+        return permission.role.canCreateEvents && permission.isValid
     }
     
     var canEditGym: Bool {
-        guard let userId = currentUserId else { return false }
-        return gym.isOwner(userId: userId) // Only owners can edit gym details
+        guard let permission = userPermission else { return false }
+        return permission.role.canEditGymDetails && permission.isValid
     }
     
     var userRole: String {
-        guard let userId = currentUserId else { return "Unknown" }
+        guard let permission = userPermission else { return "Member" }
+        return permission.role.displayName
+    }
+    
+    // Load user's permission for this gym
+    func loadUserPermission() async {
+        guard let userId = currentUserId else { return }
         
-        if gym.isOwner(userId: userId) {
-            return "Owner"
-        } else if gym.isStaff(userId: userId) {
-            return "Staff"
-        } else {
-            return "Member"
+        do {
+            userPermission = try await permissionRepository.getPermission(userId: userId, gymId: gym.id)
+        } catch {
+            print("Failed to load user permission: \(error)")
+            userPermission = nil
         }
     }
     
-    // MARK: - Validation
+    // MARK: - Validation (SIMPLIFIED)
     
     var isFormValid: Bool {
         !editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !editedEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         editedEmail.contains("@") &&
-        !editedClimbingTypes.isEmpty &&
-        (!editedAddress.isEmpty || (editedLatitude != 0.0 && editedLongitude != 0.0))
-    }
-    
-    var locationPermissionGranted: Bool {
-        locationService.authorizationStatus == .authorizedWhenInUse ||
-        locationService.authorizationStatus == .authorizedAlways
+        !editedClimbingTypes.isEmpty
+        // REMOVED: Location validation
     }
     
     // MARK: - Edit Mode Management
@@ -333,8 +334,6 @@ class GymDetailManagementViewModel: ObservableObject {
         hasUnsavedChanges = false
         hasImageChanged = false
         selectedProfileImage = nil
-        hideAddressSuggestions()
-        geocodingTask?.cancel()
         initializeEditedValues() // Reset to original values
     }
     
@@ -357,13 +356,8 @@ class GymDetailManagementViewModel: ObservableObject {
             updatedGym.climbingType = Array(editedClimbingTypes)
             updatedGym.amenities = Array(editedAmenities)
             
-            // Update location
-            let locationData = LocationData(
-                latitude: editedLatitude,
-                longitude: editedLongitude,
-                address: editedAddress.isEmpty ? nil : editedAddress
-            )
-            updatedGym.location = locationData
+            // REMOVED: Location update logic
+            // Keep the original location unchanged
             
             // Handle profile image update
             if hasImageChanged, let profileImage = selectedProfileImage {
@@ -377,7 +371,7 @@ class GymDetailManagementViewModel: ObservableObject {
                 // Upload new image
                 let newImageMedia = try await mediaRepository.uploadImage(
                     profileImage,
-                    ownerId: gym.ownerId,
+                    ownerId: "gym_\(gym.id)",
                     compressionQuality: 0.8
                 )
                 updatedGym.profileImage = newImageMedia
@@ -403,7 +397,7 @@ class GymDetailManagementViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: - Image Management - Simplified
+    // MARK: - Image Management
     
     func handleImageSelected(_ image: UIImage) {
         selectedProfileImage = image
@@ -426,6 +420,32 @@ class GymDetailManagementViewModel: ObservableObject {
         editedClimbingTypes.contains(type)
     }
     
+    func climbingTypeIcon(for type: ClimbingTypes) -> Image {
+        switch type {
+        case .bouldering:
+            return AppIcons.boulder
+        case .sport:
+            return AppIcons.sport
+        case .board:
+            return AppIcons.board
+        case .gym:
+            return AppIcons.gym
+        }
+    }
+    
+    func formatClimbingType(_ type: ClimbingTypes) -> String {
+        switch type {
+        case .bouldering:
+            return "Boulder"
+        case .sport:
+            return "Sport"
+        case .board:
+            return "Board"
+        case .gym:
+            return "Gym"
+        }
+    }
+    
     // MARK: - Amenities Management
     
     func toggleAmenity(_ amenity: Amenities) {
@@ -438,7 +458,6 @@ class GymDetailManagementViewModel: ObservableObject {
     }
     
     func isAmenitySelected(_ amenity: Amenities) -> Bool {
-        // Fix: Check the correct editing state
         if isEditingAmenities {
             return editedAmenities.contains(amenity)
         } else {
@@ -446,96 +465,7 @@ class GymDetailManagementViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Location Methods
-    
-    func getCurrentLocation() {
-        errorMessage = nil
-        hideAddressSuggestions()
-        
-        Task {
-            do {
-                let location = try await locationService.requestCurrentLocation()
-                
-                self.editedLatitude = location.coordinate.latitude
-                self.editedLongitude = location.coordinate.longitude
-                self.hasUnsavedChanges = true
-                
-                // Get address for the location
-                do {
-                    let address = try await locationService.reverseGeocode(location)
-                    self.editedAddress = address
-                } catch {
-                    print("Failed to get address: \(error)")
-                }
-                
-            } catch {
-                if let locationError = error as? LocationError {
-                    self.errorMessage = locationError.localizedDescription
-                } else {
-                    self.errorMessage = "Failed to get location: \(error.localizedDescription)"
-                }
-            }
-        }
-    }
-    
-    func searchAddresses() {
-        let trimmedAddress = editedAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard trimmedAddress.count >= 3 else {
-            hideAddressSuggestions()
-            return
-        }
-        
-        geocodingTask?.cancel()
-        
-        geocodingTask = Task { [weak self] in
-            guard let self = self else { return }
-            
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            
-            guard !Task.isCancelled else { return }
-            
-            await MainActor.run { [weak self] in
-                guard let self = self else { return }
-                self.isSearchingAddresses = true
-                self.errorMessage = nil
-            }
-            
-            do {
-                let suggestions = try await locationService.searchAddresses(trimmedAddress)
-                
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    self.addressSuggestions = suggestions
-                    self.showAddressSuggestions = !suggestions.isEmpty
-                    self.isSearchingAddresses = false
-                }
-                
-            } catch {
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    self.isSearchingAddresses = false
-                    self.hideAddressSuggestions()
-                    print("Address search error: \(error)")
-                }
-            }
-        }
-    }
-    
-    func selectAddressSuggestion(_ suggestion: AddressSuggestion) {
-        editedAddress = suggestion.displayAddress
-        editedLatitude = suggestion.locationData.latitude
-        editedLongitude = suggestion.locationData.longitude
-        hasUnsavedChanges = true
-        hideAddressSuggestions()
-    }
-    
-    private func hideAddressSuggestions() {
-        showAddressSuggestions = false
-        addressSuggestions = []
-    }
-    
-    // MARK: - Formatting Logic
+    // MARK: - Formatting Logic (READ-ONLY for location)
     
     var formattedAddress: String {
         return gym.location.formattedAddress
@@ -543,24 +473,6 @@ class GymDetailManagementViewModel: ObservableObject {
     
     var formattedCreatedDate: String {
         gym.createdAt.formatted(date: .abbreviated, time: .omitted)
-    }
-    
-    func formatClimbingType(_ type: ClimbingTypes) -> String {
-        switch type {
-        case .bouldering: return "Boulder"
-        case .sport: return "Sport"
-        case .board: return "Board"
-        case .gym: return "Gym"
-        }
-    }
-    
-    func climbingTypeIcon(for type: ClimbingTypes) -> Image {
-        switch type {
-        case .bouldering: return AppIcons.boulder
-        case .sport: return AppIcons.sport
-        case .board: return AppIcons.board
-        case .gym: return AppIcons.gym
-        }
     }
     
     // MARK: - Data Management
@@ -583,7 +495,7 @@ class GymDetailManagementViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: - Climbing Types and Amenities Edit Mode
+    // MARK: - Edit Mode Management for Sections
     
     func enterClimbingTypesEditMode() {
         isEditingClimbingTypes = true
@@ -606,8 +518,6 @@ class GymDetailManagementViewModel: ObservableObject {
         hasUnsavedChanges = false
         initializeEditedValues() // Reset amenities
     }
-    
-    deinit {
-        geocodingTask?.cancel()
-    }
 }
+*/
+// END COMMENTED OUT FOR TESTING - Sam 2025-08-23

@@ -34,14 +34,14 @@ struct NearbyGymCard: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(gym?.name ?? "Add a pass!")
+                Text(gym?.name ?? "Add a gym pass")
                     .font(.system(size: 20, weight: .regular, design: .rounded))
                     .foregroundColor(AppTheme.appTextPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .truncationMode(.tail)
                 
-                Text(distance ?? "It will appear here")
+                Text(distance ?? "Then find it here!")
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(AppTheme.appTextLight)
                     

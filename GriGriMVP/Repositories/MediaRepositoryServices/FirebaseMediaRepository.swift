@@ -8,12 +8,27 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseStorage
+import FirebaseCore
+import FirebaseAuth
 import UIKit
 
 class FirebaseMediaRepository: MediaRepositoryProtocol {
     private let storage = Storage.storage()
     private let db = Firestore.firestore()
     private let mediaCollection = "media"
+    
+    init() {
+        // Log Firebase Storage configuration
+        print("📱 Firebase Storage initialized")
+        print("📱 Storage URL: \(storage.reference().bucket)")
+        
+        // Check if Firebase is properly configured
+        if FirebaseApp.app() != nil {
+            print("✅ Firebase app is configured")
+        } else {
+            print("❌ Firebase app is not configured")
+        }
+    }
     
     // MARK: - Upload Methods
     
@@ -31,19 +46,40 @@ class FirebaseMediaRepository: MediaRepositoryProtocol {
     
     func uploadData(_ data: Data, ownerId: String, fileName: String) async throws -> MediaItem {
         do {
-            // Create storage reference
-            let storageRef = storage.reference()
-            let mediaRef = storageRef.child("media/\(ownerId)/\(fileName)")
-    
+            print("📤 Starting Firebase Storage upload for file: \(fileName), size: \(data.count) bytes")
             
+            // Check authentication state first
+            if let currentUser = Auth.auth().currentUser {
+                print("✅ User authenticated: \(currentUser.uid)")
+                print("✅ User email: \(currentUser.email ?? "no email")")
+                print("✅ User is anonymous: \(currentUser.isAnonymous)")
+            } else {
+                print("❌ No authenticated user found!")
+                throw MediaError.uploadFailed
+            }
+            
+            // Test Firebase Storage connection
+            let storageRef = storage.reference()
+            print("✅ Firebase Storage reference created successfully")
+            print("✅ Storage bucket: \(storageRef.bucket)")
+            
+            // Create storage reference
+            let mediaRef = storageRef.child("media/\(ownerId)/\(fileName)")
+            print("✅ Storage path: media/\(ownerId)/\(fileName)")
+    
             // Upload data to Firebase Storage
             let metadata = StorageMetadata()
             metadata.contentType = determineContentType(from: fileName)
+            print("✅ Content type set to: \(metadata.contentType ?? "unknown")")
             
+            print("🔄 Starting upload to Firebase Storage...")
             let uploadResult = try await mediaRef.putDataAsync(data, metadata: metadata)
+            print("✅ Upload completed. Size: \(uploadResult.size) bytes")
             
             // Get download URL
+            print("🔄 Getting download URL...")
             let downloadURL = try await mediaRef.downloadURL()
+            print("✅ Download URL obtained: \(downloadURL)")
             
             // Create MediaItem object
             let mediaItem = MediaItem(
@@ -55,15 +91,33 @@ class FirebaseMediaRepository: MediaRepositoryProtocol {
             )
             
             // Save metadata to Firestore
+            print("🔄 Saving metadata to Firestore...")
             try await saveMediaMetadata(mediaItem)
+            print("✅ Metadata saved successfully")
             
             return mediaItem
             
         } catch {
+            // Log the actual error for debugging
+            print("❌ Firebase media upload failed: \(error)")
             if let storageError = error as NSError? {
+                print("❌ Storage error details: \(storageError.localizedDescription)")
+                print("❌ Storage error code: \(storageError.code)")
+                print("❌ Storage error domain: \(storageError.domain)")
+                print("❌ Storage error user info: \(storageError.userInfo)")
+                
+                // Check for specific unauthorized error
+                if storageError.domain.contains("FIRStorageErrorDomain") && storageError.code == 403 {
+                    print("❌ This is a Firebase Storage authorization error!")
+                    print("❌ Possible causes:")
+                    print("   1. Firebase Storage rules don't allow authenticated users to write")
+                    print("   2. User token has expired")
+                    print("   3. Firebase Storage is not properly configured")
+                }
             }
             
-            throw MediaError.uploadFailed
+            // Throw the original error instead of generic one
+            throw error
         }
     }
     

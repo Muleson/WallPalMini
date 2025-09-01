@@ -138,6 +138,7 @@ struct FeaturedEventCard: View {
                 .font(.system(size: 20, weight: .regular, design: .rounded))
                 .foregroundColor(AppTheme.appTextPrimary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
             
             // Date
             Text(eventDateFormatted)

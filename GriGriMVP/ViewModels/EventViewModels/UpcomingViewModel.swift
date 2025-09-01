@@ -16,6 +16,9 @@ class UpcomingViewModel: ObservableObject {
     @Published var filteredEvents: [EventItem] = []
     @Published var favoriteGyms: [Gym] = []
     
+    // MARK: - Section-Specific Loading
+    private let homeSectionLoader: HomeSectionLoader
+    
     // MARK: - Filter Properties
     @Published var selectedEventTypes: Set<EventType> = []
     @Published var selectedTimeframe: TimeframeFilter = .all
@@ -78,19 +81,51 @@ class UpcomingViewModel: ObservableObject {
         !searchText.isEmpty
     }
     
+    // MARK: - Section-Specific Computed Properties
+    
+    /// Class events optimized for horizontal scroll section
+    var classEvents: [EventItem] {
+        homeSectionLoader.sectionEvents.classes
+    }
+    
+    /// Featured events optimized for carousel section
+    var featuredCarouselEvents: [EventItem] {
+        homeSectionLoader.sectionEvents.featuredCarousel
+    }
+    
+    /// Social events optimized for horizontal scroll section
+    var socialEvents: [EventItem] {
+        homeSectionLoader.sectionEvents.socialEvents
+    }
+    
+    /// Whether section-specific loading is in progress
+    var isSectionLoading: Bool {
+        homeSectionLoader.sectionEvents.isLoading
+    }
+    
     // MARK: - Initialization
     
     init(userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository(),
          gymRepository: GymRepositoryProtocol = RepositoryFactory.createGymRepository(),
          eventRepository: EventRepositoryProtocol? = nil) {
+        let repository = eventRepository ?? RepositoryFactory.createEventRepository()
         self.userRepository = userRepository
         self.gymRepository = gymRepository
-        self.eventRepository = eventRepository ?? RepositoryFactory.createEventRepository()
+        self.eventRepository = repository
+        self.homeSectionLoader = HomeSectionLoader(eventRepository: repository)
+        
+        // Observe homeSectionLoader changes to trigger UI updates
+        homeSectionLoader.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
         
         setupLocationObservers()
         setupFilterObservers()
         fetchUserAndFavorites()
-        fetchEvents()
+        loadHomeSections() // Load optimized home sections instead of all events
         checkCachedLocation()
     }
     
@@ -144,6 +179,17 @@ class UpcomingViewModel: ObservableObject {
     
     // MARK: - Data Fetching
     
+    /// Load home section events optimized for the UpcomingEventsView
+    func loadHomeSections(forceRefresh: Bool = false) {
+        homeSectionLoader.loadAllSections(userLocation: userLocation, forceRefresh: forceRefresh)
+    }
+    
+    /// Refresh a specific home section
+    func refreshHomeSection(_ section: HomeSection) {
+        homeSectionLoader.refreshSection(section, userLocation: userLocation)
+    }
+    
+    /// Legacy method - still used for search and filter functionality
     func fetchEvents() {
         isLoadingEvents = true
         
@@ -151,7 +197,8 @@ class UpcomingViewModel: ObservableObject {
             guard let self = self else { return }
             
             do {
-                let events = try await eventRepository.fetchAllEvents()
+                // Use optimized display method to reduce database calls
+                let events = try await eventRepository.fetchAllEventsForDisplay()
                 
                 await MainActor.run { [weak self] in
                     guard let self = self else { return }

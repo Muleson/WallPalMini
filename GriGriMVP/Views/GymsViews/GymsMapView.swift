@@ -20,7 +20,6 @@ struct GymsMapView: View {
     @State private var isStandardMapStyle = true
     @State private var showingVisitOptions = false
     @State private var gymToVisit: Gym?
-    @State private var navigateToGymProfile = false
     @Environment(\.dismiss) private var dismiss
     
     var allGyms: [Gym] {
@@ -81,9 +80,14 @@ struct GymsMapView: View {
                 updateMapRegion(to: location)
             }
         }
-        .navigationDestination(isPresented: $navigateToGymProfile) {
+        .navigationDestination(isPresented: $showingGymProfile) {
             if let gym = gymToVisit {
-                GymProfileView(gym: gym)
+                GymProfileView(gym: gym, viewModel: viewModel, appState: viewModel.currentAppState)
+                    .onDisappear {
+                        // Reset navigation state when leaving gym profile
+                        gymToVisit = nil
+                        showingGymProfile = false
+                    }
             }
         }
         .gymVisitDialog(
@@ -97,9 +101,9 @@ struct GymsMapView: View {
                 gymToVisit = nil
             },
             onViewProfile: {
-                navigateToGymProfile = true
+                showingGymProfile = true
                 showingVisitOptions = false
-                gymToVisit = nil
+                // Don't set gymToVisit to nil here - it's needed for navigation
             }
         )
     }

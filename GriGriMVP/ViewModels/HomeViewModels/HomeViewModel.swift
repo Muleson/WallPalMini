@@ -14,8 +14,8 @@ import EventKit
 class HomeViewModel: ObservableObject {
     // MARK: - Content Properties
     @Published var allEvents: [EventItem] = []
-    @Published var featuredEvents: [EventItem] = []
-    @Published var nearbyEvents: [EventItem] = []
+    @Published var featuredEvent: EventItem? // Single featured event for "Up next"
+    @Published var upcomingEvents: [EventItem] = [] // Remaining events for "Coming Up"
     
     // Nearest gym functionality for redesigned home
     @Published var nearestGym: Gym?
@@ -38,6 +38,11 @@ class HomeViewModel: ObservableObject {
     private let maxDistanceInMeters: Double = 10000
     private let locationService = LocationService.shared
     private var cancellables = Set<AnyCancellable>()
+    
+    // Event filtering configuration
+    private let allowedEventTypes: Set<EventType> = [.competition, .opening, .settingTaster, .openDay]
+    private let totalEventsToLoad = 5
+    private let featuredEventTimeWindow: TimeInterval = 14 * 24 * 60 * 60 // 14 days in seconds
     
     // Services and repositories
     private let userRepository: UserRepositoryProtocol
@@ -179,16 +184,86 @@ class HomeViewModel: ObservableObject {
         
         Task {
             do {
-                let events = try await eventRepository.fetchAllEvents()
+                // Use batch loading to fetch only the events we need
+                let events = try await fetchBatchEventsForHome()
                 
                 allEvents = events
                 isLoadingEvents = false
-                applyFilters()
+                processEventsForHome()
                 
             } catch {
                 errorMessage = "Failed to load events: \(error.localizedDescription)"
                 hasError = true
                 isLoadingEvents = false
+            }
+        }
+    }
+    
+    /// Optimized batch loading for home view - loads only 5 events of specified types with media
+    private func fetchBatchEventsForHome() async throws -> [EventItem] {
+        // Get all events for display (optimized method)
+        let allEvents = try await eventRepository.fetchAllEventsForDisplay()
+        
+        let currentDate = Date()
+        let featuredDeadline = currentDate.addingTimeInterval(featuredEventTimeWindow)
+        
+        // Filter to only include events we care about
+        let relevantEvents = allEvents.filter { event in
+            event.startDate > currentDate &&
+            event.mediaItems?.isEmpty == false &&
+            allowedEventTypes.contains(event.eventType)
+        }
+        
+        // Separate featured events within the time window
+        let featuredCandidates = relevantEvents.filter { event in
+            event.isFeatured == true &&
+            event.startDate <= featuredDeadline
+        }
+        
+        // Get non-featured events
+        let nonFeaturedEvents = relevantEvents.filter { event in
+            event.isFeatured != true
+        }
+        
+        // Combine featured events first, then non-featured, sorted by date
+        let combinedEvents = (featuredCandidates + nonFeaturedEvents)
+            .sorted { $0.startDate < $1.startDate }
+        
+        // Return only the number we need
+        return Array(combinedEvents.prefix(totalEventsToLoad))
+    }
+    
+    /// Process the loaded events to determine featured event and upcoming events
+    private func processEventsForHome() {
+        guard !allEvents.isEmpty else {
+            featuredEvent = nil
+            upcomingEvents = []
+            return
+        }
+        
+        let currentDate = Date()
+        let featuredDeadline = currentDate.addingTimeInterval(featuredEventTimeWindow)
+        
+        // Find featured events within the time window
+        let featuredCandidates = allEvents.filter { event in
+            event.isFeatured == true &&
+            event.startDate > currentDate &&
+            event.startDate <= featuredDeadline
+        }
+        
+        // Set the featured event (closest upcoming featured event)
+        if let nearestFeatured = featuredCandidates.min(by: { $0.startDate < $1.startDate }) {
+            featuredEvent = nearestFeatured
+            // Remove featured event from remaining events
+            upcomingEvents = allEvents.filter { $0.id != nearestFeatured.id }
+        } else {
+            // No featured events within window, use the nearest upcoming event
+            if let nearestEvent = allEvents.min(by: { $0.startDate < $1.startDate }) {
+                featuredEvent = nearestEvent
+                upcomingEvents = allEvents.filter { $0.id != nearestEvent.id }
+            } else {
+                featuredEvent = nil
+                upcomingEvents = allEvents
             }
         }
     }
@@ -314,98 +389,13 @@ class HomeViewModel: ObservableObject {
     // MARK: - Filtering Logic
     
     func applyFilters() {
-        filterFeaturedEvents()
-        filterNearbyEvents()
+        // With batch loading, filtering is minimal since we only load what we need
+        // Just ensure we have processed events properly and find nearest gym if needed
+        processEventsForHome()
         
         // Find nearest gym when applying filters if location available and no gym found
         if userLocation != nil && nearestGym == nil {
             findNearestGym()
-        }
-    }
-    
-    private func filterFeaturedEvents() {
-        // Define allowed event types for featured events
-        let allowedEventTypes: Set<EventType> = [.competition, .opening, .settingTaster, .openDay]
-        
-        // Filter for featured events with additional criteria
-        featuredEvents = allEvents.filter { event in
-            event.isFeatured == true &&
-            event.startDate > Date() &&
-            event.mediaItems?.isEmpty == false &&
-            allowedEventTypes.contains(event.eventType)
-        }
-        
-        // If no featured events, use most upcoming events as featured with same criteria
-        if featuredEvents.isEmpty {
-            let upcomingEvents = allEvents.filter { event in
-                event.startDate > Date() &&
-                event.mediaItems?.isEmpty == false &&
-                allowedEventTypes.contains(event.eventType)
-            }
-            .sorted(by: { $0.startDate < $1.startDate })
-            
-            featuredEvents = Array(upcomingEvents.prefix(3))
-        }
-    }
-    
-    private func filterNearbyEvents() {
-        // Get upcoming events only with additional filtering criteria
-        let allowedEventTypes: Set<EventType> = [.competition, .opening, .settingTaster, .openDay]
-        
-        let upcomingEvents = allEvents.filter { event in
-            // Must be upcoming
-            event.startDate > Date() &&
-            // Must have media items
-            event.mediaItems?.isEmpty == false &&
-            // Must be one of the allowed event types
-            allowedEventTypes.contains(event.eventType)
-        }
-        
-        guard !upcomingEvents.isEmpty else {
-            nearbyEvents = []
-            return
-        }
-        
-        // If no location, just show upcoming events sorted by date
-        guard userLocation != nil else {
-            nearbyEvents = Array(upcomingEvents
-                .sorted(by: { $0.startDate < $1.startDate })
-                .prefix(10))
-            return
-        }
-        
-        // Use cache-based filtering from LocationService
-        do {
-            let locationExtractor: (EventItem) -> LocationData = { event in
-                return event.host.location
-            }
-            
-            // Filter events by distance using cached location
-            let filteredEvents = try locationService.filterEventsByDistance(
-                upcomingEvents,
-                maxDistance: maxDistanceInMeters,
-                locationExtractor: locationExtractor
-            )
-            
-            // Sort by proximity using cached location
-            let sortedEvents = try locationService.sortEventsByProximity(
-                filteredEvents,
-                locationExtractor: locationExtractor
-            )
-            
-            // Limit number of results
-            nearbyEvents = Array(sortedEvents.prefix(10))
-            
-        } catch LocationError.cacheExpired {
-            // Cache expired, show events sorted by date
-            nearbyEvents = Array(upcomingEvents
-                .sorted(by: { $0.startDate < $1.startDate })
-                .prefix(10))
-        } catch {
-            print("Error filtering nearby events: \(error)")
-            nearbyEvents = Array(upcomingEvents
-                .sorted(by: { $0.startDate < $1.startDate })
-                .prefix(10))
         }
     }
     

@@ -39,30 +39,88 @@ struct RepositoryFactory {
         return LocalMediaRepository()
     }
     
-    static func createGymPermissionRepository() -> PermissionRepositoryProtocol {
+    static func createPermissionRepository() -> PermissionRepositoryProtocol {
         return LocalGymPermissionRepository()
     }
         
     #else
     static func createGymRepository() -> GymRepositoryProtocol {
-        print("☁️ Using FIREBASE data repositories")
-        return FirebaseGymRepository()
+        print("☁️ Using FIREBASE data repositories with CACHE")
+        let baseRepository = FirebaseGymRepository()
+        return CachedGymRepository(baseRepository: baseRepository)
     }
     
     static func createEventRepository() -> EventRepositoryProtocol {
-        return FirebaseEventRepository()
+        print("☁️ Using FIREBASE data repositories with CACHE")
+        let baseRepository = FirebaseEventRepository()
+        return CachedEventRepository(baseRepository: baseRepository)
     }
     
     static func createUserRepository() -> UserRepositoryProtocol {
-        return FirebaseUserRepository()
+        print("☁️ Using FIREBASE data repositories with CACHE")
+        let baseRepository = FirebaseUserRepository()
+        return CachedUserRepository(baseRepository: baseRepository)
     }
     
     static func createMediaRepository() -> MediaRepositoryProtocol {
         return FirebaseMediaRepository() // Assuming you have this
     }
     
-    static func createGymPermissionRepository() -> PermissionRepositoryProtocol {
+    static func createPermissionRepository() -> PermissionRepositoryProtocol {
         return FirebaseGymPermissionRepository()
+    }
+    #endif
+}
+
+// MARK: - Cache Management Extensions
+
+extension RepositoryFactory {
+    
+    /// Create uncached repositories for admin operations or when fresh data is required
+    static func createUncachedGymRepository() -> GymRepositoryProtocol {
+        #if USE_LOCAL_DATA
+        return LocalGymRepository()
+        #else
+        return FirebaseGymRepository()
+        #endif
+    }
+    
+    static func createUncachedEventRepository() -> EventRepositoryProtocol {
+        #if USE_LOCAL_DATA
+        return LocalEventRepository()
+        #else
+        return FirebaseEventRepository()
+        #endif
+    }
+    
+    static func createUncachedUserRepository() -> UserRepositoryProtocol {
+        #if USE_LOCAL_DATA
+        return LocalUserRepository()
+        #else
+        return FirebaseUserRepository()
+        #endif
+    }
+    
+    /// Clear all repository caches
+    static func clearAllCaches() {
+        CacheManager.shared.clearAllCaches()
+    }
+    
+    #if DEBUG
+    /// Print cache status for debugging
+    static func printCacheStatus() {
+        CacheManager.shared.printCacheStatus()
+    }
+    
+    /// Test cache functionality (development only)
+    static func testCacheSystem() {
+        print("🧪 Running Repository Cache System Test")
+        print("======================================")
+        
+        CacheTest.runBasicTest()
+        CacheTest.testRepositoryCaching()
+        
+        print("✅ All cache tests completed successfully!")
     }
     #endif
 }
