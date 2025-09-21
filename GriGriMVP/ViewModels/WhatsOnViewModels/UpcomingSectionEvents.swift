@@ -1,5 +1,5 @@
 //
-//  HomeSectionEvents.swift
+//  UpcomingSectionEvents.swift
 //  GriGriMVP
 //
 //  Created by Sam Quested on 01/09/2025.
@@ -8,8 +8,8 @@
 import Foundation
 import CoreLocation
 
-/// Data structure for efficiently loading home section events
-struct HomeSectionEvents {
+/// Data structure for efficiently loading upcoming section events
+struct UpcomingSectionEvents {
     let classes: [EventItem]
     let featuredCarousel: [EventItem]  
     let socialEvents: [EventItem]
@@ -41,10 +41,10 @@ struct HomeSectionEvents {
     }
 }
 
-/// Batch loading state for home sections
+/// Batch loading state for upcoming sections
 @MainActor
-class HomeSectionLoader: ObservableObject {
-    @Published private(set) var sectionEvents = HomeSectionEvents()
+class UpcomingSectionLoader: ObservableObject {
+    @Published private(set) var sectionEvents = UpcomingSectionEvents()
     @Published private(set) var error: Error?
     
     private let eventRepository: EventRepositoryProtocol
@@ -54,7 +54,7 @@ class HomeSectionLoader: ObservableObject {
         self.eventRepository = eventRepository
     }
     
-    /// Load all home section events in parallel
+    /// Load all upcoming section events in parallel
     func loadAllSections(userLocation: CLLocation? = nil, forceRefresh: Bool = false) {
         // Cancel any existing loading task
         loadingTask?.cancel()
@@ -68,22 +68,22 @@ class HomeSectionLoader: ObservableObject {
             guard let self = self else { return }
             
             await MainActor.run {
-                self.sectionEvents = HomeSectionEvents(isLoading: true)
+                self.sectionEvents = UpcomingSectionEvents(isLoading: true)
                 self.error = nil
             }
             
             do {
                 // Load all sections in parallel for maximum efficiency
-                async let classesTask = eventRepository.fetchClassesForHomeSection()
+                async let classesTask = eventRepository.fetchClassesForUpcomingView()
                 async let featuredTask = eventRepository.fetchFeaturedEventsForCarousel()
-                async let socialTask = eventRepository.fetchSocialEventsForHomeSection(userLocation: userLocation)
+                async let socialTask = eventRepository.fetchSocialEventsForUpcomingView(userLocation: userLocation)
                 
                 let (classes, featured, social) = try await (classesTask, featuredTask, socialTask)
                 
                 guard !Task.isCancelled else { return }
                 
                 await MainActor.run {
-                    self.sectionEvents = HomeSectionEvents(
+                    self.sectionEvents = UpcomingSectionEvents(
                         classes: classes,
                         featuredCarousel: featured,
                         socialEvents: social,
@@ -92,23 +92,23 @@ class HomeSectionLoader: ObservableObject {
                     )
                 }
                 
-                print("🏠 Loaded home sections: \(classes.count) classes, \(featured.count) featured, \(social.count) social")
+                print("📅 Loaded upcoming sections: \(classes.count) classes, \(featured.count) featured, \(social.count) social")
                 
             } catch {
                 guard !Task.isCancelled else { return }
                 
                 await MainActor.run {
                     self.error = error
-                    self.sectionEvents = HomeSectionEvents(isLoading: false)
+                    self.sectionEvents = UpcomingSectionEvents(isLoading: false)
                 }
                 
-                print("❌ Failed to load home sections: \(error)")
+                print("❌ Failed to load upcoming sections: \(error)")
             }
         }
     }
     
     /// Refresh specific section
-    func refreshSection(_ section: HomeSection, userLocation: CLLocation? = nil) {
+    func refreshSection(_ section: UpcomingSection, userLocation: CLLocation? = nil) {
         Task { [weak self] in
             guard let self = self else { return }
             
@@ -117,9 +117,9 @@ class HomeSectionLoader: ObservableObject {
                 
                 switch section {
                 case .classes:
-                    let classes = try await eventRepository.fetchClassesForHomeSection()
+                    let classes = try await eventRepository.fetchClassesForUpcomingView()
                     await MainActor.run {
-                        self.sectionEvents = HomeSectionEvents(
+                        self.sectionEvents = UpcomingSectionEvents(
                             classes: classes,
                             featuredCarousel: currentSections.featuredCarousel,
                             socialEvents: currentSections.socialEvents,
@@ -130,7 +130,7 @@ class HomeSectionLoader: ObservableObject {
                 case .featured:
                     let featured = try await eventRepository.fetchFeaturedEventsForCarousel()
                     await MainActor.run {
-                        self.sectionEvents = HomeSectionEvents(
+                        self.sectionEvents = UpcomingSectionEvents(
                             classes: currentSections.classes,
                             featuredCarousel: featured,
                             socialEvents: currentSections.socialEvents,
@@ -139,9 +139,9 @@ class HomeSectionLoader: ObservableObject {
                     }
                     
                 case .social:
-                    let social = try await eventRepository.fetchSocialEventsForHomeSection(userLocation: userLocation)
+                    let social = try await eventRepository.fetchSocialEventsForUpcomingView(userLocation: userLocation)
                     await MainActor.run {
-                        self.sectionEvents = HomeSectionEvents(
+                        self.sectionEvents = UpcomingSectionEvents(
                             classes: currentSections.classes,
                             featuredCarousel: currentSections.featuredCarousel,
                             socialEvents: social,
@@ -163,7 +163,7 @@ class HomeSectionLoader: ObservableObject {
     }
 }
 
-enum HomeSection {
+enum UpcomingSection {
     case classes
     case featured
     case social

@@ -25,6 +25,38 @@ struct AppTheme {
     static let appCardShadow = Color.black.opacity(0.1)
 }
 
+// MARK: - Spacing Design System
+extension AppTheme {
+    /// Consistent spacing values for a cohesive UI experience
+    struct Spacing {
+        // Base spacing unit (4pt grid system)
+        static let baseUnit: CGFloat = 4
+        
+        // Standard spacing scales
+        static let xs: CGFloat = 4      // 1 unit - minimal spacing
+        static let small: CGFloat = 8   // 2 units - tight spacing
+        static let medium: CGFloat = 12 // 3 units - standard spacing
+        static let large: CGFloat = 16  // 4 units - section spacing
+        static let xl: CGFloat = 20     // 5 units - prominent spacing
+        static let xxl: CGFloat = 24    // 6 units - major section spacing
+        static let xxxl: CGFloat = 32   // 8 units - screen-level spacing
+        
+        // Card-specific spacing
+        static let cardPadding: CGFloat = medium        // 12pt padding inside cards
+        static let cardSpacing: CGFloat = medium        // 12pt spacing between cards
+        static let cardHorizontalPadding: CGFloat = medium // 12pt horizontal padding for card containers
+        
+        // Section-specific spacing
+        static let sectionSpacing: CGFloat = xxl        // 24pt spacing between major sections
+        static let sectionTitleSpacing: CGFloat = large // 16pt spacing after section titles
+        static let sectionContentSpacing: CGFloat = small // 8pt spacing within section content
+        
+        // Screen-level spacing
+        static let screenPadding: CGFloat = large       // 16pt default screen padding
+        static let screenTopSpacing: CGFloat = xxl      // 24pt top spacing for first elements
+    }
+}
+
 // MARK: - Typography
 extension Font {
     
@@ -40,6 +72,7 @@ extension Font {
     static let appButtonSecondary = Font.system(size: 16, weight: .regular, design: .rounded)
     static let appProfileButton = Font.system(size: 13, weight: .regular, design: .rounded)
     static let appBody = Font.system(size: 13, weight: .light, design: .rounded)
+    static let appCaption = Font.system(size: 12, weight: .light, design: .rounded)
 }
 
 // MARK: - Icons

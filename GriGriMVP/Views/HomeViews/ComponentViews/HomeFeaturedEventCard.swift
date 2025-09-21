@@ -60,15 +60,22 @@ struct HomeFeaturedEventCard: View {
     }
     
     var body: some View {
-        HStack(spacing: 0) {
-            // Event media section - clean image display
-            eventMediaSection
-            
-            // Event details section - text content on right
-            eventDetailsSection
+        Button(action: onView) {
+            HStack(spacing: 0) {
+                // Event media section - clean image display
+                eventMediaSection
+                
+                // Event details section - text content on right
+                eventDetailsSection
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AppTheme.appPrimary, lineWidth: 2)
+            )
+            .appCardShadow()
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .appCardShadow()
+        .buttonStyle(PlainButtonStyle())
     }
     
     private var eventMediaSection: some View {
@@ -95,55 +102,54 @@ struct HomeFeaturedEventCard: View {
     }
     
     private var eventDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             // Host/venue info - made tappable
-            Button(action: {
-                onGymTap?(event.host)
-            }) {
-                HStack(spacing: 4) {
-                    // Display host gym's profile image instead of house icon
-                    AsyncImage(url: event.host.profileImage?.url) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 20, height: 20)
-                            .clipShape(Circle())
-                    } placeholder: {
-                        Circle()
-                            .fill(AppTheme.appTextLight.opacity(0.3))
-                            .frame(width: 20, height: 20)
-                            .overlay(
-                                Image(systemName: "house.fill")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(AppTheme.appTextLight)
-                            )
-                    }
-                    
-                    Text(event.host.name)
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundColor(AppTheme.appTextPrimary)
-                        .lineLimit(1)
-                    
-                    Spacer()
+            HStack(spacing: 4) {
+                // Display host gym's profile image instead of house icon
+                AsyncImage(url: event.host.profileImage?.url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 20, height: 20)
+                        .clipShape(Circle())
+                } placeholder: {
+                    Circle()
+                        .fill(AppTheme.appTextLight.opacity(0.3))
+                        .frame(width: 20, height: 20)
+                        .overlay(
+                            Image(systemName: "house.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(AppTheme.appTextLight)
+                        )
                 }
+                
+                Text(event.host.name)
+                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .foregroundColor(AppTheme.appPrimary)
+                    .lineLimit(1)
+                
+                Spacer()
             }
-            .buttonStyle(PlainButtonStyle())
+            .onTapGesture {
+                onGymTap?(event.host)
+            }
             
             // Event name - moved to details section
-          /*  Text(event.name)
-                .font(.system(size: 20, weight: .medium, design: .rounded))
+           Text(event.name)
+                .font(.system(size: 20, weight: .regular, design: .rounded))
                 .foregroundColor(AppTheme.appTextPrimary)
-                .lineLimit(2) */
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             
             // Date
             Text(eventDateFormatted)
-                .font(.system(size: 16, weight: .regular, design: .rounded))
+                .font(.system(size: 16, weight: .light, design: .rounded))
                 .foregroundColor(AppTheme.appTextPrimary)
                 .lineLimit(1)
             
             // Time
             Text(eventTimeFormatted)
-                .font(.system(size: 14, weight: .regular, design: .rounded))
+                .font(.system(size: 14, weight: .light, design: .rounded))
                 .foregroundColor(AppTheme.appTextLight)
             
             // Event type tag
@@ -163,27 +169,30 @@ struct HomeFeaturedEventCard: View {
             
             // Action buttons - stacked vertically for better fit
             VStack(spacing: 8) {
-                PrimaryActionButton.outline("View") {
-                    onView()
+                PrimaryActionButton.outlineCompact("Share") {
+                    // TODO: Implement share functionality
+                    print("Share button tapped for event: \(event.name)")
                 }
                 
                 // Conditional button based on registration requirement
                 if event.registrationRequired == true {
                     PrimaryActionButton(title: "Register",
                                         style: .primary,
-                                        size: .standard) {
+                                        size: .compact) {
                         onRegister()
                     }
                 } else {
-                    PrimaryActionButton.primary("Add to Calendar") {
+                    PrimaryActionButton(title: "Add to Calendar",
+                                        style: .primary,
+                                        size: .compact) {
                         onAddToCalendar?()
                     }
                 }
             }
         }
-    .padding(16)
+    .padding(12)
     .frame(height: 240)
-    .background(Color(AppTheme.appContentBG))
+    .background(AppTheme.appPrimary.opacity(0.15))
     }
     
     private var tagBackgroundColor: Color {

@@ -18,31 +18,32 @@ struct GymsListView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: AppTheme.Spacing.sectionSpacing) {
                     // Favourites Section - only show if there are favorite gyms
                     if !viewModel.favoriteGyms.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.cardSpacing) {
                             HStack {
                                 Text("Favourites")
                                     .font(.appHeadline)
                                     .foregroundColor(AppTheme.appTextPrimary)
                                 Spacer()
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, AppTheme.Spacing.screenPadding)
                             
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
+                                HStack(spacing: AppTheme.Spacing.cardSpacing) {
                                     ForEach(viewModel.favoriteGyms) { gym in
                                         CompactGymCard(gym: gym, viewModel: viewModel)
                                     }
                                 }
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
+                                .padding(.bottom, AppTheme.Spacing.sectionContentSpacing) // Add bottom padding to prevent shadow clipping
                             }
                         }
                     }
                     
                     // Discover Section
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.cardSpacing) {
                         HStack {
                             Text("Discover")
                                 .font(.appHeadline)
@@ -75,7 +76,7 @@ struct GymsListView: View {
                                 .foregroundColor(.blue)
                             } */
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, AppTheme.Spacing.screenPadding)
                         
                         // Filter View - appears when showFilter is true
                         if viewModel.showFilter {
@@ -90,17 +91,17 @@ struct GymsListView: View {
                             // Loading state
                             ForEach(0..<3, id: \.self) { _ in
                                 GymCardViewSkeleton()
-                                        .padding(.horizontal, 12)
+                                        .padding(.horizontal, AppTheme.Spacing.cardHorizontalPadding)
                             }
                         } else {
                             ForEach(viewModel.nonFavoriteGymsByDistance) { gym in
                                 LargeGymCardView(gym: gym, viewModel: viewModel)
-                                    .padding(.horizontal, 12)
+                                    .padding(.horizontal, AppTheme.Spacing.cardHorizontalPadding)
                             }
                         }
                     }
                 }
-                .padding(.vertical, 16)
+                .padding(.bottom, AppTheme.Spacing.screenPadding) // Add bottom padding for better scroll experience
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

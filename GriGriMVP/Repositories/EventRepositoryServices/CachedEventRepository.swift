@@ -437,7 +437,7 @@ extension CachedEventRepository {
         print("🌐 Cache miss: fetchClassesForHomeSection - fetching from source")
         
         // Fetch from base repository
-        let events = try await baseRepository.fetchClassesForHomeSection()
+        let events = try await baseRepository.fetchClassesForUpcomingView()
         
         // Cache individual events and related entities
         await cacheEventsAndRelatedEntities(events)
@@ -497,7 +497,7 @@ extension CachedEventRepository {
         print("🌐 Cache miss: fetchSocialEventsForHomeSection - fetching from source")
         
         // Fetch from base repository
-        let events = try await baseRepository.fetchSocialEventsForHomeSection(userLocation: userLocation)
+        let events = try await baseRepository.fetchSocialEventsForUpcomingView(userLocation: userLocation)
         
         // Cache individual events and related entities
         await cacheEventsAndRelatedEntities(events)

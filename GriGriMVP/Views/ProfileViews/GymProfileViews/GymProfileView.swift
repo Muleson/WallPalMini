@@ -160,7 +160,7 @@ struct GymProfileView: View {
     
     private var climbingTypesIconsView: some View {
         HStack(spacing: 36) {
-            ForEach((viewModel.selectedGym ?? gym).climbingType, id: \.self) { type in
+            ForEach((viewModel.selectedGym ?? gym).climbingType.sortedForDisplay(), id: \.self) { type in
                 VStack(spacing: -4) {
                     climbingTypeIcon(for: type)
                         .resizable()
@@ -239,7 +239,7 @@ struct GymProfileView: View {
     
     private var upcomingEventsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Debug info (can remove later)
+            // Loading indicator
             if viewModel.isLoadingEvents {
                 HStack {
                     ProgressView()
@@ -249,12 +249,6 @@ struct GymProfileView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.horizontal)
-            } else if !viewModel.isLoadingEvents {
-                // Show debug info about loaded events
-                Text("Events loaded: \(viewModel.selectedGymEvents.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
             }
             
             // Featured Event Section - show if there's a next featured event
@@ -303,7 +297,8 @@ struct GymProfileView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8) // Add bottom padding to prevent shadow clipping
                     }
                 }
             }

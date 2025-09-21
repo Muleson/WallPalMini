@@ -122,7 +122,7 @@ struct MapBottomSheet: View {
     
     private var climbingTypesSection: some View {
         HStack {
-            ForEach(gym.climbingType, id: \.self) { type in
+            ForEach(gym.climbingType.sortedForDisplay(), id: \.self) { type in
                 VStack(spacing: 2) {
                     climbingTypeIcon(for: type)
                         .resizable()

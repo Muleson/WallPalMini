@@ -42,8 +42,8 @@ struct CompactEventCardSkeleton: View {
                 .frame(height: 36)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .padding(10)
-        .frame(width: 180, height: 170)
+        .padding(AppTheme.Spacing.cardPadding)
+        .frame(width: 180)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .appCardShadow()

@@ -73,7 +73,7 @@ extension EventRepositoryProtocol {
     
     /// Load events optimized for the Classes horizontal scroll section
     /// - Returns: Up to 5 class events (featured first, then by time proximity)
-    func fetchClassesForHomeSection() async throws -> [EventItem] {
+    func fetchClassesForUpcomingView() async throws -> [EventItem] {
         // Default implementation - can be overridden by concrete implementations
         let allEvents = try await fetchAllEventsForDisplay()
         return Array(allEvents.filter { $0.eventType == .gymClass }.prefix(5))
@@ -96,7 +96,7 @@ extension EventRepositoryProtocol {
     /// - Parameters:
     ///   - userLocation: User's location for proximity sorting (optional)
     /// - Returns: Up to 5 social events (2 featured + 3 by proximity)
-    func fetchSocialEventsForHomeSection(userLocation: CLLocation?) async throws -> [EventItem] {
+    func fetchSocialEventsForUpcomingView(userLocation: CLLocation?) async throws -> [EventItem] {
         // Default implementation - can be overridden by concrete implementations
         let allEvents = try await fetchAllEventsForDisplay()
         return Array(allEvents.filter { $0.eventType == .social }.prefix(5))

@@ -141,7 +141,7 @@ struct GymCreationView: View {
             }
             
             HStack(spacing: 36) {
-                ForEach(ClimbingTypes.allCases, id: \.self) { type in
+                ForEach(ClimbingTypes.allCases.sortedForDisplay(), id: \.self) { type in
                     VStack(spacing: 8) {
                         Button(action: {
                             viewModel.toggleClimbingType(type)

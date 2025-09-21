@@ -159,7 +159,7 @@ struct GymRowView: View {
             
             // Climbing types with icons
             HStack(spacing: 8) {
-                ForEach(gym.climbingType.prefix(4), id: \.self) { type in
+                ForEach(gym.climbingType.sortedForDisplay().prefix(4), id: \.self) { type in
                     HStack(spacing: 4) {
                         climbingTypeIcon(for: type)
                             .resizable()
@@ -464,7 +464,7 @@ struct GymDetailManagementView: View {
     
     private var editableClimbingTypesGrid: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 12) {
-            ForEach(ClimbingTypes.allCases, id: \.self) { type in
+            ForEach(ClimbingTypes.allCases.sortedForDisplay(), id: \.self) { type in
                 Button(action: {
                     viewModel.toggleClimbingType(type)
                 }) {
@@ -498,7 +498,7 @@ struct GymDetailManagementView: View {
     
     private var readOnlyClimbingTypesGrid: some View {
         HStack(spacing: 36) {
-            ForEach(viewModel.gym.climbingType, id: \.self) { type in
+            ForEach(viewModel.gym.climbingType.sortedForDisplay(), id: \.self) { type in
                 VStack(spacing: 4) {
                     viewModel.climbingTypeIcon(for: type)
                         .resizable()

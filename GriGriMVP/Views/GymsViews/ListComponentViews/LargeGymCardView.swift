@@ -75,7 +75,7 @@ struct LargeGymCardView: View {
             // Climbing type icons with labels
             HStack(spacing: 20) {
                 Spacer()
-                ForEach(gym.climbingType, id: \.self) { type in
+                ForEach(gym.climbingType.sortedForDisplay(), id: \.self) { type in
                     VStack(spacing: -2) {
                         climbingTypeIcon(for: type)
                             .resizable()

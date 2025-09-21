@@ -131,7 +131,23 @@ class GymsViewModel: ObservableObject {
     var upcomingClassEventsForSelectedGym: [EventItem] {
         let now = Date()
         let classEvents = selectedGymEvents
-            .filter { $0.startDate > now && $0.eventType == .gymClass }
+            .filter { event in
+                // Must be a gym class
+                guard event.eventType == .gymClass else { return false }
+                
+                // Include if it's a future event
+                if event.startDate > now {
+                    return true
+                }
+                
+                // Include if it's a recurring event (even if original start date is in the past)
+                if event.frequency != nil {
+                    return true
+                }
+                
+                // Exclude past one-time events
+                return false
+            }
             .sorted { $0.startDate < $1.startDate }
         
         return classEvents
@@ -232,13 +248,9 @@ class GymsViewModel: ObservableObject {
             return []
         }
         
-        // Fetch the actual gym objects
-        var favorites: [Gym] = []
-        for gymId in favoriteGymIds {
-            if let gym = try await gymRepository.getGym(id: gymId) {
-                favorites.append(gym)
-            }
-        }
+        // Fetch the actual gym objects with latest data
+        // Use the bulk fetch method which is more efficient for multiple gyms
+        let favorites = try await gymRepository.getGyms(ids: favoriteGymIds)
         
         return favorites
     }
@@ -260,7 +272,13 @@ class GymsViewModel: ObservableObject {
             if isFavorite {
                 favoriteGyms.removeAll { $0.id == gym.id }
             } else {
-                favoriteGyms.append(gym)
+                // Fetch the latest gym data to ensure we have current profileImage
+                if let latestGym = try await gymRepository.getGym(id: gym.id) {
+                    favoriteGyms.append(latestGym)
+                } else {
+                    // Fallback to the passed gym if fetch fails
+                    favoriteGyms.append(gym)
+                }
             }
             
             // Update the backend
@@ -282,7 +300,12 @@ class GymsViewModel: ObservableObject {
             if favoriteGyms.contains(where: { $0.id == gym.id }) {
                 favoriteGyms.removeAll { $0.id == gym.id }
             } else {
-                favoriteGyms.append(gym)
+                // For revert, also fetch latest data
+                if let latestGym = try? await gymRepository.getGym(id: gym.id) {
+                    favoriteGyms.append(latestGym)
+                } else {
+                    favoriteGyms.append(gym)
+                }
             }
         }
     }
@@ -296,6 +319,15 @@ class GymsViewModel: ObservableObject {
         } catch {
             errorMessage = "Search failed: \(error.localizedDescription)"
             isLoading = false
+        }
+    }
+    
+    func refreshFavoriteGyms() async {
+        do {
+            let refreshedFavorites = try await loadFavoriteGyms()
+            self.favoriteGyms = refreshedFavorites
+        } catch {
+            print("Failed to refresh favorite gyms: \(error.localizedDescription)")
         }
     }
     

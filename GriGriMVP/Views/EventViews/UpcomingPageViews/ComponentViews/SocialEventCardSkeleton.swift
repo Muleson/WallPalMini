@@ -39,8 +39,8 @@ struct SocialEventCardSkeleton: View {
                 .frame(height: 36)
 
         }
-        .padding(.init(top: 14, leading: 10, bottom: 10, trailing: 10))
-        .frame(width: 280, height: 150)
+        .padding(AppTheme.Spacing.cardPadding)
+        .frame(width: 280)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .appCardShadow()

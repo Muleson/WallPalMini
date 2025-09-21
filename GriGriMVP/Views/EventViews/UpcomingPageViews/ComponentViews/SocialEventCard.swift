@@ -66,6 +66,8 @@ struct SocialEventCard: View {
 
                     // Event description (below date/time) — show up to 2 lines with inline 'See more'
                     if !event.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        // TODO: Re-enable "See more" functionality when fixed
+                        /*
                         if shouldShowSeeMore {
                             Button(action: { onEventTap?(event) }) {
                                 Text(event.description) +
@@ -88,11 +90,20 @@ struct SocialEventCard: View {
                                 .multilineTextAlignment(.leading)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        */
+                        
+                        // Simplified description display without "See more" functionality
+                        Text(event.description)
+                            .font(.system(size: 13, weight: .light, design: .rounded))
+                            .foregroundColor(AppTheme.appTextLight)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
             }
-                .padding(.init(top: 14, leading: 10, bottom: 10, trailing: 10))
-                .frame(width: 280, height: 150)
+                .padding(AppTheme.Spacing.cardPadding)
+                .frame(width: 280)
             .background(AppTheme.appContentBG)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .appCardShadow()
@@ -103,11 +114,14 @@ struct SocialEventCard: View {
     
     // MARK: - Helper Properties
     
+    // TODO: Re-enable when "See more" functionality is fixed
+    /*
     private var shouldShowSeeMore: Bool {
         // Simple heuristic: if description is longer than ~80 characters, it likely needs truncation
         // This is approximate since we can't easily measure exact text layout
         return event.description.count > 80
     }
+    */
     
     private var dateTimeSection: some View {
         VStack(alignment: .leading, spacing: 2) {

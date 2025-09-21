@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import FirebaseFirestore
+//import FirebaseFirestore
 
 struct Gym: Identifiable, Equatable, Hashable {
     var id: String

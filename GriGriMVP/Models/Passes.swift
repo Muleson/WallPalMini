@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CoreImage.CIFilterBuiltins
 
 enum PassType: String, CaseIterable, Codable {
     case payAsYouGo = "Pay as you go"

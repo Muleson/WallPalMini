@@ -15,40 +15,65 @@ struct PassesRootView: View {
     @State private var showPassCreation = false
     
     var body: some View {
-        ZStack {
-            VStack {
-                if displayViewModel.allPasses.isEmpty {
-                    // Empty state view
-                    emptyStateView
-                } else {
-                    // Show primary pass at the top
-                    PrimaryPassView(viewModel: displayViewModel)
-                        .padding()
-                    
-                    // Show ALL passes in the list, including the active one
-                    List {
-                        ForEach(displayViewModel.allPasses) { pass in
-                            PassRowView(
-                                viewModel: displayViewModel, 
-                                passToDelete: .constant(nil),
-                                pass: pass
-                            )
+        VStack(spacing: 0) {
+            // Fixed large title header
+            HStack {
+                Text("Passes")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Spacer()
+                Button(action: {
+                    showPassCreation = true
+                }) {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .foregroundStyle(AppTheme.appPrimary)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+            
+            // Scrollable content
+            ZStack {
+                VStack {
+                    if displayViewModel.allPasses.isEmpty {
+                        // Empty state view
+                        emptyStateView
+                    } else {
+                        // Show primary pass at the top
+                        PrimaryPassView(viewModel: displayViewModel)
+                            .padding()
+                        
+                        // Add spacing between barcode and list
+                        Spacer()
+                            .frame(height: 24)
+                        
+                        // Show ALL passes in the list, including the active one
+                        List {
+                            ForEach(displayViewModel.allPasses) { pass in
+                                PassRowView(
+                                    viewModel: displayViewModel, 
+                                    passToDelete: .constant(nil),
+                                    pass: pass
+                                )
+                                .padding(.top, 8)
+                            }
                         }
                     }
                 }
-            }
-            
-            // Floating Add Pass Button - only show when user has passes
-            if !displayViewModel.allPasses.isEmpty {
-                VStack {
-                    Spacer()
-                    HStack {
-                        PrimaryActionButton.primary("Add Pass") {
-                            showPassCreation = true
+                
+                // Floating Add Pass Button - only show when user has passes
+                if !displayViewModel.allPasses.isEmpty {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            PrimaryActionButton.primary("Add Pass") {
+                                showPassCreation = true
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 40)
+                            .padding(.bottom, 20)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 40)
-                        .padding(.bottom, 20)
                     }
                 }
             }
@@ -73,6 +98,7 @@ struct PassesRootView: View {
             }
         }
         .navigationTitle("Passes")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: {

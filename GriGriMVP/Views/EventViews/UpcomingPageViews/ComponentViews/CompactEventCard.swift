@@ -67,11 +67,11 @@ struct CompactEventCard: View {
                 Spacer()
                 
                 // Primary action button
-                PrimaryActionButton.custom("View", style: .primary, size: .compact) {
-                    onTap()
+                PrimaryActionButton.custom("Enroll", style: .primary, size: .compact) {
+                    // Currently functionless - enroll functionality to be implemented
                 }
             }
-            .padding(10)
+            .padding(AppTheme.Spacing.cardPadding)
             .frame(width: 180, height: 170)
             .background(Color(AppTheme.appContentBG))
             .clipShape(RoundedRectangle(cornerRadius: 12))

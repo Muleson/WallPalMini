@@ -64,7 +64,7 @@ struct CompactGymCard: View {
             // Climbing type icons
             HStack() {
                 Spacer()
-                ForEach(gym.climbingType, id: \.self) { type in
+                ForEach(gym.climbingType.sortedForDisplay(), id: \.self) { type in
                     climbingTypeIcon(for: type)
                         .resizable()
                         .aspectRatio(contentMode: .fit)

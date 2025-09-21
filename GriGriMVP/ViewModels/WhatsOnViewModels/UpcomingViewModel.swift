@@ -17,10 +17,12 @@ class UpcomingViewModel: ObservableObject {
     @Published var favoriteGyms: [Gym] = []
     
     // MARK: - Section-Specific Loading
-    private let homeSectionLoader: HomeSectionLoader
+    private let upcomingSectionLoader: UpcomingSectionLoader
     
     // MARK: - Filter Properties
     @Published var selectedEventTypes: Set<EventType> = []
+    @Published var selectedClimbingTypes: Set<ClimbingTypes> = []
+    @Published var proximityFilter: ProximityFilter = .all
     @Published var selectedTimeframe: TimeframeFilter = .all
     @Published var showFavoriteGymsOnly = false
     @Published var searchText = ""
@@ -45,6 +47,42 @@ class UpcomingViewModel: ObservableObject {
         case next30Days = "Next 30 Days"
         
         var displayName: String { rawValue }
+    }
+    
+    enum ProximityFilter: String, CaseIterable {
+        case all = "all"
+        case nearby = "nearby"
+        case withinFiveKm = "5km"
+        case withinTenKm = "10km"
+        case withinTwentyKm = "20km"
+        
+        var displayName: String {
+            switch self {
+            case .all:
+                return "All Locations"
+            case .nearby:
+                return "Nearby"
+            case .withinFiveKm:
+                return "Within 5 km"
+            case .withinTenKm:
+                return "Within 10 km"
+            case .withinTwentyKm:
+                return "Within 20 km"
+            }
+        }
+        
+        var distanceInMeters: Double? {
+            switch self {
+            case .all, .nearby:
+                return nil
+            case .withinFiveKm:
+                return 5000
+            case .withinTenKm:
+                return 10000
+            case .withinTwentyKm:
+                return 20000
+            }
+        }
     }
     
     // MARK: - Private Properties
@@ -76,6 +114,8 @@ class UpcomingViewModel: ObservableObject {
     /// Whether any filters are currently active
     var hasActiveFilters: Bool {
         !selectedEventTypes.isEmpty || 
+        !selectedClimbingTypes.isEmpty ||
+        proximityFilter != .all ||
         selectedTimeframe != .all || 
         showFavoriteGymsOnly || 
         !searchText.isEmpty
@@ -85,22 +125,22 @@ class UpcomingViewModel: ObservableObject {
     
     /// Class events optimized for horizontal scroll section
     var classEvents: [EventItem] {
-        homeSectionLoader.sectionEvents.classes
+        upcomingSectionLoader.sectionEvents.classes
     }
     
     /// Featured events optimized for carousel section
     var featuredCarouselEvents: [EventItem] {
-        homeSectionLoader.sectionEvents.featuredCarousel
+        upcomingSectionLoader.sectionEvents.featuredCarousel
     }
     
     /// Social events optimized for horizontal scroll section
     var socialEvents: [EventItem] {
-        homeSectionLoader.sectionEvents.socialEvents
+        upcomingSectionLoader.sectionEvents.socialEvents
     }
     
     /// Whether section-specific loading is in progress
     var isSectionLoading: Bool {
-        homeSectionLoader.sectionEvents.isLoading
+        upcomingSectionLoader.sectionEvents.isLoading
     }
     
     // MARK: - Initialization
@@ -112,20 +152,21 @@ class UpcomingViewModel: ObservableObject {
         self.userRepository = userRepository
         self.gymRepository = gymRepository
         self.eventRepository = repository
-        self.homeSectionLoader = HomeSectionLoader(eventRepository: repository)
+        self.upcomingSectionLoader = UpcomingSectionLoader(eventRepository: repository)
         
-        // Observe homeSectionLoader changes to trigger UI updates
-        homeSectionLoader.objectWillChange
+        // Observe upcomingSectionLoader changes to trigger UI updates
+        upcomingSectionLoader.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
+                self?.updateAllEventsFromSections()
             }
             .store(in: &cancellables)
         
         setupLocationObservers()
         setupFilterObservers()
         fetchUserAndFavorites()
-        loadHomeSections() // Load optimized home sections instead of all events
+        loadUpcomingSections() // Load optimized upcoming sections instead of all events
         checkCachedLocation()
     }
     
@@ -154,14 +195,21 @@ class UpcomingViewModel: ObservableObject {
     
     private func setupFilterObservers() {
         // Observe filter changes and re-apply filters
-        Publishers.CombineLatest4(
-            $selectedEventTypes,
-            $selectedTimeframe,
-            $showFavoriteGymsOnly,
-            $searchText.debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+        Publishers.CombineLatest(
+            Publishers.CombineLatest4(
+                $selectedEventTypes,
+                $selectedClimbingTypes,
+                $proximityFilter,
+                $selectedTimeframe
+            ),
+            Publishers.CombineLatest3(
+                $showFavoriteGymsOnly,
+                $searchText.debounce(for: .milliseconds(300), scheduler: DispatchQueue.main),
+                $userLocation
+            )
         )
         .receive(on: DispatchQueue.main)
-        .sink { [weak self] _, _, _, _ in
+        .sink { [weak self] _, _ in
             self?.applyFilters()
         }
         .store(in: &cancellables)
@@ -179,14 +227,14 @@ class UpcomingViewModel: ObservableObject {
     
     // MARK: - Data Fetching
     
-    /// Load home section events optimized for the UpcomingEventsView
-    func loadHomeSections(forceRefresh: Bool = false) {
-        homeSectionLoader.loadAllSections(userLocation: userLocation, forceRefresh: forceRefresh)
+    /// Load upcoming section events optimized for the UpcomingEventsView
+    func loadUpcomingSections(forceRefresh: Bool = false) {
+        upcomingSectionLoader.loadAllSections(userLocation: userLocation, forceRefresh: forceRefresh)
     }
     
-    /// Refresh a specific home section
-    func refreshHomeSection(_ section: HomeSection) {
-        homeSectionLoader.refreshSection(section, userLocation: userLocation)
+    /// Refresh a specific upcoming section
+    func refreshUpcomingSection(_ section: UpcomingSection) {
+        upcomingSectionLoader.refreshSection(section, userLocation: userLocation)
     }
     
     /// Legacy method - still used for search and filter functionality
@@ -202,9 +250,21 @@ class UpcomingViewModel: ObservableObject {
                 
                 await MainActor.run { [weak self] in
                     guard let self = self else { return }
-                    // Only show upcoming events
-                    allEvents = events.filter { $0.startDate > Date() }
-                        .sorted(by: { $0.startDate < $1.startDate })
+                    // Filter events: show upcoming events OR recurring events (regardless of original start date)
+                    allEvents = events.filter { event in
+                        // Include if it's a future event
+                        if event.startDate > Date() {
+                            return true
+                        }
+                        
+                        // Include if it's a recurring event (even if original start date is in the past)
+                        if event.frequency != nil {
+                            return true
+                        }
+                        
+                        // Exclude past one-time events
+                        return false
+                    }.sorted(by: { $0.startDate < $1.startDate })
                     
                     // Extract event types
                     extractEventTypes()
@@ -272,6 +332,32 @@ class UpcomingViewModel: ObservableObject {
         availableEventTypes = Set(allEvents.map { $0.eventType })
     }
     
+    /// Update allEvents from section events to ensure filtering works with optimized loading
+    private func updateAllEventsFromSections() {
+        let sectionEvents = upcomingSectionLoader.sectionEvents
+        
+        // Combine all section events, avoiding duplicates
+        var combinedEvents: [EventItem] = []
+        var eventIds: Set<String> = []
+        
+        // Add events from each section, checking for duplicates
+        for event in sectionEvents.classes + sectionEvents.featuredCarousel + sectionEvents.socialEvents {
+            if !eventIds.contains(event.id) {
+                combinedEvents.append(event)
+                eventIds.insert(event.id)
+            }
+        }
+        
+        // Sort by start date
+        allEvents = combinedEvents.sorted { $0.startDate < $1.startDate }
+        
+        // Update available event types
+        extractEventTypes()
+        
+        // Apply filters to update filtered events
+        applyFilters()
+    }
+    
     // MARK: - Filter Management
     
     func toggleEventType(_ eventType: EventType) {
@@ -282,8 +368,22 @@ class UpcomingViewModel: ObservableObject {
         }
     }
     
+    func toggleClimbingType(_ climbingType: ClimbingTypes) {
+        if selectedClimbingTypes.contains(climbingType) {
+            selectedClimbingTypes.remove(climbingType)
+        } else {
+            selectedClimbingTypes.insert(climbingType)
+        }
+    }
+    
+    func setProximityFilter(_ filter: ProximityFilter) {
+        proximityFilter = filter
+    }
+
     func clearAllFilters() {
         selectedEventTypes.removeAll()
+        selectedClimbingTypes.removeAll()
+        proximityFilter = .all
         selectedTimeframe = .all
         showFavoriteGymsOnly = false
         searchText = ""
@@ -299,7 +399,7 @@ class UpcomingViewModel: ObservableObject {
     
     // MARK: - Filtering Logic
     
-    private func applyFilters() {
+    func applyFilters() {
         var events = allEvents
         
         // Filter by search text
@@ -315,6 +415,31 @@ class UpcomingViewModel: ObservableObject {
         if !selectedEventTypes.isEmpty {
             events = events.filter { event in
                 return selectedEventTypes.contains(event.eventType)
+            }
+        }
+        
+        // Filter by climbing types
+        if !selectedClimbingTypes.isEmpty {
+            events = events.filter { event in
+                guard let eventClimbingTypes = event.climbingType else { return false }
+                return !Set(eventClimbingTypes).isDisjoint(with: selectedClimbingTypes)
+            }
+        }
+        
+        // Filter by proximity
+        if proximityFilter != .all, let userLocation = userLocation {
+            events = events.filter { event in
+                guard let distance = distanceToEvent(event) else { return false }
+                
+                switch proximityFilter {
+                case .all:
+                    return true
+                case .nearby:
+                    return distance <= 2000 // 2km for nearby
+                case .withinFiveKm, .withinTenKm, .withinTwentyKm:
+                    guard let maxDistance = proximityFilter.distanceInMeters else { return true }
+                    return distance <= maxDistance
+                }
             }
         }
         
@@ -525,6 +650,15 @@ class UpcomingViewModel: ObservableObject {
         if !selectedEventTypes.isEmpty {
             let types = selectedEventTypes.map { $0.displayName }.sorted().joined(separator: ", ")
             descriptions.append("Types: \(types)")
+        }
+        
+        if !selectedClimbingTypes.isEmpty {
+            let types = selectedClimbingTypes.map { $0.rawValue.capitalized }.sorted().joined(separator: ", ")
+            descriptions.append("Climbing: \(types)")
+        }
+        
+        if proximityFilter != .all {
+            descriptions.append("Distance: \(proximityFilter.displayName)")
         }
         
         if selectedTimeframe != .all {

@@ -16,6 +16,8 @@ struct UpcomingEventsView: View {
     @State private var currentCarouselIndex = 0
     @State private var showingSearchBar = false
     @FocusState private var searchFieldFocused: Bool
+    @State private var showingAllEvents = false
+    @State private var showingFilterSheet = false
     
     // Featured events for carousel (optimized section loading)
     private var featuredEvents: [EventItem] {
@@ -35,11 +37,11 @@ struct UpcomingEventsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionSpacing) {
 
                     // Inline search bar shown when toolbar search is activated
                     if showingSearchBar {
-                        HStack(spacing: 8) {
+                        HStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(AppTheme.appPrimary)
 
@@ -58,33 +60,33 @@ struct UpcomingEventsView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, AppTheme.Spacing.screenPadding)
                     }
                     // Gym Classes Horizontal Scroll
                     if viewModel.isSectionLoading {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Classes")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
 
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
+                                HStack(spacing: AppTheme.Spacing.cardSpacing) {
                                     ForEach(0..<3, id: \.self) { _ in
                                         CompactEventCardSkeleton()
                                     }
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
+                                .padding(.vertical, 4) // Add vertical padding to prevent shadow clipping
                             }
-                            .frame(height: 200)
                         }
                     } else if !gymClassEvents.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Classes")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
                             
                             ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: 12) {
+                                LazyHStack(spacing: AppTheme.Spacing.cardSpacing) {
                                     ForEach(gymClassEvents) { event in
                                         CompactEventCard(event: event) {
                                             selectedEvent = event
@@ -92,25 +94,34 @@ struct UpcomingEventsView: View {
                                             selectedGym = gym
                                         }
                                     }
+                                    
+                                    // View More button for Classes
+                                    ViewMoreButton(width: 180, title: "All Classes") {
+                                        // Clear existing filters and set to gym classes only
+                                        viewModel.clearAllFilters()
+                                        viewModel.selectedEventTypes.insert(.gymClass)
+                                        showingAllEvents = true
+                                    }
+                                    .padding(.leading, AppTheme.Spacing.xs)
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
+                                .padding(.vertical, 4) // Add vertical padding to prevent shadow clipping
                             }
-                            .frame(height: 200)
                         }
                     }
                     
                     // Featured Events Carousel
                     if viewModel.isSectionLoading {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Next big sends")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
 
-                            VStack(spacing: 4) {
+                            VStack(spacing: AppTheme.Spacing.xs) {
                                 TabView {
                                     ForEach(0..<3, id: \.self) { _ in
                                         FeaturedEventCardSkeleton()
-                                            .padding(.horizontal)
+                                            .padding(.horizontal, AppTheme.Spacing.screenPadding)
                                     }
                                 }
                                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
@@ -118,12 +129,12 @@ struct UpcomingEventsView: View {
                             }
                         }
                     } else if !featuredEvents.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Next big sends")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
                             
-                            VStack(spacing: 4) {
+                            VStack(spacing: AppTheme.Spacing.xs) {
                                 TabView(selection: $currentCarouselIndex) {
                                     ForEach(featuredEvents.indices, id: \.self) { index in
                                         FeaturedEventCard(
@@ -143,7 +154,7 @@ struct UpcomingEventsView: View {
                                                 selectedGym = gym
                                             }
                                         )
-                                        .padding(.horizontal)
+                                        .padding(.horizontal, AppTheme.Spacing.screenPadding)
                                         .tag(index)
                                     }
                                 }
@@ -151,7 +162,7 @@ struct UpcomingEventsView: View {
                                 .frame(height: 260)
                                 
                                 // Custom page indicator dots
-                                HStack(spacing: 12) {
+                                HStack(spacing: AppTheme.Spacing.cardSpacing) {
                                     ForEach(featuredEvents.indices, id: \.self) { index in
                                         Circle()
                                             .fill(currentCarouselIndex == index ? AppTheme.appPrimary : AppTheme.appPrimary.opacity(0.3))
@@ -159,36 +170,36 @@ struct UpcomingEventsView: View {
                                             .animation(.easeInOut(duration: 0.3), value: currentCarouselIndex)
                                     }
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
                             }
                         }
                     }
                     
                     // Social Events Horizontal Scroll
                     if viewModel.isSectionLoading {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Social Sessions")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
 
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
+                                HStack(spacing: AppTheme.Spacing.cardSpacing) {
                                     ForEach(0..<3, id: \.self) { _ in
                                         SocialEventCardSkeleton()
                                     }
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
+                                .padding(.vertical, 4) // Add vertical padding to prevent shadow clipping
                             }
-                            .frame(height: 170)
                         }
                     } else if !socialEvents.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Social Sessions")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
                             
                             ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: 12) {
+                                LazyHStack(spacing: AppTheme.Spacing.cardSpacing) {
                                     ForEach(socialEvents) { event in
                                         SocialEventCard(
                                             event: event,
@@ -203,58 +214,73 @@ struct UpcomingEventsView: View {
                                             }
                                         )
                                     }
+                    
+                                    // View More button for Social Sessions
+                                    ViewMoreButton(width: 280, title: "All Social Sessions") {
+                                        // Clear existing filters and set to social events only
+                                        viewModel.clearAllFilters()
+                                        viewModel.selectedEventTypes.insert(.social)
+                                        showingAllEvents = true
+                                    }
+                                    .padding(.leading, AppTheme.Spacing.xs)
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
+                                .padding(.vertical, 4) // Add vertical padding to prevent shadow clipping
                             }
-                            .frame(height: 170)
                         }
                     }
                     
                     // Filters section placeholder
-                    HStack(spacing: 12) {
+                    HStack(spacing: AppTheme.Spacing.cardSpacing) {
                         // Add filter buttons here later
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, AppTheme.Spacing.screenPadding)
 
                     // Search results (show when user has typed something)
                     if viewModel.isLoadingEvents {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Search Results")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
 
-                            VStack(spacing: 8) {
+                            VStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
                                 ForEach(0..<3, id: \.self) { _ in
                                     StandardEventCardSkeleton()
-                                        .padding(.horizontal)
+                                        .padding(.horizontal, AppTheme.Spacing.screenPadding)
                                 }
                             }
                         }
                     } else if !viewModel.searchText.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Search Results")
                                 .font(.appHeadline)
-                                .padding(.horizontal)
+                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
 
-                            VStack(spacing: 8) {
+                            VStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
                                 ForEach(viewModel.filteredEvents) { event in
                                     StandardEventCard(event: event, onTap: {
                                         selectedEvent = event
                                     }, onGymTap: { gym in
                                         selectedGym = gym
                                     })
-                                    .padding(.horizontal)
+                                    .padding(.horizontal, AppTheme.Spacing.screenPadding)
                                 }
                             }
                         }
                     }
-                    
-                    Spacer()
                 }
+                .padding(.bottom, AppTheme.Spacing.screenPadding) // Add consistent bottom padding instead of Spacer
             }
             .navigationTitle("What's On")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingFilterSheet = true
+                    }) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .foregroundColor(AppTheme.appPrimary)
+                    }
+                    
                     Button(action: {
                         showingSearchBar.toggle()
                         if showingSearchBar {
@@ -278,8 +304,24 @@ struct UpcomingEventsView: View {
             .navigationDestination(item: $selectedGym) { gym in
                 GymProfileView(gym: gym, appState: appState)
             }
+            .navigationDestination(isPresented: $showingAllEvents) {
+                FilteredEventsView(
+                    appState: appState,
+                    viewModel: viewModel
+                )
+            }
+            .sheet(isPresented: $showingFilterSheet) {
+                FilterBottomSheetView(
+                    selectedEventTypes: $viewModel.selectedEventTypes,
+                    selectedClimbingTypes: $viewModel.selectedClimbingTypes,
+                    proximityFilter: $viewModel.proximityFilter,
+                    onApplyFilters: {
+                        showingAllEvents = true
+                    }
+                )
+            }
             .refreshable {
-                viewModel.loadHomeSections(forceRefresh: true)
+                viewModel.loadUpcomingSections(forceRefresh: true)
             }
         }
     }
