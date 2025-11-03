@@ -58,30 +58,33 @@ class UpcomingSectionLoader: ObservableObject {
     func loadAllSections(userLocation: CLLocation? = nil, forceRefresh: Bool = false) {
         // Cancel any existing loading task
         loadingTask?.cancel()
-        
+
         // Skip loading if data is fresh and not forcing refresh
         if !forceRefresh && sectionEvents.hasData && !sectionEvents.isStale {
+            // Data is fresh, skip reload silently
             return
         }
-        
+
+        print("📅 UpcomingEventsView: Loading sections...")
+
         loadingTask = Task { [weak self] in
             guard let self = self else { return }
-            
+
             await MainActor.run {
                 self.sectionEvents = UpcomingSectionEvents(isLoading: true)
                 self.error = nil
             }
-            
+
             do {
                 // Load all sections in parallel for maximum efficiency
                 async let classesTask = eventRepository.fetchClassesForUpcomingView()
                 async let featuredTask = eventRepository.fetchFeaturedEventsForCarousel()
                 async let socialTask = eventRepository.fetchSocialEventsForUpcomingView(userLocation: userLocation)
-                
+
                 let (classes, featured, social) = try await (classesTask, featuredTask, socialTask)
-                
+
                 guard !Task.isCancelled else { return }
-                
+
                 await MainActor.run {
                     self.sectionEvents = UpcomingSectionEvents(
                         classes: classes,
@@ -91,18 +94,21 @@ class UpcomingSectionLoader: ObservableObject {
                         lastUpdated: Date()
                     )
                 }
-                
-                print("📅 Loaded upcoming sections: \(classes.count) classes, \(featured.count) featured, \(social.count) social")
-                
+
+                print("📚 Section: Fetched \(classes.count) class events")
+                print("🎯 Section: Fetched \(featured.count) featured carousel events")
+                print("🤝 Section: Fetched \(social.count) social events")
+                print("✅ UpcomingEventsView: All sections loaded (\(classes.count + featured.count + social.count) total events)")
+
             } catch {
                 guard !Task.isCancelled else { return }
-                
+
                 await MainActor.run {
                     self.error = error
                     self.sectionEvents = UpcomingSectionEvents(isLoading: false)
                 }
-                
-                print("❌ Failed to load upcoming sections: \(error)")
+
+                print("❌ UpcomingEventsView: Failed to load sections - \(error)")
             }
         }
     }

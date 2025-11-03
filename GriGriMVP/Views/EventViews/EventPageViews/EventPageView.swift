@@ -10,12 +10,13 @@ import SwiftUI
 struct EventPageView: View {
     let event: EventItem
     @StateObject private var viewModel: EventPageViewModel
-    
+    @State private var showShareSheet = false
+
     init(event: EventItem) {
         self.event = event
         self._viewModel = StateObject(wrappedValue: EventPageViewModel(event: event))
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -140,6 +141,16 @@ struct EventPageView: View {
                 Spacer(minLength: 20)
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showShareSheet = true
+                }) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(AppTheme.appPrimary)
+                }
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             // Floating register button
             if event.registrationRequired {
@@ -152,6 +163,7 @@ struct EventPageView: View {
                 .padding(.bottom, 20)
             }
         }
+        .shareSheet(isPresented: $showShareSheet, activityItems: ShareLinkHelper.eventShareItems(event: event))
     }
 }
 

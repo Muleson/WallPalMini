@@ -64,7 +64,7 @@ struct StandardEventCardSkeleton: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .appCardShadow()
-        .redacted(reason: .placeholder)
+        .shimmer()
     }
 }
 

@@ -39,66 +39,40 @@ protocol EventRepositoryProtocol {
     
     /// Delete an event
     func deleteEvent(id: String) async throws
-}
 
-// MARK: - Display-Optimized Methods
-extension EventRepositoryProtocol {
-    /// Fetch all events optimized for display purposes (skips author lookup)
-    func fetchAllEventsForDisplay() async throws -> [EventItem] {
-        // Default implementation falls back to regular fetch
-        return try await fetchAllEvents()
-    }
-    
-    /// Fetch events for a specific gym optimized for display purposes (skips author lookup)
-    func fetchEventsForGymDisplay(gymId: String) async throws -> [EventItem] {
-        // Default implementation falls back to regular fetch
-        return try await fetchEventsForGym(gymId: gymId)
-    }
-    
-    /// Fetch favorite events optimized for display purposes (skips author lookup)
-    func fetchFavoriteEventsForDisplay(userId: String) async throws -> [EventItem] {
-        // Default implementation falls back to regular fetch
-        return try await fetchFavoriteEvents(userId: userId)
-    }
-    
-    /// Search for events optimized for display purposes (skips author lookup)
-    func searchEventsForDisplay(query: String) async throws -> [EventItem] {
-        // Default implementation falls back to regular fetch
-        return try await searchEvents(query: query)
-    }
-}
+    // MARK: - Filtered Query Methods
 
-// MARK: - Section-Specific Batch Loading
-extension EventRepositoryProtocol {
-    
+    /// Fetch events with server-side filters to minimize database reads
+    /// - Parameters:
+    ///   - eventTypes: Filter by event types (e.g., gymClass, social)
+    ///   - startDateAfter: Only include events starting after this date
+    ///   - startDateBefore: Only include events starting before this date
+    ///   - isFeatured: Filter by featured status
+    ///   - hostGymId: Filter by hosting gym
+    ///   - limit: Maximum number of events to return
+    /// - Returns: Array of events matching all specified filters
+    func fetchEventsWithFilters(
+        eventTypes: Set<EventType>?,
+        startDateAfter: Date?,
+        startDateBefore: Date?,
+        isFeatured: Bool?,
+        hostGymId: String?,
+        limit: Int?
+    ) async throws -> [EventItem]
+
+    // MARK: - Section-Specific Batch Loading
+
     /// Load events optimized for the Classes horizontal scroll section
     /// - Returns: Up to 5 class events (featured first, then by time proximity)
-    func fetchClassesForUpcomingView() async throws -> [EventItem] {
-        // Default implementation - can be overridden by concrete implementations
-        let allEvents = try await fetchAllEventsForDisplay()
-        return Array(allEvents.filter { $0.eventType == .gymClass }.prefix(5))
-    }
-    
+    func fetchClassesForUpcomingView() async throws -> [EventItem]
+
     /// Load events optimized for the "Next big sends" featured carousel
     /// - Returns: Up to 3 featured events of competition/openDay/opening types with media
-    func fetchFeaturedEventsForCarousel() async throws -> [EventItem] {
-        // Default implementation - can be overridden by concrete implementations
-        let allEvents = try await fetchAllEventsForDisplay()
-        let targetTypes: Set<EventType> = [.competition, .openDay, .opening]
-        return Array(allEvents.filter { 
-            targetTypes.contains($0.eventType) && 
-            $0.isFeatured && 
-            $0.mediaItems?.isEmpty == false 
-        }.prefix(3))
-    }
-    
+    func fetchFeaturedEventsForCarousel() async throws -> [EventItem]
+
     /// Load events optimized for the Social Sessions horizontal scroll
     /// - Parameters:
     ///   - userLocation: User's location for proximity sorting (optional)
     /// - Returns: Up to 5 social events (2 featured + 3 by proximity)
-    func fetchSocialEventsForUpcomingView(userLocation: CLLocation?) async throws -> [EventItem] {
-        // Default implementation - can be overridden by concrete implementations
-        let allEvents = try await fetchAllEventsForDisplay()
-        return Array(allEvents.filter { $0.eventType == .social }.prefix(5))
-    }
+    func fetchSocialEventsForUpcomingView(userLocation: CLLocation?) async throws -> [EventItem]
 }

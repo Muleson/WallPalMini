@@ -9,9 +9,14 @@ import SwiftUI
 
 struct GymMapAnnotationView: View {
     let gym: Gym
-    let isFavorite: Bool
+    @ObservedObject var viewModel: GymsViewModel
     let isSelected: Bool
     let onTap: () -> Void
+
+    // Compute isFavorite reactively by observing viewModel.favoriteGyms
+    private var isFavorite: Bool {
+        viewModel.favoriteGyms.contains(where: { $0.id == gym.id })
+    }
     
     var body: some View {
         VStack(spacing: 4) {
@@ -32,16 +37,9 @@ struct GymMapAnnotationView: View {
                     }
                     
                     // Gym icon or profile image
-                    if let profileImage = gym.profileImage {
-                        AsyncImage(url: profileImage.url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: pinSize - 6, height: pinSize - 6)
-                                .clipShape(Circle())
-                        } placeholder: {
-                            gymIconView
-                        }
+                    if gym.profileImage != nil {
+                        // Use cached image view for better performance
+                        CachedGymImageView(gym: gym, size: pinSize - 6)
                     } else {
                         gymIconView
                     }
@@ -85,7 +83,7 @@ struct GymMapAnnotationView: View {
             }
         }
         .scaleEffect(isSelected ? 1.2 : 1.0)
-        .zIndex(isSelected ? 1 : 0)
+        .zIndex(isSelected ? 1000 : 0)
     }
     
     // MARK: - Computed Properties
@@ -118,35 +116,21 @@ struct GymMapAnnotationView: View {
 // MARK: - Preview
 
 #Preview {
+    let viewModel = GymsViewModel(appState: AppState())
+
     VStack(spacing: 40) {
         // Regular gym pin
         GymMapAnnotationView(
             gym: SampleData.gyms[0],
-            isFavorite: false,
+            viewModel: viewModel,
             isSelected: false,
             onTap: {}
         )
-        
-        // Favorite gym pin
-        GymMapAnnotationView(
-            gym: SampleData.gyms[0],
-            isFavorite: true,
-            isSelected: false,
-            onTap: {}
-        )
-        
+
         // Selected gym pin
         GymMapAnnotationView(
             gym: SampleData.gyms[0],
-            isFavorite: false,
-            isSelected: true,
-            onTap: {}
-        )
-        
-        // Selected + favorite gym pin
-        GymMapAnnotationView(
-            gym: SampleData.gyms[0],
-            isFavorite: true,
+            viewModel: viewModel,
             isSelected: true,
             onTap: {}
         )

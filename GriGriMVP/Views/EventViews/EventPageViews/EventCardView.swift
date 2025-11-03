@@ -66,27 +66,9 @@ struct EventCardView: View {
                     
                     // Gym info and time on same line
                     HStack {
-                        // Gym profile picture
-                        if let profileImage = event.host.profileImage {
-                            AsyncImage(url: profileImage.url) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 20, height: 20)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 20, height: 20)
-                            }
-                        } else {
-                            Image(systemName: "building.2")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
-                                .foregroundColor(.gray)
-                        }
-                        
+                        // Gym profile picture with caching
+                        CachedGymImageView(gym: event.host, size: 20)
+
                         // Gym name text
                         Text(event.host.name)
                             .font(.caption)

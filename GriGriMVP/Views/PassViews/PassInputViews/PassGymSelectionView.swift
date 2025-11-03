@@ -128,7 +128,7 @@ struct GymSelectionView: View {
                 GymRow(
                     gym: gym,
                     isSelected: gym.id == viewModel.selectedGym?.id,
-                    distance: viewModel.gymDistances[gym.id]
+                    companyName: viewModel.companyName(for: gym)
                 )
                 .onTapGesture {
                     viewModel.selectedGym = gym
@@ -204,7 +204,8 @@ struct GymSelectionView: View {
 struct GymRow: View {
     let gym: Gym
     let isSelected: Bool
-    let distance: String? // Pass distance from ViewModel
+   // let distance: String? // Pass distance from ViewModel
+    let companyName: String? // Company name from ViewModel
     
     var body: some View {
         HStack(spacing: 12) {
@@ -264,12 +265,12 @@ struct GymRow: View {
     
     private var subtitleView: some View {
         Group {
-            if let distance = distance {
+            if let companyName = companyName {
                 HStack(spacing: 4) {
-                    Image(systemName: "location")
+                    Image(systemName: "building.2")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(distance)
+                    Text(companyName)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -279,7 +280,7 @@ struct GymRow: View {
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             } else {
-                Text("Location unavailable")
+                Text("Independent gym")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .italic()

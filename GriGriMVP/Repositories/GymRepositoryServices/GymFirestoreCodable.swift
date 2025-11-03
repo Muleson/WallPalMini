@@ -21,28 +21,48 @@ extension Gym: FirestoreCodable {
             "createdAt": createdAt.firestoreTimestamp,
             "verificationStatus": verificationStatus.rawValue
         ]
-        
+
         // Add optional fields if they exist
+        if let companyId = companyId {
+            data["companyId"] = companyId
+        }
+
         if let description = description {
             data["description"] = description
         }
-        
+
         if let profileImage = profileImage {
             data["profileImage"] = profileImage.toFirestoreData()
         }
-        
+
         if let verificationNotes = verificationNotes {
             data["verificationNotes"] = verificationNotes
         }
-        
+
         if let verifiedAt = verifiedAt {
             data["verifiedAt"] = verifiedAt.firestoreTimestamp
         }
-        
+
         if let verifiedBy = verifiedBy {
             data["verifiedBy"] = verifiedBy
         }
-        
+
+        if let operatingHours = operatingHours {
+            // Convert to JSON dictionary for Firestore
+            if let jsonData = try? JSONEncoder().encode(operatingHours),
+               let jsonDict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                data["operatingHours"] = jsonDict
+            }
+        }
+
+        if let website = website {
+            data["website"] = website
+        }
+
+        if let phoneNumber = phoneNumber {
+            data["phoneNumber"] = phoneNumber
+        }
+
         return data
     }
     
@@ -58,13 +78,13 @@ extension Gym: FirestoreCodable {
             print("DEBUG: Available keys: \(firestoreData.keys.sorted())")
             return nil
         }
-        
+
         // Handle location
         guard let location = LocationData(firestoreData: locationData) else {
             print("DEBUG: Failed to decode location data")
             return nil
         }
-        
+
         // Handle createdAt timestamp
         let createdAt: Date
         if let timestamp = firestoreData["createdAt"] as? Timestamp {
@@ -72,19 +92,20 @@ extension Gym: FirestoreCodable {
         } else {
             createdAt = Date()
         }
-        
+
         // Handle climbing types
         let climbingTypeStrings = firestoreData["climbingType"] as? [String] ?? []
         let climbingType = climbingTypeStrings.compactMap { ClimbingTypes(rawValue: $0) }
-        
+
         // Handle amenities
         let amenityStrings = firestoreData["amenities"] as? [String] ?? []
         let amenities = amenityStrings.compactMap { Amenities(rawValue: $0) }
-        
-        // Handle other fields
+
+        // Handle optional fields
+        let companyId = firestoreData["companyId"] as? String
         let description = firestoreData["description"] as? String
         let events = firestoreData["events"] as? [String] ?? []
-        
+
         // Handle profile image
         let profileImage: MediaItem?
         if let imageData = firestoreData["profileImage"] as? [String: Any] {
@@ -92,26 +113,38 @@ extension Gym: FirestoreCodable {
         } else {
             profileImage = nil
         }
-        
+
         // Handle verification fields
         let verificationStatusString = firestoreData["verificationStatus"] as? String ?? "pending"
         let verificationStatus = GymVerificationStatus(rawValue: verificationStatusString) ?? .pending
         let verificationNotes = firestoreData["verificationNotes"] as? String
-        
+
         let verifiedAt: Date?
         if let verifiedTimestamp = firestoreData["verifiedAt"] as? Timestamp {
             verifiedAt = verifiedTimestamp.dateValue()
         } else {
             verifiedAt = nil
         }
-        
+
         let verifiedBy = firestoreData["verifiedBy"] as? String
-                
-        // Initialize with new structure (without ownerId and staffUserIds)
+
+        // Handle operating hours
+        let operatingHours: GymOperatingHours?
+        if let hoursDict = firestoreData["operatingHours"] as? [String: Any],
+           let jsonData = try? JSONSerialization.data(withJSONObject: hoursDict) {
+            operatingHours = try? JSONDecoder().decode(GymOperatingHours.self, from: jsonData)
+        } else {
+            operatingHours = nil
+        }
+
+        let website = firestoreData["website"] as? String
+        let phoneNumber = firestoreData["phoneNumber"] as? String
+
+        // Initialize with new structure
         self.init(
             id: id,
-            email: email,
             name: name,
+            companyId: companyId,
             description: description,
             location: location,
             climbingType: climbingType,
@@ -122,7 +155,11 @@ extension Gym: FirestoreCodable {
             verificationStatus: verificationStatus,
             verificationNotes: verificationNotes,
             verifiedAt: verifiedAt,
-            verifiedBy: verifiedBy
+            verifiedBy: verifiedBy,
+            operatingHours: operatingHours,
+            website: website,
+            email: email,
+            phoneNumber: phoneNumber
         )
     }
 }

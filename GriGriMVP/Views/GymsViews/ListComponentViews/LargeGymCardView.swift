@@ -10,107 +10,94 @@ import SwiftUI
 struct LargeGymCardView: View {
     let gym: Gym
     @ObservedObject var viewModel: GymsViewModel
-    @State private var showingVisitOptions = false
-    @State private var gymToVisit: Gym?
+    @State private var showingMapView = false
     
     var body: some View {
-        VStack(spacing: 4) {
-            // Top section: Gym info and Visit button horizontally aligned
-            HStack(spacing: 8) {
-                // Gym profile image
-                if let profileImage = gym.profileImage {
-                    AsyncImage(url: profileImage.url) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 56, height: 56)
-                            .clipShape(Circle())
-                    } placeholder: {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 56, height: 56)
-                            .overlay(
-                                Image(systemName: "building.2")
-                                    .foregroundColor(AppTheme.appPrimary)
-                            )
-                    }
-                } else {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Image(systemName: "building.2")
-                                .foregroundColor(.gray)
-                        )
-                }
-                
-                // Gym details
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(gym.name)
-                        .font(.appCardTitleLarge)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
-                        .truncationMode(.tail)
-                        .foregroundColor(AppTheme.appTextPrimary)
-                    
-                    if let distance = viewModel.distanceToGym(gym) {
-                        Text(distance)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                // Visit button
-                PrimaryActionButton(title: "Visit",
-                                    style: .primary,
-                                    size: .compact) {
-                    gymToVisit = gym
-                    showingVisitOptions = true
-                }
-                                    .frame(width: 96)
-            }
-            
-            // Climbing type icons with labels
-            HStack(spacing: 20) {
-                Spacer()
-                ForEach(gym.climbingType.sortedForDisplay(), id: \.self) { type in
-                    VStack(spacing: -2) {
-                        climbingTypeIcon(for: type)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 40, height: 40)
-                            .foregroundColor(AppTheme.appPrimary)
+        Button(action: {
+            viewModel.selectGym(gym)
+        }) {
+            VStack(spacing: 4) {
+                // Top section: Gym info and Map button horizontally aligned
+                HStack(spacing: 8) {
+                    // Gym profile image - use cached image view
+                    CachedGymImageView(gym: gym, size: 56)
+
+                    // Gym details
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(gym.name)
+                            .font(.appCardTitleLarge)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                            .truncationMode(.tail)
+                            .foregroundColor(AppTheme.appTextPrimary)
                         
-                        Text(climbingTypeLabel(for: type))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        if let distance = viewModel.distanceToGym(gym) {
+                            Text(distance)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    
+                    Spacer()
+                    
+                    // Map button
+                    if #available(iOS 26.0, *) {
+                        Button(action: {
+                            showingMapView = true
+                        }) {
+                            Image(systemName: "map")
+                                .font(.system(size: 20))
+                                .foregroundColor(AppTheme.appPrimary)
+                                .background(AppTheme.appContentBG)
+                        }
+                        .buttonStyle(.glass)
+                    } else {
+                        Button(action: {
+                            showingMapView = true
+                        }) {
+                            Image(systemName: "map")
+                                .font(.system(size: 20))
+                                .foregroundColor(AppTheme.appPrimary)
+                                .frame(width: 42, height: 42)
+                                .background(AppTheme.appContentBG)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(AppTheme.appPrimary.opacity(0.5), lineWidth: 1)
+                                )
+                        }
+                    }
+                             
                 }
-                Spacer()
+                
+                // Climbing type icons with labels
+                HStack(spacing: 20) {
+                    Spacer()
+                    ForEach(gym.climbingType.sortedForDisplay(), id: \.self) { type in
+                        VStack(spacing: -2) {
+                            climbingTypeIcon(for: type)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 40, height: 40)
+                                .foregroundColor(AppTheme.appPrimary)
+                            
+                            Text(climbingTypeLabel(for: type))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer()
+                }
             }
+            .padding(12)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .appCardShadow()
         }
-        .padding(12)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .appCardShadow()
-        .gymVisitDialog(
-            isPresented: $showingVisitOptions,
-            gym: gymToVisit,
-            onViewInMaps: {
-                if let gym = gymToVisit {
-                    viewModel.openGymInMaps(gym)
-                }
-                showingVisitOptions = false
-                gymToVisit = nil
-            },
-            onViewProfile: {
-                viewModel.selectGym(gym)
-                showingVisitOptions = false
-                gymToVisit = nil
-            }
-        )
+        .buttonStyle(.plain)
+        .navigationDestination(isPresented: $showingMapView) {
+            GymsMapView(viewModel: viewModel, selectedGymId: gym.id)
+        }
     }
     
     private func climbingTypeIcon(for type: ClimbingTypes) -> Image {

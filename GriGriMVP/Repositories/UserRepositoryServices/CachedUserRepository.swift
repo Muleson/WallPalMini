@@ -164,16 +164,19 @@ final class CachedUserRepository: UserRepositoryProtocol {
     func updateUserFavoriteEvents(userId: String, eventId: String, isFavorite: Bool) async throws -> [String] {
         // Update in base repository
         let updatedFavoriteEventIds = try await baseRepository.updateUserFavoriteEvents(userId: userId, eventId: eventId, isFavorite: isFavorite)
-        
+
         // Invalidate user cache so updated favorites are fetched next time
         cache.remove(forKey: CacheManager.CacheKeys.userById(userId))
-        
+
         // Also invalidate current user cache if this is the current user
         if let currentAuthUserId = getCurrentAuthUser(), currentAuthUserId == userId {
             cache.remove(forKey: CacheManager.CacheKeys.currentUser())
         }
-        
-        print("🚫 Invalidated user cache for \(userId) due to favorite event update")
+
+        // IMPORTANT: Invalidate the favorite events cache so SavedEventsView gets fresh data
+        searchCache.remove(forKey: CacheManager.CacheKeys.favoriteEvents(userId))
+
+        print("🚫 Invalidated user cache and favorite events cache for \(userId) due to favorite event update")
         return updatedFavoriteEventIds
     }
 }

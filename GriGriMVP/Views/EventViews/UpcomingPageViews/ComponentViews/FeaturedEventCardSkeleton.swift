@@ -57,7 +57,7 @@ struct FeaturedEventCardSkeleton: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .appCardShadow()
-        .redacted(reason: .placeholder)
+        .shimmer()
     }
 }
 

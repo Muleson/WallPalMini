@@ -127,9 +127,46 @@ struct AmmenitiesIcons {
     }
 }
 
+// MARK: - Shimmer Effect
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                GeometryReader { geometry in
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .white.opacity(0.6), location: 0.5),
+                            .init(color: .clear, location: 1)
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: geometry.size.width)
+                    .offset(x: phase * geometry.size.width * 2 - geometry.size.width)
+                    .animation(
+                        .linear(duration: 1.5)
+                        .repeatForever(autoreverses: false),
+                        value: phase
+                    )
+                }
+            )
+            .mask(content)
+            .onAppear {
+                phase = 1
+            }
+    }
+}
+
 // MARK: - View Extensions
 extension View {
     func appCardShadow() -> some View {
         self.shadow(color: AppTheme.appCardShadow, radius: 4, x: 0, y: 4)
+    }
+
+    func shimmer() -> some View {
+        self.modifier(ShimmerModifier())
     }
 }

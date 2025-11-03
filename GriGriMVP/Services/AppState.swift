@@ -25,12 +25,13 @@ class AppState: ObservableObject {
     @Published var user: User?
     @Published var gym: Gym?
     @Published var profileType: ProfileType?
-    
+    @Published var deepLinkManager = DeepLinkManager()
+
     private let userRepository: UserRepositoryProtocol
-    
+
     init(userRepository: UserRepositoryProtocol = RepositoryFactory.createUserRepository()) {
         self.userRepository = userRepository
-        
+
         Task { [weak self] in
             guard let self = self else { return }
             await checkAuthState()
@@ -71,7 +72,7 @@ class AppState: ObservableObject {
 
 struct RootView: View {
     @StateObject private var appState = AppState()
-    
+
     var body: some View {
         Group {
             switch appState.authState {
@@ -93,6 +94,15 @@ struct RootView: View {
                 case .unauthenticated:
                     AuthContainerView(appState: appState)
             }
+        }
+        .onOpenURL { url in
+            handleDeepLink(url)
+        }
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        if let destination = appState.deepLinkManager.handleURL(url) {
+            appState.deepLinkManager.setPendingDeepLink(destination)
         }
     }
 }

@@ -338,119 +338,66 @@ class FirebaseEventRepository: EventRepositoryProtocol {
     }
 }
 
-// MARK: - Display-Optimized Methods
+// MARK: - Filtered Query Methods
 extension FirebaseEventRepository {
-    
-    func fetchAllEventsForDisplay() async throws -> [EventItem] {
-        let snapshot = try await db.collection(eventsCollection).getDocuments()
-        var events: [EventItem] = []
-        
-        for document in snapshot.documents {
-            if let event = try await decodeEventForDisplay(document) {
-                events.append(event)
-            }
+
+    func fetchEventsWithFilters(
+        eventTypes: Set<EventType>? = nil,
+        startDateAfter: Date? = nil,
+        startDateBefore: Date? = nil,
+        isFeatured: Bool? = nil,
+        hostGymId: String? = nil,
+        limit: Int? = nil
+    ) async throws -> [EventItem] {
+
+        var query: Query = db.collection(eventsCollection)
+        var filterDescription = "Filters applied:"
+
+        // Apply event type filter
+        if let eventTypes = eventTypes, !eventTypes.isEmpty {
+            let typeStrings = eventTypes.map { $0.rawValue }
+            query = query.whereField("eventType", in: typeStrings)
+            filterDescription += " types=[\(typeStrings.joined(separator: ", "))]"
         }
-        
-        return events
-    }
-    
-    func fetchEventsForGymDisplay(gymId: String) async throws -> [EventItem] {
-        let snapshot = try await db.collection(eventsCollection)
-            .whereField("hostId", isEqualTo: gymId)
-            .getDocuments()
-        
-        var events: [EventItem] = []
-        
-        for document in snapshot.documents {
-            if let event = try await decodeEventForDisplay(document) {
-                events.append(event)
-            }
+
+        // Apply date range filters
+        if let startDate = startDateAfter {
+            query = query.whereField("startDate", isGreaterThanOrEqualTo: startDate)
+            filterDescription += " startDateAfter=\(startDate)"
         }
-        
-        return events
-    }
-    
-    func fetchFavoriteEventsForDisplay(userId: String) async throws -> [EventItem] {
-        // First get the user to retrieve their favorite event IDs
-        let userDocument = try await db.collection(usersCollection).document(userId).getDocument()
-        guard let favoriteEventIds = userDocument.data()?["favouriteEvents"] as? [String] else {
-            return []
+
+        if let endDate = startDateBefore {
+            query = query.whereField("startDate", isLessThanOrEqualTo: endDate)
+            filterDescription += " startDateBefore=\(endDate)"
         }
-        
-        // If there are no favorite events, return empty array
-        if favoriteEventIds.isEmpty {
-            return []
+
+        // Apply featured filter
+        if let featured = isFeatured {
+            query = query.whereField("isFeatured", isEqualTo: featured)
+            filterDescription += " isFeatured=\(featured)"
         }
-        
-        // Firestore limits the IN query to 10 items, so we need to chunk larger arrays
-        let chunkedIds = favoriteEventIds.chunked(into: 10)
-        var allEvents: [EventItem] = []
-        
-        // Process each chunk separately
-        for chunk in chunkedIds {
-            let chunkSnapshot = try await db.collection(eventsCollection)
-                .whereField(FieldPath.documentID(), in: chunk)
-                .getDocuments()
-            
-            for document in chunkSnapshot.documents {
-                if let event = try await decodeEventForDisplay(document) {
-                    allEvents.append(event)
-                }
-            }
+
+        // Apply gym filter
+        if let gymId = hostGymId {
+            query = query.whereField("hostId", isEqualTo: gymId)
+            filterDescription += " hostId=\(gymId)"
         }
-        
-        return allEvents
-    }
-    
-    func searchEventsForDisplay(query: String) async throws -> [EventItem] {
-        // If query is empty, return all events for display
-        if query.isEmpty {
-            return try await fetchAllEventsForDisplay()
+
+        // Order and limit
+        query = query.order(by: "startDate", descending: false)
+
+        if let limit = limit {
+            query = query.limit(to: limit)
+            filterDescription += " limit=\(limit)"
         }
-        
-        // Create a query that searches by name or description
-        let lowercaseQuery = query.lowercased()
-        
-        // Using multiple queries for more comprehensive search
-        let nameQuery = db.collection(eventsCollection)
-            .whereField("name", isGreaterThanOrEqualTo: lowercaseQuery)
-            .whereField("name", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
-        
-        let descriptionQuery = db.collection(eventsCollection)
-            .whereField("description", isGreaterThanOrEqualTo: lowercaseQuery)
-            .whereField("description", isLessThanOrEqualTo: lowercaseQuery + "\u{f8ff}")
-        
-        // Execute both queries
-        async let nameSnapshot = nameQuery.getDocuments()
-        async let descriptionSnapshot = descriptionQuery.getDocuments()
-        
-        // Combine results
-        let (nameResults, descriptionResults) = try await (nameSnapshot, descriptionSnapshot)
-        var uniqueEventIds = Set<String>()
-        var events: [EventItem] = []
-        
-        // Process name results
-        for document in nameResults.documents {
-            let documentId = document.documentID
-            if !uniqueEventIds.contains(documentId) {
-                uniqueEventIds.insert(documentId)
-                if let event = try await decodeEventForDisplay(document) {
-                    events.append(event)
-                }
-            }
-        }
-        
-        // Process description results
-        for document in descriptionResults.documents {
-            let documentId = document.documentID
-            if !uniqueEventIds.contains(documentId) {
-                uniqueEventIds.insert(documentId)
-                if let event = try await decodeEventForDisplay(document) {
-                    events.append(event)
-                }
-            }
-        }
-        
+
+        print("🔍 Firestore query: \(filterDescription)")
+
+        let snapshot = try await query.getDocuments()
+        let events = try await decodeEventsForDisplay(from: snapshot.documents)
+
+        print("✅ Firestore returned \(events.count) events")
+
         return events
     }
 }
@@ -460,42 +407,41 @@ extension FirebaseEventRepository {
     
     func fetchClassesForHomeSection() async throws -> [EventItem] {
         print("📚 Fetching classes for home section")
-        
-        // First try to get 5 featured class events
-        let featuredQuery = db.collection(eventsCollection)
+
+        // Fetch class events - need to fetch more to handle recurring events filtering client-side
+        let query = db.collection(eventsCollection)
             .whereField("eventType", isEqualTo: EventType.gymClass.rawValue)
-            .whereField("isFeatured", isEqualTo: true)
-            .whereField("startDate", isGreaterThan: Date())
             .order(by: "startDate", descending: false)
-            .limit(to: 5)
-        
-        let featuredSnapshot = try await featuredQuery.getDocuments()
-        var classEvents = try await decodeEventsForDisplay(from: featuredSnapshot.documents)
-        
-        // If we need more events, get non-featured events sorted by time proximity
-        if classEvents.count < 5 {
-            let remainingNeeded = 5 - classEvents.count
-            let featuredIds = Set(classEvents.map { $0.id })
-            
-            let nonFeaturedQuery = db.collection(eventsCollection)
-                .whereField("eventType", isEqualTo: EventType.gymClass.rawValue)
-                .whereField("startDate", isGreaterThan: Date())
-                .order(by: "startDate", descending: false)
-                .limit(to: remainingNeeded + featuredIds.count) // Get extra to filter out duplicates
-            
-            let nonFeaturedSnapshot = try await nonFeaturedQuery.getDocuments()
-            let nonFeaturedEvents = try await decodeEventsForDisplay(from: nonFeaturedSnapshot.documents)
-            
-            // Filter out already fetched featured events and take what we need
-            let additionalEvents = nonFeaturedEvents
-                .filter { !featuredIds.contains($0.id) }
-                .prefix(remainingNeeded)
-            
-            classEvents.append(contentsOf: additionalEvents)
+            .limit(to: 20) // Fetch more to ensure we get enough after filtering
+
+        let snapshot = try await query.getDocuments()
+        let allClassEvents = try await decodeEventsForDisplay(from: snapshot.documents)
+
+        // Filter to include: future events OR recurring events (regardless of original start date)
+        let currentDate = Date()
+        let relevantEvents = allClassEvents.filter { event in
+            // Include if it's a future event
+            if event.startDate > currentDate {
+                return true
+            }
+
+            // Include if it's a recurring event (should still be shown even if original start date is past)
+            if event.frequency != nil {
+                return true
+            }
+
+            return false
         }
-        
-        print("📚 Fetched \(classEvents.count) class events (\(featuredSnapshot.documents.count) featured)")
-        return Array(classEvents.prefix(5))
+
+        // Prioritize featured events, then by date
+        let featuredEvents = relevantEvents.filter { $0.isFeatured == true }
+        let nonFeaturedEvents = relevantEvents.filter { $0.isFeatured != true }
+
+        let combinedEvents = featuredEvents + nonFeaturedEvents
+        let result = Array(combinedEvents.prefix(5))
+
+        print("📚 Fetched \(result.count) class events (\(featuredEvents.count) featured, including recurring)")
+        return result
     }
     
     func fetchFeaturedEventsForCarousel() async throws -> [EventItem] {
@@ -555,53 +501,65 @@ extension FirebaseEventRepository {
     
     func fetchSocialEventsForHomeSection(userLocation: CLLocation?) async throws -> [EventItem] {
         print("🤝 Fetching social events for home section")
-        
-        // First get 2 featured social events
-        let featuredQuery = db.collection(eventsCollection)
+
+        // Fetch social events - need to fetch more to handle recurring events filtering client-side
+        let query = db.collection(eventsCollection)
             .whereField("eventType", isEqualTo: EventType.social.rawValue)
-            .whereField("isFeatured", isEqualTo: true)
-            .whereField("startDate", isGreaterThan: Date())
             .order(by: "startDate", descending: false)
-            .limit(to: 2)
-        
-        let featuredSnapshot = try await featuredQuery.getDocuments()
-        var socialEvents = try await decodeEventsForDisplay(from: featuredSnapshot.documents)
-        
-        // Get remaining 3 events for proximity sorting
-        if socialEvents.count < 5 {
-            let remainingNeeded = 5 - socialEvents.count
-            let featuredIds = Set(socialEvents.map { $0.id })
-            
-            let nonFeaturedQuery = db.collection(eventsCollection)
-                .whereField("eventType", isEqualTo: EventType.social.rawValue)
-                .whereField("startDate", isGreaterThan: Date())
-                .order(by: "startDate", descending: false)
-                .limit(to: remainingNeeded * 3) // Get extra for location sorting
-            
-            let nonFeaturedSnapshot = try await nonFeaturedQuery.getDocuments()
-            let nonFeaturedEvents = try await decodeEventsForDisplay(from: nonFeaturedSnapshot.documents)
-            
-            // Filter out featured events
-            var proximityEvents = nonFeaturedEvents.filter { !featuredIds.contains($0.id) }
-            
-            // Sort by proximity if user location is available
-            if let userLocation = userLocation {
-                proximityEvents = proximityEvents.compactMap { event -> (EventItem, Double)? in
-                    // Get location from gym's location data
-                    let gymLocation = event.host.location
-                    let eventCLLocation = gymLocation.toCLLocation()
-                    let distance = userLocation.distance(from: eventCLLocation)
-                    return (event, distance)
-                }
-                .sorted { $0.1 < $1.1 } // Sort by distance
-                .map { $0.0 } // Extract events
+            .limit(to: 20) // Fetch more to ensure we get enough after filtering
+
+        let snapshot = try await query.getDocuments()
+        let allSocialEvents = try await decodeEventsForDisplay(from: snapshot.documents)
+
+        // Filter to include: future events OR recurring events (regardless of original start date)
+        let currentDate = Date()
+        let relevantEvents = allSocialEvents.filter { event in
+            // Include if it's a future event
+            if event.startDate > currentDate {
+                return true
             }
-            
-            let additionalEvents = Array(proximityEvents.prefix(remainingNeeded))
-            socialEvents.append(contentsOf: additionalEvents)
+
+            // Include if it's a recurring event (should still be shown even if original start date is past)
+            if event.frequency != nil {
+                return true
+            }
+
+            return false
         }
-        
-        print("🤝 Fetched \(socialEvents.count) social events (\(featuredSnapshot.documents.count) featured)")
-        return Array(socialEvents.prefix(5))
+
+        // Separate featured and non-featured
+        let featuredEvents = relevantEvents.filter { $0.isFeatured == true }
+        var nonFeaturedEvents = relevantEvents.filter { $0.isFeatured != true }
+
+        // Sort by proximity if user location is available
+        if let userLocation = userLocation {
+            nonFeaturedEvents = nonFeaturedEvents.compactMap { event -> (EventItem, Double)? in
+                let gymLocation = event.host.location
+                let eventCLLocation = gymLocation.toCLLocation()
+                let distance = userLocation.distance(from: eventCLLocation)
+                return (event, distance)
+            }
+            .sorted { $0.1 < $1.1 } // Sort by distance
+            .map { $0.0 } // Extract events
+        }
+
+        // Combine: featured first (up to 2), then by proximity
+        let featuredCount = min(featuredEvents.count, 2)
+        let result = Array(featuredEvents.prefix(featuredCount)) + Array(nonFeaturedEvents.prefix(5 - featuredCount))
+
+        print("🤝 Fetched \(result.count) social events (\(featuredCount) featured, including recurring)")
+        return Array(result.prefix(5))
+    }
+
+    // MARK: - Protocol-Conforming Wrapper Methods
+
+    /// Protocol-conforming method that delegates to fetchClassesForHomeSection
+    func fetchClassesForUpcomingView() async throws -> [EventItem] {
+        return try await fetchClassesForHomeSection()
+    }
+
+    /// Protocol-conforming method that delegates to fetchSocialEventsForHomeSection
+    func fetchSocialEventsForUpcomingView(userLocation: CLLocation?) async throws -> [EventItem] {
+        return try await fetchSocialEventsForHomeSection(userLocation: userLocation)
     }
 }

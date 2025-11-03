@@ -285,142 +285,140 @@ final class CachedEventRepository: EventRepositoryProtocol {
     }
 }
 
-// MARK: - Display-Optimized Methods
-
+// MARK: - Filtered Query with Progressive Caching
 extension CachedEventRepository {
-    
-    /// Fetch events with minimal related entity data for display lists
-    /// This method skips author lookup to reduce database calls
-    func fetchAllEventsForDisplay() async throws -> [EventItem] {
-        let cacheKey = CacheManager.CacheKeys.allEvents()
-        
-        // Try to get from cache first
-        if let cachedIds = searchCache.get(forKey: cacheKey) {
-            let cachedEvents = cachedIds.compactMap { eventCache.get(forKey: CacheManager.CacheKeys.eventById($0)) }
-            
-            // Only return cached result if we have all events
-            if cachedEvents.count == cachedIds.count {
-                print("🎯 Cache hit: fetchAllEventsForDisplay (\(cachedEvents.count) events)")
-                return cachedEvents
-            }
-        }
-        
-        print("🌐 Cache miss: fetchAllEventsForDisplay - fetching from source")
-        
-        // Use display-optimized method from base repository
-        let events = try await baseRepository.fetchAllEventsForDisplay()
-        
-        // Cache individual events and related entities
-        await cacheEventsAndRelatedEntities(events)
-        
-        // Cache the list of event IDs
-        let eventIds = events.map { $0.id }
-        searchCache.set(eventIds, forKey: cacheKey)
-        
-        print("💾 Cached \(events.count) events for display (author lookup skipped)")
-        return events
+
+    // MARK: - Individual Event Caching Helper
+
+    /// Helper to cache individual event and its related entities
+    private func cacheEventIndividually(_ event: EventItem) {
+        // Cache the event
+        eventCache.set(event, forKey: CacheManager.CacheKeys.eventById(event.id))
+
+        // Cache the gym (host)
+        gymCache.set(event.host, forKey: CacheManager.CacheKeys.gymById(event.host.id))
+
+        print("💾 Cached: \(event.name) (id: \(event.id))")
     }
-    
-    /// Fetch events for a gym with minimal related entity data for display
-    /// This method skips author lookup to reduce database calls
-    func fetchEventsForGymDisplay(gymId: String) async throws -> [EventItem] {
-        let cacheKey = CacheManager.CacheKeys.eventsForGym(gymId)
-        
-        // Try to get from cache first
-        if let cachedIds = searchCache.get(forKey: cacheKey) {
-            let cachedEvents = cachedIds.compactMap { eventCache.get(forKey: CacheManager.CacheKeys.eventById($0)) }
-            
-            // Only return cached result if we have all events
-            if cachedEvents.count == cachedIds.count {
-                print("🎯 Cache hit: fetchEventsForGymDisplay(\(gymId)) - \(cachedEvents.count) events")
-                return cachedEvents
-            }
+
+    /// Generate a cache key signature from filter parameters
+    private func generateFilterSignature(
+        eventTypes: Set<EventType>?,
+        startDateAfter: Date?,
+        startDateBefore: Date?,
+        isFeatured: Bool?,
+        hostGymId: String?,
+        limit: Int?
+    ) -> String {
+        var components: [String] = []
+
+        if let types = eventTypes, !types.isEmpty {
+            let typeStrings = types.map { $0.rawValue }.sorted().joined(separator: ",")
+            components.append("types=\(typeStrings)")
         }
-        
-        print("🌐 Cache miss: fetchEventsForGymDisplay(\(gymId)) - fetching from source")
-        
-        // Use display-optimized method from base repository
-        let events = try await baseRepository.fetchEventsForGymDisplay(gymId: gymId)
-        
-        // Cache individual events and related entities
-        await cacheEventsAndRelatedEntities(events)
-        
-        // Cache the list of event IDs for this gym
-        let eventIds = events.map { $0.id }
-        searchCache.set(eventIds, forKey: cacheKey)
-        
-        print("💾 Cached \(events.count) events for gym \(gymId) for display")
-        return events
+
+        if let date = startDateAfter {
+            components.append("after=\(Int(date.timeIntervalSince1970))")
+        }
+
+        if let date = startDateBefore {
+            components.append("before=\(Int(date.timeIntervalSince1970))")
+        }
+
+        if let featured = isFeatured {
+            components.append("featured=\(featured)")
+        }
+
+        if let gymId = hostGymId {
+            components.append("gym=\(gymId)")
+        }
+
+        if let lim = limit {
+            components.append("limit=\(lim)")
+        }
+
+        return components.joined(separator: "|")
     }
-    
-    /// Fetch favorite events with minimal related entity data for display
-    /// This method skips author lookup to reduce database calls
-    func fetchFavoriteEventsForDisplay(userId: String) async throws -> [EventItem] {
-        let cacheKey = CacheManager.CacheKeys.favoriteEvents(userId)
-        
-        // Try to get from cache first
+
+    // MARK: - Filtered Query with Progressive Caching
+
+    /// Fetch events with server-side filters (with progressive individual caching)
+    func fetchEventsWithFilters(
+        eventTypes: Set<EventType>?,
+        startDateAfter: Date?,
+        startDateBefore: Date?,
+        isFeatured: Bool?,
+        hostGymId: String?,
+        limit: Int?
+    ) async throws -> [EventItem] {
+
+        // Generate cache key from filter parameters
+        let filterSignature = generateFilterSignature(
+            eventTypes: eventTypes,
+            startDateAfter: startDateAfter,
+            startDateBefore: startDateBefore,
+            isFeatured: isFeatured,
+            hostGymId: hostGymId,
+            limit: limit
+        )
+        let cacheKey = "events:filter:\(filterSignature)"
+
+        // Try to get cached event IDs for this query
         if let cachedIds = searchCache.get(forKey: cacheKey) {
-            let cachedEvents = cachedIds.compactMap { eventCache.get(forKey: CacheManager.CacheKeys.eventById($0)) }
-            
-            // Only return cached result if we have all events
+            // Try to load all events from individual caches
+            let cachedEvents = cachedIds.compactMap {
+                eventCache.get(forKey: CacheManager.CacheKeys.eventById($0))
+            }
+
+            // Only return if all events found in cache
             if cachedEvents.count == cachedIds.count {
-                print("🎯 Cache hit: fetchFavoriteEventsForDisplay(\(userId)) - \(cachedEvents.count) events")
+                print("🎯 Cache hit: Filtered query returned \(cachedEvents.count) events from cache")
                 return cachedEvents
             }
         }
-        
-        print("🌐 Cache miss: fetchFavoriteEventsForDisplay(\(userId)) - fetching from source")
-        
-        // Use display-optimized method from base repository
-        let events = try await baseRepository.fetchFavoriteEventsForDisplay(userId: userId)
-        
-        // Cache individual events and related entities
-        await cacheEventsAndRelatedEntities(events)
-        
-        // Cache the list of favorite event IDs
-        let eventIds = events.map { $0.id }
-        searchCache.set(eventIds, forKey: cacheKey)
-        
-        print("💾 Cached \(events.count) favorite events for user \(userId) for display")
-        return events
-    }
-    
-    /// Search events with minimal related entity data for display
-    /// This method skips author lookup to reduce database calls
-    func searchEventsForDisplay(query: String) async throws -> [EventItem] {
-        let cacheKey = CacheManager.CacheKeys.eventSearch(query)
-        
-        // Try to get from cache first
-        if let cachedIds = searchCache.get(forKey: cacheKey) {
-            let cachedEvents = cachedIds.compactMap { eventCache.get(forKey: CacheManager.CacheKeys.eventById($0)) }
-            
-            // Only return cached result if we have all events
-            if cachedEvents.count == cachedIds.count {
-                print("🎯 Cache hit: searchEventsForDisplay('\(query)') - \(cachedEvents.count) results")
-                return cachedEvents
-            }
+
+        print("🌐 Cache miss: Fetching filtered events from Firestore")
+
+        // Fetch from base repository
+        let events = try await baseRepository.fetchEventsWithFilters(
+            eventTypes: eventTypes,
+            startDateAfter: startDateAfter,
+            startDateBefore: startDateBefore,
+            isFeatured: isFeatured,
+            hostGymId: hostGymId,
+            limit: limit
+        )
+
+        // Cache each event individually as it's processed
+        for event in events {
+            cacheEventIndividually(event)
         }
-        
-        print("🌐 Cache miss: searchEventsForDisplay('\(query)') - fetching from source")
-        
-        // Use display-optimized method from base repository
-        let events = try await baseRepository.searchEventsForDisplay(query: query)
-        
-        // Cache individual events and related entities
-        await cacheEventsAndRelatedEntities(events)
-        
-        // Cache the search result IDs
+
+        // Cache the query result (just event IDs)
         let eventIds = events.map { $0.id }
-        searchCache.set(eventIds, forKey: cacheKey)
-        
-        print("💾 Cached search result for '\(query)': \(events.count) events for display")
+        searchCache.set(eventIds, forKey: cacheKey, timeToLive: 15 * 60) // 15 min TTL for filter queries
+
+        print("💾 Cached filter query: \(eventIds.count) event IDs under key '\(filterSignature)'")
+
         return events
     }
 }
 
 // MARK: - Section-Specific Batch Loading with Caching
 extension CachedEventRepository {
-    
+
+    // MARK: Protocol-conforming methods (called by UpcomingViewModel)
+
+    func fetchClassesForUpcomingView() async throws -> [EventItem] {
+        return try await fetchClassesForHomeSection()
+    }
+
+    func fetchSocialEventsForUpcomingView(userLocation: CLLocation?) async throws -> [EventItem] {
+        return try await fetchSocialEventsForHomeSection(userLocation: userLocation)
+    }
+
+    // MARK: Internal implementation methods
+
     func fetchClassesForHomeSection() async throws -> [EventItem] {
         let cacheKey = CacheManager.CacheKeys.sectionEvents("classes")
         

@@ -8,7 +8,7 @@
 import Foundation
 import CoreLocation
 import Combine
-import EventKit
+@preconcurrency import EventKit
 
 @MainActor
 class HomeViewModel: ObservableObject {
@@ -52,7 +52,7 @@ class HomeViewModel: ObservableObject {
     
     // Current user data
     private var currentUser: User?
-    private var favoritedEventIds: Set<String> = []
+    @Published private(set) var favoritedEventIds: Set<String> = []
     
     // MARK: - Computed Properties
     
@@ -83,10 +83,13 @@ class HomeViewModel: ObservableObject {
 
         setupLocationObservers()
         fetchUserAndFavorites()
-        fetchEvents()
-        
+        // NOTE: Events will be loaded on-demand when HomeView appears
+        // This eliminates upfront database calls on app launch
+
         // Check for existing cached location
         checkCachedLocation()
+
+        print("🏠 HomeViewModel: Initialized (0 events loaded)")
     }
     
     // MARK: - Location Management
@@ -178,59 +181,64 @@ class HomeViewModel: ObservableObject {
     }
     
     // MARK: - Data Fetching
-    
-    func fetchEvents() {
+
+    /// Load home carousel events on-demand (called by HomeView.onAppear)
+    func loadHomeEvents() {
+        guard !isLoadingEvents && allEvents.isEmpty else {
+            return
+        }
+
         isLoadingEvents = true
-        
+
         Task {
             do {
-                // Use batch loading to fetch only the events we need
                 let events = try await fetchBatchEventsForHome()
-                
                 allEvents = events
-                isLoadingEvents = false
                 processEventsForHome()
-                
+                isLoadingEvents = false
             } catch {
+                isLoadingEvents = false
                 errorMessage = "Failed to load events: \(error.localizedDescription)"
                 hasError = true
-                isLoadingEvents = false
             }
         }
     }
     
-    /// Optimized batch loading for home view - loads only 5 events of specified types with media
+    /// Optimized batch loading for home view - loads only carousel events with server-side filters
     private func fetchBatchEventsForHome() async throws -> [EventItem] {
-        // Get all events for display (optimized method)
-        let allEvents = try await eventRepository.fetchAllEventsForDisplay()
-        
         let currentDate = Date()
         let featuredDeadline = currentDate.addingTimeInterval(featuredEventTimeWindow)
-        
-        // Filter to only include events we care about
-        let relevantEvents = allEvents.filter { event in
-            event.startDate > currentDate &&
-            event.mediaItems?.isEmpty == false &&
-            allowedEventTypes.contains(event.eventType)
+
+        // Use new filtered query instead of loading ALL events
+        let events = try await eventRepository.fetchEventsWithFilters(
+            eventTypes: allowedEventTypes,
+            startDateAfter: currentDate,
+            startDateBefore: nil,
+            isFeatured: nil,
+            hostGymId: nil,
+            limit: 20
+        )
+
+        // Filter for events with media
+        let eventsWithMedia = events.filter { event in
+            !(event.mediaItems?.isEmpty ?? true)
         }
-        
-        // Separate featured events within the time window
-        let featuredCandidates = relevantEvents.filter { event in
-            event.isFeatured == true &&
-            event.startDate <= featuredDeadline
+
+        // Separate featured and non-featured events
+        let featuredCandidates = eventsWithMedia.filter { event in
+            event.startDate > currentDate && event.startDate <= featuredDeadline
         }
-        
-        // Get non-featured events
-        let nonFeaturedEvents = relevantEvents.filter { event in
-            event.isFeatured != true
+
+        let nonFeaturedEvents = eventsWithMedia.filter { event in
+            event.startDate > featuredDeadline
         }
-        
+
         // Combine featured events first, then non-featured, sorted by date
-        let combinedEvents = (featuredCandidates + nonFeaturedEvents)
-            .sorted { $0.startDate < $1.startDate }
+        let combinedEvents = Array((featuredCandidates + nonFeaturedEvents)
+            .sorted(by: { $0.startDate < $1.startDate })
+            .prefix(totalEventsToLoad))
         
-        // Return only the number we need
-        return Array(combinedEvents.prefix(totalEventsToLoad))
+        return combinedEvents
     }
     
     /// Process the loaded events to determine featured event and upcoming events
@@ -283,6 +291,8 @@ class HomeViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Nearest Gym Logic
+    
     func findNearestGym() {
         guard let userLocation = userLocation else { return }
         
@@ -294,6 +304,11 @@ class HomeViewModel: ObservableObject {
             do {
                 let gyms = try await gymRepository.fetchAllGyms()
                 
+                // Capture passes on main thread before filtering
+                let currentPasses = await MainActor.run {
+                    return passManager.passes
+                }
+                
                 await MainActor.run { [weak self] in
                     guard let self = self else { return }
                     allGyms = gyms
@@ -301,7 +316,7 @@ class HomeViewModel: ObservableObject {
                 
                 // Filter gyms to only include those with passes
                 let gymsWithPasses = gyms.filter { gym in
-                    passManager.passes.contains { pass in
+                    currentPasses.contains { pass in
                         pass.gymId == gym.id
                     }
                 }
@@ -334,12 +349,10 @@ class HomeViewModel: ObservableObject {
     /// Sets the active pass for the given gym and returns true if successful
     func setActivePassForGym(_ gym: Gym) -> Bool {
         guard let pass = passManager.passes.first(where: { $0.gymId == gym.id }) else {
-            print("No pass found for gym: \(gym.name)")
             return false
         }
         
         passManager.setActivePass(id: pass.id)
-        print("Set active pass for gym: \(gym.name)")
         return true
     }
     
@@ -377,7 +390,6 @@ class HomeViewModel: ObservableObject {
                     } else {
                         favoritedEventIds.insert(event.id)
                     }
-                    updateFavoriteEvents()
                 }
             } catch {
                 errorMessage = "Failed to update favorite: \(error.localizedDescription)"
@@ -431,10 +443,10 @@ class HomeViewModel: ObservableObject {
     }
     
     // MARK: - Public Refresh Method
-    
+
     func refresh() {
         fetchUserAndFavorites()
-        fetchEvents()
+        loadHomeEvents()
         refreshLocation()
     }
     
@@ -476,6 +488,6 @@ class HomeViewModel: ObservableObject {
     
     /// Check if an event requires registration
     func requiresRegistration(_ event: EventItem) -> Bool {
-        return event.registrationRequired ?? true // Default to true if not specified
+        return event.registrationRequired
     }
 }

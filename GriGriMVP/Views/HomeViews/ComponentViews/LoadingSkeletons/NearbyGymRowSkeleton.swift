@@ -48,7 +48,7 @@ struct NearbyGymRowSkeleton: View {
                 .clipShape(RoundedRectangle(cornerRadius: 15))
                 .appCardShadow()
         }
-        .redacted(reason: .placeholder)
+        .shimmer()
     }
 }
 

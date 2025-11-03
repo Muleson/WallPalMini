@@ -238,7 +238,15 @@ class GymsViewModel: ObservableObject {
     }
     
     private func loadEvents() async throws -> [EventItem] {
-        return try await eventRepository.fetchAllEvents()
+        // Fetch all future events (no filters)
+        return try await eventRepository.fetchEventsWithFilters(
+            eventTypes: nil,
+            startDateAfter: Date(),
+            startDateBefore: nil,
+            isFeatured: nil,
+            hostGymId: nil,
+            limit: nil
+        )
     }
     
     private func loadFavoriteGyms() async throws -> [Gym] {
@@ -379,9 +387,16 @@ class GymsViewModel: ObservableObject {
         isLoadingEvents = true
         
         do {
-            // Use optimized display method to reduce database calls
-            let events = try await eventRepository.fetchEventsForGymDisplay(gymId: gym.id)
-            
+            // Use filtered query to fetch only this gym's events
+            let events = try await eventRepository.fetchEventsWithFilters(
+                eventTypes: nil,
+                startDateAfter: nil,
+                startDateBefore: nil,
+                isFeatured: nil,
+                hostGymId: gym.id,
+                limit: nil
+            )
+
             // Only update selectedGymEvents if this is still the selected gym
             if selectedGym?.id == gym.id {
                 self.selectedGymEvents = events

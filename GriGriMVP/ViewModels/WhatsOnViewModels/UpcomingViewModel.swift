@@ -96,7 +96,7 @@ class UpcomingViewModel: ObservableObject {
     
     // Current user data
     private var currentUser: User?
-    private var favoritedEventIds: Set<String> = []
+    @Published private(set) var favoritedEventIds: Set<String> = []
     private var availableEventTypes: Set<EventType> = []
     
     // MARK: - Computed Properties
@@ -154,20 +154,23 @@ class UpcomingViewModel: ObservableObject {
         self.eventRepository = repository
         self.upcomingSectionLoader = UpcomingSectionLoader(eventRepository: repository)
         
-        // Observe upcomingSectionLoader changes to trigger UI updates
+        // Observe upcomingSectionLoader changes to update combined events
+        // Note: Don't manually send objectWillChange - let @Published properties handle it
         upcomingSectionLoader.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.objectWillChange.send()
                 self?.updateAllEventsFromSections()
             }
             .store(in: &cancellables)
-        
+
         setupLocationObservers()
         setupFilterObservers()
         fetchUserAndFavorites()
-        loadUpcomingSections() // Load optimized upcoming sections instead of all events
+        // NOTE: Sections will be loaded on-demand when UpcomingEventsView appears
+        // This eliminates upfront database calls on app launch
         checkCachedLocation()
+
+        print("📅 UpcomingViewModel: Initialized (0 events loaded)")
     }
     
     // MARK: - Setup Methods
@@ -237,42 +240,55 @@ class UpcomingViewModel: ObservableObject {
         upcomingSectionLoader.refreshSection(section, userLocation: userLocation)
     }
     
-    /// Legacy method - still used for search and filter functionality
+    /// Legacy method - still used for search functionality without filters
+    /// For filtered queries, use fetchFilteredEvents() instead
     func fetchEvents() {
         isLoadingEvents = true
-        
+
         Task { [weak self] in
             guard let self = self else { return }
-            
+
             do {
-                // Use optimized display method to reduce database calls
-                let events = try await eventRepository.fetchAllEventsForDisplay()
-                
+                // Fetch events with no type filters (used for search/browse all)
+                // Don't filter by date at DB level to include recurring events
+                var events = try await eventRepository.fetchEventsWithFilters(
+                    eventTypes: nil,
+                    startDateAfter: nil, // Don't filter by date - handle recurring events client-side
+                    startDateBefore: nil,
+                    isFeatured: nil,
+                    hostGymId: nil,
+                    limit: 500 // Reasonable limit for browse all
+                )
+
                 await MainActor.run { [weak self] in
                     guard let self = self else { return }
-                    // Filter events: show upcoming events OR recurring events (regardless of original start date)
+                    let currentDate = Date()
+
+                    // Include recurring events even if original start date is in past
                     allEvents = events.filter { event in
                         // Include if it's a future event
-                        if event.startDate > Date() {
+                        if event.startDate > currentDate {
                             return true
                         }
-                        
+
                         // Include if it's a recurring event (even if original start date is in the past)
                         if event.frequency != nil {
                             return true
                         }
-                        
+
                         // Exclude past one-time events
                         return false
                     }.sorted(by: { $0.startDate < $1.startDate })
-                    
+
+                    print("🔍 fetchEvents: Loaded \(allEvents.count) events (including recurring)")
+
                     // Extract event types
                     extractEventTypes()
-                    
+
                     isLoadingEvents = false
                     applyFilters()
                 }
-                
+
             } catch {
                 await MainActor.run { [weak self] in
                     guard let self = self else { return }
@@ -283,7 +299,181 @@ class UpcomingViewModel: ObservableObject {
             }
         }
     }
-    
+
+    /// Optimized filtered events fetch - uses server-side queries to minimize database reads
+    func fetchFilteredEvents() {
+        isLoadingEvents = true
+        print("🔍 FilteredEventsView: User has filters - \(selectedEventTypes.count) types, timeframe: \(selectedTimeframe)")
+
+        Task { [weak self] in
+            guard let self = self else { return }
+
+            do {
+                // Build server-side filters
+                let eventTypes = selectedEventTypes.isEmpty ? nil : selectedEventTypes
+                let startDate = calculateStartDate(from: selectedTimeframe)
+                let endDate = calculateEndDate(from: selectedTimeframe)
+
+                print("🔍 FilteredEventsView: Querying Firestore with filters")
+
+                // Fetch with server-side filters (but don't filter by startDate to include recurring events)
+                // We'll filter dates client-side to properly handle recurring events
+                var events = try await eventRepository.fetchEventsWithFilters(
+                    eventTypes: eventTypes,
+                    startDateAfter: nil, // Don't filter by date at DB level - handle recurring events client-side
+                    startDateBefore: nil,
+                    isFeatured: nil,
+                    hostGymId: nil,
+                    limit: 500 // Fetch more since we're filtering dates client-side
+                )
+
+                print("✅ FilteredEventsView: Received \(events.count) events from repository")
+
+                // Apply date filtering client-side to handle recurring events
+                let currentDate = Date()
+                events = events.filter { event in
+                    // Include if it's a future event within the timeframe
+                    if event.startDate > currentDate {
+                        // Check if within date range if specified
+                        if let start = startDate, event.startDate < start {
+                            return false
+                        }
+                        if let end = endDate, event.startDate > end {
+                            return false
+                        }
+                        return true
+                    }
+
+                    // Include if it's a recurring event (even if original start date is past)
+                    if event.frequency != nil {
+                        return true
+                    }
+
+                    return false
+                }
+
+                print("🔍 Date filter: Filtered to \(events.count) events (including recurring)")
+
+                // Apply client-side filters (proximity, climbing types, search)
+                events = applyClientSideFilters(to: events)
+
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    allEvents = events
+                    extractEventTypes()
+                    isLoadingEvents = false
+                    applyFilters() // Final filtering step
+                    print("✅ FilteredEventsView: Displaying \(filteredEvents.count) events")
+                }
+
+            } catch {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    errorMessage = "Failed to load filtered events: \(error.localizedDescription)"
+                    hasError = true
+                    isLoadingEvents = false
+                    print("❌ FilteredEventsView: Error - \(error)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Filter Helper Methods
+
+    private func calculateStartDate(from timeframe: TimeframeFilter) -> Date? {
+        let now = Date()
+        let calendar = Calendar.current
+
+        switch timeframe {
+        case .all:
+            return now // All future events
+        case .today:
+            return calendar.startOfDay(for: now)
+        case .thisWeek:
+            return calendar.dateInterval(of: .weekOfYear, for: now)?.start
+        case .thisMonth:
+            return calendar.dateInterval(of: .month, for: now)?.start
+        case .next7Days:
+            return now
+        case .next30Days:
+            return now
+        }
+    }
+
+    private func calculateEndDate(from timeframe: TimeframeFilter) -> Date? {
+        let now = Date()
+        let calendar = Calendar.current
+
+        switch timeframe {
+        case .all:
+            return nil // No end date
+        case .today:
+            return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))
+        case .thisWeek:
+            return calendar.dateInterval(of: .weekOfYear, for: now)?.end
+        case .thisMonth:
+            return calendar.dateInterval(of: .month, for: now)?.end
+        case .next7Days:
+            return calendar.date(byAdding: .day, value: 7, to: now)
+        case .next30Days:
+            return calendar.date(byAdding: .day, value: 30, to: now)
+        }
+    }
+
+    private func applyClientSideFilters(to events: [EventItem]) -> [EventItem] {
+        var filtered = events
+
+        // Proximity filter (requires user location)
+        if proximityFilter != .all, let userLocation = userLocation {
+            let beforeCount = filtered.count
+            filtered = filtered.filter { event in
+                guard let distance = distanceToEvent(event) else { return false }
+
+                switch proximityFilter {
+                case .all:
+                    return true
+                case .nearby:
+                    return distance <= 2000
+                case .withinFiveKm, .withinTenKm, .withinTwentyKm:
+                    guard let maxDistance = proximityFilter.distanceInMeters else { return true }
+                    return distance <= maxDistance
+                }
+            }
+            print("🔍 Proximity filter: \(beforeCount) → \(filtered.count) events")
+        }
+
+        // Climbing types filter (array intersection)
+        if !selectedClimbingTypes.isEmpty {
+            let beforeCount = filtered.count
+            filtered = filtered.filter { event in
+                guard let eventClimbingTypes = event.climbingType else { return false }
+                return !Set(eventClimbingTypes).isDisjoint(with: selectedClimbingTypes)
+            }
+            print("🔍 Climbing type filter: \(beforeCount) → \(filtered.count) events")
+        }
+
+        // Search text filter
+        if !searchText.isEmpty {
+            let beforeCount = filtered.count
+            filtered = filtered.filter { event in
+                event.name.localizedCaseInsensitiveContains(searchText) ||
+                event.description.localizedCaseInsensitiveContains(searchText) ||
+                event.host.name.localizedCaseInsensitiveContains(searchText)
+            }
+            print("🔍 Search filter '\(searchText)': \(beforeCount) → \(filtered.count) events")
+        }
+
+        // Favorite gyms filter
+        if showFavoriteGymsOnly {
+            let favoriteGymIds = Set(favoriteGyms.map { $0.id })
+            let beforeCount = filtered.count
+            filtered = filtered.filter { favoriteGymIds.contains($0.host.id) }
+            print("🔍 Favorite gyms filter: \(beforeCount) → \(filtered.count) events")
+        }
+
+        return filtered
+    }
+
     func fetchUserAndFavorites() {
         Task { [weak self] in
             guard let self = self else { return }

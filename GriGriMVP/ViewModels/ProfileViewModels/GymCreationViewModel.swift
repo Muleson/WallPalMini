@@ -14,25 +14,31 @@ import UIKit
 class GymCreationViewModel: ObservableObject {
     // Basic gym information
     @Published var name: String = ""
+    @Published var companyId: String = ""
     @Published var email: String = ""
     @Published var description: String = ""
     @Published var address: String = ""
-    
+
     // Profile image
     @Published var selectedProfileImage: UIImage?
     @Published var isUploadingImage: Bool = false
-    
+
     // Location data
     @Published var latitude: Double = 0.0
     @Published var longitude: Double = 0.0
     @Published var useCurrentLocation: Bool = false
-    
+
     // Climbing types
     @Published var selectedClimbingTypes: Set<ClimbingTypes> = []
-    
+
     // Amenities
     @Published var selectedAmenities: Set<Amenities> = []
-    
+
+    // Operating information
+    @Published var operatingHours: GymOperatingHours?
+    @Published var website: String = ""
+    @Published var phoneNumber: String = ""
+
     // State management
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -410,8 +416,8 @@ class GymCreationViewModel: ObservableObject {
             // Create gym WITHOUT ownerId and staffUserIds (new model)
             let gym = Gym(
                 id: UUID().uuidString, // Generate ID client-side
-                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                companyId: companyId.isEmpty ? nil : companyId.trimmingCharacters(in: .whitespacesAndNewlines),
                 description: description.isEmpty ? nil : description,
                 location: locationData,
                 climbingType: Array(selectedClimbingTypes),
@@ -421,7 +427,14 @@ class GymCreationViewModel: ObservableObject {
                 createdAt: Date(),
                 // REMOVED: ownerId: currentUserId,
                 // REMOVED: staffUserIds: [],
-                verificationStatus: .pending // New gyms start as pending verification
+                verificationStatus: .pending, // New gyms start as pending verification
+                verificationNotes: nil,
+                verifiedAt: nil,
+                verifiedBy: nil,
+                operatingHours: operatingHours,
+                website: website.isEmpty ? nil : website,
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                phoneNumber: phoneNumber.isEmpty ? nil : phoneNumber
             )
             
             // Use the updated createGym method that takes ownerId as parameter
@@ -447,6 +460,7 @@ class GymCreationViewModel: ObservableObject {
     
     func resetForm() {
         name = ""
+        companyId = ""
         email = ""
         description = ""
         address = ""
@@ -456,10 +470,13 @@ class GymCreationViewModel: ObservableObject {
         selectedClimbingTypes.removeAll()
         selectedAmenities.removeAll()
         selectedProfileImage = nil
+        operatingHours = nil
+        website = ""
+        phoneNumber = ""
         errorMessage = nil
         isLocationLoading = false
         hideAddressSuggestions()
-        
+
         // Cancel any pending geocoding
         geocodingTask?.cancel()
         geocodingTask = nil

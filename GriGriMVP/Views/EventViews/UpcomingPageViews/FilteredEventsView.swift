@@ -100,12 +100,9 @@ struct FilteredEventsView: View {
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
-            // Always fetch all events for comprehensive filtering
-            // The section-based loading is optimized for specific sections but may not include all event types
-            // TODO: This method needs to be refined for database optimization soon - currently loads all events
-            // Consider implementing a filtered fetch that only loads events matching the current filter criteria
-            print("FilteredEventsView: Fetching all events for comprehensive filtering...")
-            viewModel.fetchEvents()
+            // Fetch events using optimized server-side filtered query
+            // Only loads events matching current filter criteria to minimize database reads
+            viewModel.fetchFilteredEvents()
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

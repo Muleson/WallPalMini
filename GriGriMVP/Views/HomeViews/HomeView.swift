@@ -10,11 +10,11 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var appState: AppState
     @StateObject private var viewModel = HomeViewModel()
-    
-    @State private var navigateToPasses = false
+
     @State private var selectedEvent: EventItem?
     @State private var navigateToPassCreation = false // Renamed for clarity
     @State private var showMenuBar = false
+    // @State private var showDataInjector = false // TEMPORARY: Dev tool
     
     var body: some View {
         GeometryReader { geometry in
@@ -26,13 +26,13 @@ struct HomeView: View {
                             // Greeting Section with reduced top spacing
                             greetingSection
                                 .padding(.top, -AppTheme.Spacing.medium) // Negative padding to reduce space from nav title
-                            
+
                             // Content with normal spacing
                             VStack(spacing: AppTheme.Spacing.sectionSpacing) {
-                                
+
                                 // Nearby Gym Card
-                                nearbyGymSection
-                                
+                                nearbyPassSection
+
                                 // Events Sections
                                 VStack(spacing: AppTheme.Spacing.sectionSpacing) {
                                     happeningNextSection
@@ -45,19 +45,30 @@ struct HomeView: View {
                     .navigationTitle("Home")
                     .navigationBarTitleDisplayMode(.large)
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
+                        // TEMPORARY: Dev tool button (leading) - COMMENTED OUT
+                        /*
+                        ToolbarItem(placement: .navigationBarLeading) {
                             Button(action: {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    showMenuBar = true
-                                }
+                                showDataInjector = true
                             }) {
-                                Image(systemName: "line.3.horizontal")
+                                Image(systemName: "cylinder.split.1x2")
                                     .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(.orange)
                             }
                         }
-                    }
-                    .navigationDestination(isPresented: $navigateToPasses) {
-                        PassesRootView(appState: appState)
+                        */
+
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                    showMenuBar.toggle()
+                                }
+                            }) {
+                                Image(systemName: showMenuBar ? "xmark" : "line.3.horizontal")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(showMenuBar ? AppTheme.appPrimary : .primary)
+                            }
+                        }
                     }
                     // Add navigation destination for event details
                     .navigationDestination(item: $selectedEvent) { event in
@@ -68,45 +79,58 @@ struct HomeView: View {
                         PassCreationFlowView(
                             onPassAdded: {
                                 // This callback is triggered when a pass is successfully added
-                                // Navigate to PassRootView instead of going back to HomeView
-                                print("Pass added successfully from HomeView, navigating to PassRootView")
+                                // Navigate to Passes tab instead of going back to HomeView
+                                print("Pass added successfully from HomeView, navigating to Passes tab")
                                 navigateToPassCreation = false
-                                navigateToPasses = true
+                                appState.deepLinkManager.setPendingDeepLink(.passes)
                             },
                             onCancel: {
                                 navigateToPassCreation = false
                             }
                         )
                     }
+                    // TEMPORARY: Dev tool sheet - COMMENTED OUT
+                    /*
+                    .sheet(isPresented: $showDataInjector) {
+                        SimplifiedDataInjectorView()
+                    }
+                    */
                 }
                 
                 // Menu overlay - positioned outside NavigationStack to cover everything
                 if showMenuBar {
-                    // Semi-transparent background
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea(.all)
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                showMenuBar = false
-                            }
+                    // Enhanced semi-transparent background with blur
+                    ZStack {
+                        Color.black.opacity(0.25)
+                        
+                        // Add subtle blur effect to background content
+                        Rectangle()
+                            .fill(.ultraThinMaterial.opacity(0.3))
+                    }
+                    .ignoresSafeArea(.all)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                            showMenuBar = false
                         }
+                    }
                     
-                    // Menu panel
+                    // Menu panel with improved shadow and materials
                     HStack(spacing: 0) {
                         Spacer()
                         
                         MenuBarView(appState: appState) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                                 showMenuBar = false
                             }
                         }
                         .frame(width: geometry.size.width * 0.75)
                         .frame(maxHeight: .infinity)
                         .clipped()
-                        .shadow(color: .black.opacity(0.3), radius: 10, x: -5, y: 0)
+                        .shadow(color: .black.opacity(0.15), radius: 20, x: -8, y: 0)
+                        .shadow(color: .black.opacity(0.05), radius: 5, x: -2, y: 0)
                         .transition(.asymmetric(
-                            insertion: .move(edge: .trailing),
-                            removal: .move(edge: .trailing)
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
                         ))
                     }
                     .ignoresSafeArea(.all)
@@ -114,8 +138,14 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            viewModel.fetchEvents()
+            viewModel.loadHomeEvents()
             viewModel.fetchUserAndFavorites()
+
+            // Ensure nearest gym is loaded when view appears
+            // This handles cases where passes are loaded but nearest gym hasn't been calculated
+            if viewModel.nearestGym == nil {
+                viewModel.findNearestGym()
+            }
         }
 
         .alert(isPresented: $viewModel.hasError, content: {
@@ -139,16 +169,17 @@ struct HomeView: View {
     
     // MARK: - Nearby Gym Section
     @ViewBuilder
-    private var nearbyGymSection: some View {
+    private var nearbyPassSection: some View {
         if viewModel.isLoadingGyms {
             NearbyGymRowSkeleton()
                 .padding(.horizontal, AppTheme.Spacing.cardHorizontalPadding)
         } else {
-            NearbyGymRow(
+            NearbyPassRow(
                 gym: viewModel.nearestGym,
                 distance: viewModel.distanceToNearestGym,
                 onViewPass: {
-                    navigateToPasses = true
+                    // Navigate to Passes tab (tab 1)
+                    appState.deepLinkManager.setPendingDeepLink(.passes)
                 },
                 onAddPass: {
                     navigateToPassCreation = true // Updated to use pass creation flow
@@ -223,7 +254,11 @@ struct HomeView: View {
                     },
                     onAddToCalendar: {
                         viewModel.addEventToCalendar(featuredEvent)
-                    }
+                    },
+                    onSave: {
+                        viewModel.toggleFavorite(for: featuredEvent)
+                    },
+                    isSaved: viewModel.isEventFavorited(featuredEvent)
                 )
                 .padding(.horizontal, AppTheme.Spacing.cardHorizontalPadding)
             } else {

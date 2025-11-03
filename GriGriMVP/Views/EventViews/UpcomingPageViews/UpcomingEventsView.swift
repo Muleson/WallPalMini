@@ -10,12 +10,11 @@ import SwiftUI
 struct UpcomingEventsView: View {
     @ObservedObject var appState: AppState
     @StateObject private var viewModel = UpcomingViewModel()
+    @State private var localSearchText = ""
     @State private var showingFilters = false
     @State private var selectedEvent: EventItem?
     @State private var selectedGym: Gym?
     @State private var currentCarouselIndex = 0
-    @State private var showingSearchBar = false
-    @FocusState private var searchFieldFocused: Bool
     @State private var showingAllEvents = false
     @State private var showingFilterSheet = false
     
@@ -38,32 +37,53 @@ struct UpcomingEventsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionSpacing) {
+                    
+                    // Search results section (show when user has typed something)
+                    if !localSearchText.isEmpty {
+                        if viewModel.isLoadingEvents {
+                            VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
+                                Text("Search Results")
+                                    .font(.appHeadline)
+                                    .padding(.horizontal, AppTheme.Spacing.screenPadding)
 
-                    // Inline search bar shown when toolbar search is activated
-                    if showingSearchBar {
-                        HStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(AppTheme.appPrimary)
-
-                            TextField("Search events, hosts or gyms", text: $viewModel.searchText)
-                                .focused($searchFieldFocused)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                            Button(action: {
-                                // Close search
-                                showingSearchBar = false
-                                viewModel.searchText = ""
-                                searchFieldFocused = false
-                            }) {
-                                Text("Cancel")
-                                    .foregroundColor(AppTheme.appPrimary)
+                                VStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
+                                    ForEach(0..<3, id: \.self) { _ in
+                                        StandardEventCardSkeleton()
+                                            .padding(.horizontal, AppTheme.Spacing.screenPadding)
+                                    }
+                                }
                             }
-                            .buttonStyle(PlainButtonStyle())
+                        } else {
+                            VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
+                                Text("Search Results")
+                                    .font(.appHeadline)
+                                    .padding(.horizontal, AppTheme.Spacing.screenPadding)
+
+                                if viewModel.filteredEvents.isEmpty {
+                                    Text("No events found")
+                                        .font(.appBody)
+                                        .foregroundColor(AppTheme.appTextLight)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding()
+                                } else {
+                                    VStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
+                                        ForEach(viewModel.filteredEvents) { event in
+                                            StandardEventCard(event: event, onTap: {
+                                                selectedEvent = event
+                                            }, onGymTap: { gym in
+                                                selectedGym = gym
+                                            })
+                                            .padding(.horizontal, AppTheme.Spacing.screenPadding)
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        .padding(.horizontal, AppTheme.Spacing.screenPadding)
-                    }
-                    // Gym Classes Horizontal Scroll
-                    if viewModel.isSectionLoading {
+                    } else {
+                        // Normal content sections when not searching
+                        
+                        // Gym Classes Horizontal Scroll
+                        if viewModel.isSectionLoading {
                         VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
                             Text("Classes")
                                 .font(.appHeadline)
@@ -150,6 +170,10 @@ struct UpcomingEventsView: View {
                                                 // Handle add to calendar
                                                 print("Add to calendar: \(featuredEvents[index].name)")
                                             },
+                                            onSave: {
+                                                viewModel.toggleFavorite(for: featuredEvents[index])
+                                            },
+                                            isSaved: viewModel.isEventFavorited(featuredEvents[index]),
                                             onGymTap: { gym in
                                                 selectedGym = gym
                                             }
@@ -235,65 +259,17 @@ struct UpcomingEventsView: View {
                         // Add filter buttons here later
                     }
                     .padding(.horizontal, AppTheme.Spacing.screenPadding)
-
-                    // Search results (show when user has typed something)
-                    if viewModel.isLoadingEvents {
-                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
-                            Text("Search Results")
-                                .font(.appHeadline)
-                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
-
-                            VStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
-                                ForEach(0..<3, id: \.self) { _ in
-                                    StandardEventCardSkeleton()
-                                        .padding(.horizontal, AppTheme.Spacing.screenPadding)
-                                }
-                            }
-                        }
-                    } else if !viewModel.searchText.isEmpty {
-                        VStack(alignment: .leading, spacing: AppTheme.Spacing.sectionContentSpacing) {
-                            Text("Search Results")
-                                .font(.appHeadline)
-                                .padding(.horizontal, AppTheme.Spacing.screenPadding)
-
-                            VStack(spacing: AppTheme.Spacing.sectionContentSpacing) {
-                                ForEach(viewModel.filteredEvents) { event in
-                                    StandardEventCard(event: event, onTap: {
-                                        selectedEvent = event
-                                    }, onGymTap: { gym in
-                                        selectedGym = gym
-                                    })
-                                    .padding(.horizontal, AppTheme.Spacing.screenPadding)
-                                }
-                            }
-                        }
-                    }
+                    } // End of else block for normal content
                 }
                 .padding(.bottom, AppTheme.Spacing.screenPadding) // Add consistent bottom padding instead of Spacer
             }
             .navigationTitle("What's On")
             .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         showingFilterSheet = true
                     }) {
                         Image(systemName: "line.3.horizontal.decrease")
-                            .foregroundColor(AppTheme.appPrimary)
-                    }
-                    
-                    Button(action: {
-                        showingSearchBar.toggle()
-                        if showingSearchBar {
-                            // focus the textfield on next runloop
-                            DispatchQueue.main.async {
-                                searchFieldFocused = true
-                            }
-                        } else {
-                            viewModel.searchText = ""
-                            searchFieldFocused = false
-                        }
-                    }) {
-                        Image(systemName: "magnifyingglass")
                             .foregroundColor(AppTheme.appPrimary)
                     }
                 }
@@ -322,6 +298,19 @@ struct UpcomingEventsView: View {
             }
             .refreshable {
                 viewModel.loadUpcomingSections(forceRefresh: true)
+            }
+            .searchable(
+                text: $localSearchText,
+                placement: .automatic,
+                prompt: "Search events, hosts or gyms"
+            )
+            .searchPresentationToolbarBehavior(.avoidHidingContent)
+            .onChange(of: localSearchText) { newValue in
+                viewModel.searchText = newValue
+            }
+            .onAppear {
+                viewModel.loadUpcomingSections()
+                viewModel.searchText = localSearchText
             }
         }
     }

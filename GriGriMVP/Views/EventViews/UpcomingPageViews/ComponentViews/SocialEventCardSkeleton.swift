@@ -44,7 +44,7 @@ struct SocialEventCardSkeleton: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .appCardShadow()
-        .redacted(reason: .placeholder)
+        .shimmer()
     }
 }
 

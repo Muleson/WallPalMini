@@ -162,22 +162,14 @@ class PassManager: ObservableObject {
     
     private func loadPasses() {
         guard let data = userDefaults.data(forKey: passesKey) else {
-            print("No passes found in UserDefaults")
             updateComputedProperties()
             return
         }
 
         do {
             passes = try JSONDecoder().decode([Pass].self, from: data)
-            
-            print("Loaded \(passes.count) passes from UserDefaults")
-            print("Before ensurePrimaryPass - Has primary: \(passes.contains(where: { $0.isActive }))")
-            
             ensureActivePass()
             updateComputedProperties()
-            
-            print("After ensurePrimaryPass - Has primary: \(passes.contains(where: { $0.isActive }))")
-
         } catch {
             print("Failed to decode passes: \(error)")
             passes = []

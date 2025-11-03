@@ -5,6 +5,9 @@
 //  Created by Sam Quested on 28/07/2025.
 //
 
+import Foundation
+import CoreLocation
+
 class LocalEventRepository: EventRepositoryProtocol {
     private var events = SampleData.events
     
@@ -81,5 +84,79 @@ class LocalEventRepository: EventRepositoryProtocol {
     
     func deleteEvent(id: String) async throws {
         events.removeAll { $0.id == id }
+    }
+
+    // MARK: - Filtered Query Methods
+
+    func fetchEventsWithFilters(
+        eventTypes: Set<EventType>?,
+        startDateAfter: Date?,
+        startDateBefore: Date?,
+        isFeatured: Bool?,
+        hostGymId: String?,
+        limit: Int?
+    ) async throws -> [EventItem] {
+        var filtered = events
+
+        // Filter by event types
+        if let eventTypes = eventTypes, !eventTypes.isEmpty {
+            filtered = filtered.filter { eventTypes.contains($0.eventType) }
+        }
+
+        // Filter by start date after
+        if let startDate = startDateAfter {
+            filtered = filtered.filter { $0.startDate > startDate }
+        }
+
+        // Filter by start date before
+        if let endDate = startDateBefore {
+            filtered = filtered.filter { $0.startDate < endDate }
+        }
+
+        // Filter by featured status
+        if let featured = isFeatured {
+            filtered = filtered.filter { $0.isFeatured == featured }
+        }
+
+        // Filter by host gym
+        if let gymId = hostGymId {
+            filtered = filtered.filter { $0.host.id == gymId }
+        }
+
+        // Sort by start date
+        filtered = filtered.sorted { $0.startDate < $1.startDate }
+
+        // Apply limit
+        if let limit = limit {
+            filtered = Array(filtered.prefix(limit))
+        }
+
+        return filtered
+    }
+
+    // MARK: - Section-Specific Batch Loading
+
+    func fetchClassesForUpcomingView() async throws -> [EventItem] {
+        let classEvents = events.filter { $0.eventType == .gymClass && $0.startDate > Date() }
+            .sorted { $0.startDate < $1.startDate }
+        return Array(classEvents.prefix(5))
+    }
+
+    func fetchFeaturedEventsForCarousel() async throws -> [EventItem] {
+        let targetTypes: Set<EventType> = [.competition, .openDay, .opening]
+        let featuredEvents = events.filter {
+            targetTypes.contains($0.eventType) &&
+            $0.isFeatured &&
+            $0.mediaItems?.isEmpty == false &&
+            $0.startDate > Date()
+        }
+        .sorted { $0.startDate < $1.startDate }
+        return Array(featuredEvents.prefix(3))
+    }
+
+    func fetchSocialEventsForUpcomingView(userLocation: CoreLocation.CLLocation?) async throws -> [EventItem] {
+        let socialEvents = events.filter { $0.eventType == .social && $0.startDate > Date() }
+            .sorted { $0.startDate < $1.startDate }
+        return Array(socialEvents.prefix(5))
     }
 }

@@ -42,7 +42,11 @@ struct RepositoryFactory {
     static func createPermissionRepository() -> PermissionRepositoryProtocol {
         return LocalGymPermissionRepository()
     }
-        
+
+    static func createGymCompanyRepository() -> GymCompanyRepositoryProtocol {
+        return LocalGymCompanyRepository()
+    }
+
     #else
     static func createGymRepository() -> GymRepositoryProtocol {
         print("☁️ Using FIREBASE data repositories with CACHE")
@@ -68,6 +72,10 @@ struct RepositoryFactory {
     
     static func createPermissionRepository() -> PermissionRepositoryProtocol {
         return FirebaseGymPermissionRepository()
+    }
+
+    static func createGymCompanyRepository() -> GymCompanyRepositoryProtocol {
+        return FirebaseGymCompanyRepository()
     }
     #endif
 }
@@ -110,17 +118,6 @@ extension RepositoryFactory {
     /// Print cache status for debugging
     static func printCacheStatus() {
         CacheManager.shared.printCacheStatus()
-    }
-    
-    /// Test cache functionality (development only)
-    static func testCacheSystem() {
-        print("🧪 Running Repository Cache System Test")
-        print("======================================")
-        
-        CacheTest.runBasicTest()
-        CacheTest.testRepositoryCaching()
-        
-        print("✅ All cache tests completed successfully!")
     }
     #endif
 }

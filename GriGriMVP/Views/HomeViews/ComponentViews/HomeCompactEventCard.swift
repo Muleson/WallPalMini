@@ -8,47 +8,36 @@
 import SwiftUI
 
 struct HomeCompactEventCard: View {
-    let title: String
-    let subtitle: String?
-    let backgroundColor: Color
-    let mediaItem: MediaItem?
-    let gymProfileImage: MediaItem?
+    let event: EventItem
     let onTap: () -> Void
-    
-    init(title: String, subtitle: String? = nil, backgroundColor: Color, mediaItem: MediaItem? = nil, gymProfileImage: MediaItem? = nil, onTap: @escaping () -> Void) {
-        self.title = title
-        self.subtitle = subtitle
-        self.backgroundColor = backgroundColor
-        self.mediaItem = mediaItem
-        self.gymProfileImage = gymProfileImage
-        self.onTap = onTap
+
+    private var title: String {
+        event.name.uppercased()
     }
-    
-    // Convenience initializer for EventItem
-    init(event: EventItem, onTap: @escaping () -> Void) {
-        self.title = event.name.uppercased()
-        self.subtitle = event.host.name.uppercased()
-        self.mediaItem = event.mediaItems?.first // Use first media item if available
-        self.gymProfileImage = event.host.profileImage // Use gym's profile image
-        
-        // Choose background color based on event type
+
+    private var subtitle: String {
+        event.host.name.uppercased()
+    }
+
+    private var backgroundColor: Color {
         switch event.eventType {
         case .competition:
-            self.backgroundColor = Color.yellow.opacity(0.8)
+            return Color.yellow.opacity(0.8)
         case .social:
-            self.backgroundColor = Color.green.opacity(0.8)
+            return Color.green.opacity(0.8)
         case .openDay:
-            self.backgroundColor = Color.blue.opacity(0.8)
+            return Color.blue.opacity(0.8)
         case .settingTaster:
-            self.backgroundColor = Color.purple.opacity(0.8)
+            return Color.purple.opacity(0.8)
         case .opening:
-            self.backgroundColor = Color.orange.opacity(0.8)
+            return Color.orange.opacity(0.8)
         case .gymClass:
-            self.backgroundColor = Color.red.opacity(0.8)
+            return Color.red.opacity(0.8)
         }
-        
+    }
 
-        self.onTap = onTap
+    private var mediaItem: MediaItem? {
+        event.mediaItems?.first
     }
     
     var body: some View {
@@ -114,14 +103,12 @@ struct HomeCompactEventCard: View {
                             .minimumScaleFactor(0.6)
                             .allowsTightening(true)
                         
-                        // Subtitle if provided
-                        if let subtitle = subtitle {
-                            Text(subtitle)
-                                .font(.system(size: 10, weight: .medium, design: .rounded))
-                                .foregroundColor(.white.opacity(0.9))
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(2)
-                        }
+                        // Subtitle
+                        Text(subtitle)
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.9))
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     
@@ -142,39 +129,12 @@ struct HomeCompactEventCard: View {
                 HStack {
                     Spacer()
                     
-                    // Gym profile image or fallback icon - fixed position
-                    if let gymProfileImage = gymProfileImage {
-                        AsyncImage(url: gymProfileImage.url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 40, height: 40)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                                )
-                        } placeholder: {
+                    // Gym profile image - using cached view
+                    CachedGymImageView(gym: event.host, size: 40)
+                        .overlay(
                             Circle()
-                                .fill(Color.white.opacity(0.2))
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Image(systemName: "building.2")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.white.opacity(0.6))
-                                )
-                        }
-                    } else {
-                        // Default fallback icon
-                        Circle()
-                            .fill(Color.white.opacity(0.2))
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Image(systemName: "building.2")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.white.opacity(0.4))
-                            )
-                    }
+                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                        )
                 }
                 .padding(.trailing, 16)
                 .padding(.bottom, 20)

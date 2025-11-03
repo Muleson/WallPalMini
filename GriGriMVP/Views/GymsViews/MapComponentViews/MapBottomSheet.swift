@@ -13,27 +13,56 @@ struct MapBottomSheet: View {
     @ObservedObject var viewModel: GymsViewModel
     let onDismiss: () -> Void
     let onVisit: (Gym) -> Void
-    @State private var favoriteButtonKey: UUID = UUID() // Force button refresh
     @State private var dragOffset: CGFloat = 0 // For drag gesture
-    
+    @State private var isCompact: Bool = false // Compact vs expanded state
+
     var body: some View {
         VStack {
             Spacer() // Pushes the sheet to the bottom
-            
+
             VStack(spacing: 8) {
                 // Handle indicator
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.gray.opacity(0.4))
                     .frame(width: 40, height: 4)
                     .padding(.top, 8)
-                
+
+                // Close button
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            onDismiss()
+                        }
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.gray.opacity(0.6))
+                    }
+                    .padding(.trailing, 4)
+                }
+                .padding(.top, -4)
+
                 gymInfoSection
-                    .padding(.top, 4)
-                
-                climbingTypesSection
-                
-                actionButtons
-                    .padding(.bottom, 8)
+                    .padding(.top, -8)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        // Tap to expand when compact
+                        if isCompact {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isCompact = false
+                            }
+                        }
+                    }
+
+                if !isCompact {
+                    climbingTypesSection
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+
+                    actionButtons
+                        .padding(.bottom, 8)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
             .padding(.horizontal, 20)
             .background(AppTheme.appContentBG)
@@ -44,40 +73,45 @@ struct MapBottomSheet: View {
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        if value.translation.height > 0 {
-                            dragOffset = value.translation.height
-                        }
+                        // Allow both up and down drags
+                        dragOffset = value.translation.height
                     }
                     .onEnded { value in
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            if value.translation.height > 100 {
+                        let swipeDistance = value.translation.height
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if swipeDistance < -50 && isCompact {
+                                // Swipe up when compact -> expand
+                                isCompact = false
+                                dragOffset = 0
+                            } else if swipeDistance > 100 && !isCompact {
+                                // Swipe down when expanded -> compact
+                                isCompact = true
+                                dragOffset = 0
+                            } else if swipeDistance > 50 && isCompact {
+                                // Swipe down when compact -> dismiss
                                 onDismiss()
+                            } else {
+                                // Not enough swipe -> return to position
+                                dragOffset = 0
                             }
-                            dragOffset = 0
                         }
                     }
                 )
         }
         .clipped()
+        .onChange(of: gym.id) { _ in
+            // Reset to expanded when gym changes
+            isCompact = false
+        }
     }
     
     // MARK: - Component Sections
     
     private var gymInfoSection: some View {
         HStack(spacing: 8) {
-            if let profileImage = gym.profileImage {
-                AsyncImage(url: profileImage.url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 64, height: 64)
-                        .clipShape(Circle())
-                } placeholder: {
-                    gymImagePlaceholder(size: 64)
-                }
-            } else {
-                gymImagePlaceholder(size: 64)
-            }
+            // Use cached image view for better performance and stability
+            CachedGymImageView(gym: gym, size: 64)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(gym.name)
                     .font(.appHeadline)
@@ -101,19 +135,17 @@ struct MapBottomSheet: View {
     
     private var actionButtons: some View {
         HStack(spacing: 12) {
-            let isFavorite = viewModel.isGymFavorited(gym)
+            // Directly observe favoriteGyms to ensure reactivity
+            let isFavorite = viewModel.favoriteGyms.contains(where: { $0.id == gym.id })
             PrimaryActionButton.toggle(
                 isFavorite ? "Favourited" : "Favourite",
                 isEngaged: isFavorite
             ) {
                 Task {
                     await viewModel.toggleFavoriteGym(gym)
-                    // Force button refresh after toggle
-                    favoriteButtonKey = UUID()
                 }
             }
-            .id(favoriteButtonKey) // Force re-render when key changes
-            
+
             PrimaryActionButton.primary("Visit") {
                 onVisit(gym)
             }
@@ -164,17 +196,6 @@ struct MapBottomSheet: View {
         case .board: return "Board"
         case .gym: return "Gym"
         }
-    }
-    
-    private func gymImagePlaceholder(size: CGFloat) -> some View {
-        Circle()
-            .fill(AppTheme.appSecondary.opacity(0.2))
-            .frame(width: size, height: size)
-            .overlay(
-                Image(systemName: "building.2.fill")
-                    .font(.system(size: size * 0.4, weight: .medium))
-                    .foregroundColor(AppTheme.appPrimary)
-            )
     }
 }
 

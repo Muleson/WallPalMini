@@ -27,22 +27,7 @@ struct SocialEventCard: View {
                         onGymTap?(event.host)
                     }) {
                         HStack(spacing: 6) {
-                            AsyncImage(url: event.host.profileImage?.url) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 16, height: 16)
-                                    .clipShape(Circle())
-                            } placeholder: {
-                                Circle()
-                                    .fill(AppTheme.appTextLight.opacity(0.3))
-                                    .frame(width: 16, height: 16)
-                                    .overlay(
-                                        Image(systemName: "building.2")
-                                            .font(.system(size: 8))
-                                            .foregroundColor(AppTheme.appTextLight)
-                                    )
-                            }
+                            CachedGymImageView(gym: event.host, size: 16)
 
                             Text(event.host.name)
                                 .font(.system(size: 13, weight: .medium, design: .rounded))

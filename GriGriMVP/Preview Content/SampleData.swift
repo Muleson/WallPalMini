@@ -255,13 +255,47 @@ struct SampleData {
             ownerId: "event_poster13"
         )
     ]
-    
+
+    // MARK: - Gym Companies
+    static let gymCompanies = [
+        GymCompany(
+            id: "company1",
+            name: "Rock Valley Group",
+            description: "Leading climbing gym operator specializing in modern bouldering facilities",
+            profileImage: nil,
+            createdAt: Date(timeIntervalSince1970: 1600000000),
+            gymIds: ["gym1", "gym5"],
+            email: "contact@rockvalleygroup.com",
+            website: "https://www.rockvalleygroup.com"
+        ),
+        GymCompany(
+            id: "company2",
+            name: "Urban Climbing Collective",
+            description: "Urban climbing centers bringing the sport to city communities",
+            profileImage: nil,
+            createdAt: Date(timeIntervalSince1970: 1605000000),
+            gymIds: ["gym6", "gym7"],
+            email: "info@urbancc.com",
+            website: "https://www.urbancc.com"
+        ),
+        GymCompany(
+            id: "company3",
+            name: "ClimbUK",
+            description: "National chain of family-friendly climbing centers across the UK",
+            profileImage: nil,
+            createdAt: Date(timeIntervalSince1970: 1612000000),
+            gymIds: ["gym2", "gym3"],
+            email: "hello@climbuk.co.uk",
+            website: "https://www.climbuk.co.uk"
+        )
+    ]
+
     // MARK: - Gyms with MediaItem Profile Images
     static let gyms = [
         Gym(
             id: "gym1",
-            email: "info@rockvalley.com",
             name: "Rock Valley",
+            companyId: "company1",
             description: "Premier bouldering facility with 200+ problems ranging from beginner to expert",
             location: LocationData(
                 latitude: 51.5074,
@@ -276,12 +310,24 @@ struct SampleData {
             verificationStatus: .approved,
             verificationNotes: "Excellent facility meeting all requirements",
             verifiedAt: Date(timeIntervalSince1970: 1610086400),
-            verifiedBy: "admin1"
+            verifiedBy: "admin1",
+            operatingHours: GymOperatingHours(
+                monday: GymOperatingHours.DayHours(open: "07:00", close: "22:00", isClosed: false),
+                tuesday: GymOperatingHours.DayHours(open: "07:00", close: "22:00", isClosed: false),
+                wednesday: GymOperatingHours.DayHours(open: "07:00", close: "22:00", isClosed: false),
+                thursday: GymOperatingHours.DayHours(open: "07:00", close: "22:00", isClosed: false),
+                friday: GymOperatingHours.DayHours(open: "07:00", close: "23:00", isClosed: false),
+                saturday: GymOperatingHours.DayHours(open: "09:00", close: "21:00", isClosed: false),
+                sunday: GymOperatingHours.DayHours(open: "09:00", close: "20:00", isClosed: false)
+            ),
+            website: "https://www.rockvalley.com",
+            email: "info@rockvalley.com",
+            phoneNumber: "+44 20 7123 4567"
         ),
         Gym(
             id: "gym2",
-            email: "contact@vaultclimbing.com",
             name: "The Vault",
+            companyId: "company3",
             description: "Indoor lead and top rope climbing center with routes for all abilities",
             location: LocationData(
                 latitude: 51.4682,
@@ -296,12 +342,24 @@ struct SampleData {
             verificationStatus: .approved,
             verificationNotes: "Professional climbing facility with safety standards met",
             verifiedAt: Date(timeIntervalSince1970: 1615086400),
-            verifiedBy: "admin1"
+            verifiedBy: "admin1",
+            operatingHours: GymOperatingHours(
+                monday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                tuesday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                wednesday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                thursday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                friday: GymOperatingHours.DayHours(open: "06:00", close: "22:00", isClosed: false),
+                saturday: GymOperatingHours.DayHours(open: "08:00", close: "21:00", isClosed: false),
+                sunday: GymOperatingHours.DayHours(open: "08:00", close: "21:00", isClosed: false)
+            ),
+            website: "https://www.vaultclimbing.com",
+            email: "contact@vaultclimbing.com",
+            phoneNumber: "+44 161 234 5678"
         ),
         Gym(
             id: "gym3",
-            email: "hello@gravity.com",
             name: "Gravity Climbing",
+            companyId: "company3",
             description: "Family-friendly climbing center with bouldering and walls for all ages",
             location: LocationData(
                 latitude: 51.5063,
@@ -316,12 +374,24 @@ struct SampleData {
             verificationStatus: .approved,
             verificationNotes: "Family-friendly facility with excellent safety measures",
             verifiedAt: Date(timeIntervalSince1970: 1620086400),
-            verifiedBy: "admin2"
+            verifiedBy: "admin2",
+            operatingHours: GymOperatingHours(
+                monday: GymOperatingHours.DayHours(open: "10:00", close: "21:00", isClosed: false),
+                tuesday: GymOperatingHours.DayHours(open: "10:00", close: "21:00", isClosed: false),
+                wednesday: GymOperatingHours.DayHours(open: "10:00", close: "21:00", isClosed: false),
+                thursday: GymOperatingHours.DayHours(open: "10:00", close: "21:00", isClosed: false),
+                friday: GymOperatingHours.DayHours(open: "10:00", close: "22:00", isClosed: false),
+                saturday: GymOperatingHours.DayHours(open: "09:00", close: "22:00", isClosed: false),
+                sunday: GymOperatingHours.DayHours(open: "09:00", close: "20:00", isClosed: false)
+            ),
+            website: "https://www.gravityclimbing.com",
+            email: "hello@gravity.com",
+            phoneNumber: "+44 117 345 6789"
         ),
         Gym(
             id: "gym4",
-            email: "hello@climbchurch.com",
             name: "The Church",
+            companyId: nil,
             description: "Iconic, state of the art climbing center in a beutifully unique former church",
             location: LocationData(
                 latitude: 51.5038,
@@ -336,14 +406,26 @@ struct SampleData {
             verificationStatus: .approved,
             verificationNotes: "Unique and beautiful climbing facility in historic building",
             verifiedAt: Date(timeIntervalSince1970: 1620172800),
-            verifiedBy: "admin2"
+            verifiedBy: "admin2",
+            operatingHours: GymOperatingHours(
+                monday: GymOperatingHours.DayHours(open: "12:00", close: "22:00", isClosed: false),
+                tuesday: GymOperatingHours.DayHours(open: "12:00", close: "22:00", isClosed: false),
+                wednesday: GymOperatingHours.DayHours(open: "12:00", close: "22:00", isClosed: false),
+                thursday: GymOperatingHours.DayHours(open: "12:00", close: "22:00", isClosed: false),
+                friday: GymOperatingHours.DayHours(open: "12:00", close: "23:00", isClosed: false),
+                saturday: GymOperatingHours.DayHours(open: "10:00", close: "23:00", isClosed: false),
+                sunday: GymOperatingHours.DayHours(open: "10:00", close: "21:00", isClosed: false)
+            ),
+            website: "https://www.thechurchclimbing.com",
+            email: "hello@climbchurch.com",
+            phoneNumber: "+44 117 456 7890"
         ),
         
         // New gyms using additional logos
         Gym(
             id: "gym5",
-            email: "info@peakperformance.com",
             name: "Peak Performance",
+            companyId: "company1",
             description: "High-altitude training facility focusing on advanced climbing techniques",
             location: LocationData(
                 latitude: 51.4994,
@@ -358,12 +440,24 @@ struct SampleData {
             verificationStatus: .approved,
             verificationNotes: "Modern facility with excellent training equipment",
             verifiedAt: Date(timeIntervalSince1970: 1625086400),
-            verifiedBy: "admin1"
+            verifiedBy: "admin1",
+            operatingHours: GymOperatingHours(
+                monday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                tuesday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                wednesday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                thursday: GymOperatingHours.DayHours(open: "06:00", close: "23:00", isClosed: false),
+                friday: GymOperatingHours.DayHours(open: "06:00", close: "22:00", isClosed: false),
+                saturday: GymOperatingHours.DayHours(open: "08:00", close: "20:00", isClosed: false),
+                sunday: GymOperatingHours.DayHours(open: "08:00", close: "20:00", isClosed: false)
+            ),
+            website: "https://www.peakperformance.com",
+            email: "info@peakperformance.com",
+            phoneNumber: "+44 20 8901 2345"
         ),
         Gym(
             id: "gym6",
-            email: "hello@climbhigh.co.uk",
             name: "Northern Rocks",
+            companyId: "company2",
             description: "Community-focused climbing center with routes for every skill level",
             location: LocationData(
                 latitude: 51.5155,
@@ -378,12 +472,24 @@ struct SampleData {
             verificationStatus: .approved,
             verificationNotes: "Excellent community programs and beginner-friendly environment",
             verifiedAt: Date(timeIntervalSince1970: 1630086400),
-            verifiedBy: "admin2"
+            verifiedBy: "admin2",
+            operatingHours: GymOperatingHours(
+                monday: GymOperatingHours.DayHours(open: "09:00", close: "22:00", isClosed: false),
+                tuesday: GymOperatingHours.DayHours(open: "09:00", close: "22:00", isClosed: false),
+                wednesday: GymOperatingHours.DayHours(open: "09:00", close: "22:00", isClosed: false),
+                thursday: GymOperatingHours.DayHours(open: "09:00", close: "22:00", isClosed: false),
+                friday: GymOperatingHours.DayHours(open: "09:00", close: "21:00", isClosed: false),
+                saturday: GymOperatingHours.DayHours(open: "10:00", close: "20:00", isClosed: false),
+                sunday: GymOperatingHours.DayHours(open: "10:00", close: "19:00", isClosed: false)
+            ),
+            website: "https://www.northernrocks.co.uk",
+            email: "hello@climbhigh.co.uk",
+            phoneNumber: "+44 20 7890 1234"
         ),
         Gym(
             id: "gym7",
-            email: "contact@urbanclimb.com",
             name: "Urban Climb",
+            companyId: "company2",
             description: "Modern urban climbing facility with cutting-edge route setting",
             location: LocationData(
                 latitude: 51.5311,
@@ -398,7 +504,19 @@ struct SampleData {
             verificationStatus: .approved,
             verificationNotes: "Innovative route setting and modern facilities",
             verifiedAt: Date(timeIntervalSince1970: 1635086400),
-            verifiedBy: "admin1"
+            verifiedBy: "admin1",
+            operatingHours: GymOperatingHours(
+                monday: GymOperatingHours.DayHours(open: "07:00", close: "23:00", isClosed: false),
+                tuesday: GymOperatingHours.DayHours(open: "07:00", close: "23:00", isClosed: false),
+                wednesday: GymOperatingHours.DayHours(open: "07:00", close: "23:00", isClosed: false),
+                thursday: GymOperatingHours.DayHours(open: "07:00", close: "23:00", isClosed: false),
+                friday: GymOperatingHours.DayHours(open: "07:00", close: "22:00", isClosed: false),
+                saturday: GymOperatingHours.DayHours(open: "09:00", close: "21:00", isClosed: false),
+                sunday: GymOperatingHours.DayHours(open: "09:00", close: "21:00", isClosed: false)
+            ),
+            website: "https://www.urbanclimb.com",
+            email: "contact@urbanclimb.com",
+            phoneNumber: "+44 20 9012 3456"
         )
 
     ]
@@ -417,8 +535,8 @@ struct SampleData {
             mediaItems: [mediaItems[4]], // Multiple images for this event
             registrationLink: nil, //"https://example.com/register-summer-send"
             createdAt: Date(timeIntervalSince1970: 1650000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!,
-            endDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!.addingTimeInterval(8 * 3600), // 8 hours later
+            startDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!.addingTimeInterval(8 * 3600), // 8 hours later
             isFeatured: true,
             registrationRequired: true
         ),
@@ -434,8 +552,8 @@ struct SampleData {
             mediaItems: [mediaItems[5]], // Multiple images for this event
             registrationLink: "https://example.com/register-workshop",
             createdAt: Date(timeIntervalSince1970: 1655000000),
-            startDate: Calendar.current.date(byAdding: .hour, value: 3, to: Date())!,
-            endDate: Calendar.current.date(byAdding: .hour, value: 5, to: Date())!, // 2 hours later
+            startDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!.addingTimeInterval(2 * 3600), // 2 hours later
             isFeatured: false,
             registrationRequired: false
         ),
@@ -451,8 +569,8 @@ struct SampleData {
             mediaItems: [mediaItems[6]], // No images for this event
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1660000000),
-            startDate: Calendar.current.date(byAdding: .day, value: -1, to: Date())!,
-            endDate: Calendar.current.date(byAdding: .day, value: -1, to: Date())!.addingTimeInterval(4 * 3600), // 4 hours later
+            startDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(4 * 3600), // 4 hours later
             isFeatured: true,
             registrationRequired: false
         ),
@@ -468,8 +586,8 @@ struct SampleData {
             mediaItems: [mediaItems[7]], // Single image for this event
             registrationLink: "https://example.com/grand-opening",
             createdAt: Date(timeIntervalSince1970: 1665000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!,
-            endDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!.addingTimeInterval(12 * 3600), // All day event (12 hours)
+            startDate: Calendar.current.date(byAdding: .day, value: 28, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 28, to: Date())!.addingTimeInterval(12 * 3600), // All day event (12 hours)
             isFeatured: true,
             registrationRequired: true,
             frequency: .weekly
@@ -486,8 +604,8 @@ struct SampleData {
             mediaItems: [mediaItems[8]],
             registrationLink: "https://example.com/youth-club",
             createdAt: Date(timeIntervalSince1970: 1670000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!,
-            endDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!.addingTimeInterval(2 * 3600), // 2 hours later
+            startDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!.addingTimeInterval(2 * 3600), // 2 hours later
             isFeatured: false,
             registrationRequired: true
         ),
@@ -505,8 +623,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: "https://rockvalley.com/classes/beginner-bouldering",
             createdAt: Date(timeIntervalSince1970: 1672000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 2, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM, 2 days from now
-            endDate: Calendar.current.date(byAdding: .day, value: 2, to: Date())!.addingTimeInterval(19.5 * 3600), // 1.5 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 16, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM, 16 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 16, to: Date())!.addingTimeInterval(19.5 * 3600), // 1.5 hour class
             isFeatured: false,
             registrationRequired: true,
             frequency: .weekly,
@@ -525,8 +643,8 @@ struct SampleData {
             mediaItems: [mediaItems[5]], // Reusing existing media
             registrationLink: "https://thevault.com/youth-club",
             createdAt: Date(timeIntervalSince1970: 1675000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 6, to: Date())!.addingTimeInterval(16 * 3600), // 4 PM Saturday
-            endDate: Calendar.current.date(byAdding: .day, value: 6, to: Date())!.addingTimeInterval(17.5 * 3600), // 1.5 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 20, to: Date())!.addingTimeInterval(16 * 3600), // 4 PM Saturday
+            endDate: Calendar.current.date(byAdding: .day, value: 20, to: Date())!.addingTimeInterval(17.5 * 3600), // 1.5 hour class
             isFeatured: true,
             registrationRequired: true,
             frequency: .weekly,
@@ -545,8 +663,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: "https://thevault.com/lead-progression",
             createdAt: Date(timeIntervalSince1970: 1673000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM Thursday
-            endDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(21 * 3600), // 2 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 18, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM Thursday
+            endDate: Calendar.current.date(byAdding: .day, value: 18, to: Date())!.addingTimeInterval(21 * 3600), // 2 hour class
             isFeatured: false,
             registrationRequired: true,
             frequency: .biweekly,
@@ -565,8 +683,8 @@ struct SampleData {
             mediaItems: [mediaItems[6]], // Reusing existing media
             registrationLink: "https://gravity.com/family-climbing",
             createdAt: Date(timeIntervalSince1970: 1674000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM next Sunday
-            endDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(11.5 * 3600), // 1.5 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 22, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM next Sunday
+            endDate: Calendar.current.date(byAdding: .day, value: 22, to: Date())!.addingTimeInterval(11.5 * 3600), // 1.5 hour class
             isFeatured: false,
             registrationRequired: true,
             frequency: .monthly,
@@ -585,8 +703,8 @@ struct SampleData {
             mediaItems: [mediaItems[7]], // Reusing existing media
             registrationLink: nil, // Drop-in class
             createdAt: Date(timeIntervalSince1970: 1676000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM, 12 days from now
-            endDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(17 * 3600), // 3 hour intensive workshop
+            startDate: Calendar.current.date(byAdding: .day, value: 26, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM, 26 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 26, to: Date())!.addingTimeInterval(17 * 3600), // 3 hour intensive workshop
             isFeatured: true,
             registrationRequired: false,
             frequency: .oneTime,
@@ -605,8 +723,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: "https://rockvalley.com/womens-circle",
             createdAt: Date(timeIntervalSince1970: 1671000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(18.5 * 3600), // 6:30 PM
-            endDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(20.5 * 3600), // 2 hour session
+            startDate: Calendar.current.date(byAdding: .day, value: 24, to: Date())!.addingTimeInterval(18.5 * 3600), // 6:30 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 24, to: Date())!.addingTimeInterval(20.5 * 3600), // 2 hour session
             isFeatured: false,
             registrationRequired: true,
             frequency: .monthly,
@@ -625,8 +743,8 @@ struct SampleData {
             mediaItems: [mediaItems[8]], // Reusing existing media
             registrationLink: "https://thechurch.com/speed-training",
             createdAt: Date(timeIntervalSince1970: 1677000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(20 * 3600), // 8 PM tomorrow
-            endDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(21.5 * 3600), // 1.5 hour intensive
+            startDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(20 * 3600), // 8 PM 15 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(21.5 * 3600), // 1.5 hour intensive
             isFeatured: false,
             registrationRequired: true,
             frequency: .biweekly,
@@ -645,8 +763,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: "https://gravity.com/seniors-climbing",
             createdAt: Date(timeIntervalSince1970: 1678000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM, 15 days from now
-            endDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(15.5 * 3600), // 1.5 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 29, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM, 29 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 29, to: Date())!.addingTimeInterval(15.5 * 3600), // 1.5 hour class
             isFeatured: false,
             registrationRequired: true,
             frequency: .weekly,
@@ -666,8 +784,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: "https://peakperformance.com/advanced-boulder",
             createdAt: Date(timeIntervalSince1970: 1679000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 3, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM, 3 days from now
-            endDate: Calendar.current.date(byAdding: .day, value: 3, to: Date())!.addingTimeInterval(21 * 3600), // 2 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM, 17 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!.addingTimeInterval(21 * 3600), // 2 hour class
             isFeatured: false,
             registrationRequired: true,
             frequency: .weekly,
@@ -686,8 +804,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: "https://climbhigh.co.uk/teen-academy",
             createdAt: Date(timeIntervalSince1970: 1680000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!.addingTimeInterval(17 * 3600), // 5 PM Friday
-            endDate: Calendar.current.date(byAdding: .day, value: 5, to: Date())!.addingTimeInterval(18.5 * 3600), // 1.5 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!.addingTimeInterval(17 * 3600), // 5 PM Friday
+            endDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!.addingTimeInterval(18.5 * 3600), // 1.5 hour class
             isFeatured: true,
             registrationRequired: true,
             frequency: .weekly,
@@ -706,8 +824,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: nil, // Drop-in class
             createdAt: Date(timeIntervalSince1970: 1681000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(7 * 3600), // 7 AM tomorrow
-            endDate: Calendar.current.date(byAdding: .day, value: 1, to: Date())!.addingTimeInterval(8 * 3600), // 1 hour class
+            startDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(7 * 3600), // 7 AM 15 days from now
+            endDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(8 * 3600), // 1 hour class
             isFeatured: false,
             registrationRequired: false,
             frequency: .daily,
@@ -727,8 +845,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1682000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM Friday
-            endDate: Calendar.current.date(byAdding: .day, value: 4, to: Date())!.addingTimeInterval(21 * 3600), // 3 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 18, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM Friday
+            endDate: Calendar.current.date(byAdding: .day, value: 18, to: Date())!.addingTimeInterval(21 * 3600), // 3 hours
             isFeatured: false,
             registrationRequired: false,
             frequency: .weekly,
@@ -747,8 +865,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: "https://climbhigh.co.uk/womens-circle",
             createdAt: Date(timeIntervalSince1970: 1683000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 9, to: Date())!.addingTimeInterval(18.5 * 3600), // 6:30 PM
-            endDate: Calendar.current.date(byAdding: .day, value: 9, to: Date())!.addingTimeInterval(20.5 * 3600), // 2 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 23, to: Date())!.addingTimeInterval(18.5 * 3600), // 6:30 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 23, to: Date())!.addingTimeInterval(20.5 * 3600), // 2 hours
             isFeatured: true,
             registrationRequired: true,
             frequency: .biweekly,
@@ -767,8 +885,8 @@ struct SampleData {
             mediaItems: nil,
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1684000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM Sunday
-            endDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!.addingTimeInterval(17 * 3600), // 3 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!.addingTimeInterval(14 * 3600), // 2 PM Sunday
+            endDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!.addingTimeInterval(17 * 3600), // 3 hours
             isFeatured: false,
             registrationRequired: false,
             frequency: .weekly,
@@ -788,8 +906,8 @@ struct SampleData {
             mediaItems: [mediaItems[15]], // SamplePoster5
             registrationLink: "https://rockvalley.com/spring-comp",
             createdAt: Date(timeIntervalSince1970: 1685000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM, 3 weeks from now
-            endDate: Calendar.current.date(byAdding: .day, value: 21, to: Date())!.addingTimeInterval(17 * 3600), // All day event
+            startDate: Calendar.current.date(byAdding: .day, value: 35, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM, 5 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 35, to: Date())!.addingTimeInterval(17 * 3600), // All day event
             isFeatured: true,
             registrationRequired: true,
             frequency: .oneTime,
@@ -808,8 +926,8 @@ struct SampleData {
             mediaItems: [mediaItems[16]], // SamplePoster6
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1686000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM, 2 weeks from now
-            endDate: Calendar.current.date(byAdding: .day, value: 15, to: Date())!.addingTimeInterval(18 * 3600), // Weekend event
+            startDate: Calendar.current.date(byAdding: .day, value: 28, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM, 4 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 29, to: Date())!.addingTimeInterval(18 * 3600), // Weekend event
             isFeatured: true,
             registrationRequired: false,
             frequency: .oneTime,
@@ -828,8 +946,8 @@ struct SampleData {
             mediaItems: [mediaItems[17]], // SamplePoster7
             registrationLink: "https://gravity.com/new-routes",
             createdAt: Date(timeIntervalSince1970: 1687000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM
-            endDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!.addingTimeInterval(21 * 3600), // 3 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 24, to: Date())!.addingTimeInterval(18 * 3600), // 6 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 24, to: Date())!.addingTimeInterval(21 * 3600), // 3 hours
             isFeatured: false,
             registrationRequired: true,
             frequency: .oneTime,
@@ -848,8 +966,8 @@ struct SampleData {
             mediaItems: [mediaItems[18]], // SamplePoster8
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1688000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 28, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM, 4 weeks from now
-            endDate: Calendar.current.date(byAdding: .day, value: 28, to: Date())!.addingTimeInterval(22 * 3600), // 12 hour celebration
+            startDate: Calendar.current.date(byAdding: .day, value: 42, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM, 6 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 42, to: Date())!.addingTimeInterval(22 * 3600), // 12 hour celebration
             isFeatured: true,
             registrationRequired: false,
             frequency: .oneTime,
@@ -868,8 +986,8 @@ struct SampleData {
             mediaItems: [mediaItems[19]], // SamplePoster9
             registrationLink: "https://peakperformance.com/elite-camp",
             createdAt: Date(timeIntervalSince1970: 1689000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 35, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM, 5 weeks from now
-            endDate: Calendar.current.date(byAdding: .day, value: 37, to: Date())!.addingTimeInterval(17 * 3600), // 3-day event
+            startDate: Calendar.current.date(byAdding: .day, value: 49, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM, 7 weeks from now
+            endDate: Calendar.current.date(byAdding: .day, value: 51, to: Date())!.addingTimeInterval(17 * 3600), // 3-day event
             isFeatured: true,
             registrationRequired: true,
             frequency: .oneTime,
@@ -888,8 +1006,8 @@ struct SampleData {
             mediaItems: [mediaItems[20]], // SamplePoster10
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1690000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!.addingTimeInterval(12 * 3600), // 12 PM
-            endDate: Calendar.current.date(byAdding: .day, value: 17, to: Date())!.addingTimeInterval(18 * 3600), // 6 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 31, to: Date())!.addingTimeInterval(12 * 3600), // 12 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 31, to: Date())!.addingTimeInterval(18 * 3600), // 6 hours
             isFeatured: false,
             registrationRequired: false,
             frequency: .oneTime,
@@ -908,8 +1026,8 @@ struct SampleData {
             mediaItems: [mediaItems[21]], // SamplePoster11
             registrationLink: "https://urbanclimb.com/beta-test",
             createdAt: Date(timeIntervalSince1970: 1691000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM
-            endDate: Calendar.current.date(byAdding: .day, value: 12, to: Date())!.addingTimeInterval(21 * 3600), // 2 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 26, to: Date())!.addingTimeInterval(19 * 3600), // 7 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 26, to: Date())!.addingTimeInterval(21 * 3600), // 2 hours
             isFeatured: false,
             registrationRequired: true,
             frequency: .oneTime,
@@ -928,8 +1046,8 @@ struct SampleData {
             mediaItems: [mediaItems[22]], // SamplePoster12
             registrationLink: "https://rockvalley.com/autumn-festival",
             createdAt: Date(timeIntervalSince1970: 1692000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 45, to: Date())!.addingTimeInterval(8 * 3600), // 8 AM
-            endDate: Calendar.current.date(byAdding: .day, value: 47, to: Date())!.addingTimeInterval(20 * 3600), // 3-day festival
+            startDate: Calendar.current.date(byAdding: .day, value: 59, to: Date())!.addingTimeInterval(8 * 3600), // 8 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 61, to: Date())!.addingTimeInterval(20 * 3600), // 3-day festival
             isFeatured: true,
             registrationRequired: true,
             frequency: .oneTime,
@@ -948,8 +1066,8 @@ struct SampleData {
             mediaItems: [mediaItems[23]], // SamplePoster13
             registrationLink: "https://thevault.com/new-member",
             createdAt: Date(timeIntervalSince1970: 1693000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(16 * 3600), // 4 PM
-            endDate: Calendar.current.date(byAdding: .day, value: 8, to: Date())!.addingTimeInterval(20 * 3600), // 4 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 22, to: Date())!.addingTimeInterval(16 * 3600), // 4 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 22, to: Date())!.addingTimeInterval(20 * 3600), // 4 hours
             isFeatured: false,
             registrationRequired: false,
             frequency: .oneTime,
@@ -968,8 +1086,8 @@ struct SampleData {
             mediaItems: [mediaItems[24]], // SamplePoster14
             registrationLink: "https://gravity.com/setting-workshop",
             createdAt: Date(timeIntervalSince1970: 1694000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!.addingTimeInterval(13 * 3600), // 1 PM
-            endDate: Calendar.current.date(byAdding: .day, value: 19, to: Date())!.addingTimeInterval(17 * 3600), // 4 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 33, to: Date())!.addingTimeInterval(13 * 3600), // 1 PM
+            endDate: Calendar.current.date(byAdding: .day, value: 33, to: Date())!.addingTimeInterval(17 * 3600), // 4 hours
             isFeatured: true,
             registrationRequired: true,
             frequency: .oneTime,
@@ -988,8 +1106,8 @@ struct SampleData {
             mediaItems: [mediaItems[25]], // SamplePoster15
             registrationLink: nil,
             createdAt: Date(timeIntervalSince1970: 1695000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 30, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM
-            endDate: Calendar.current.date(byAdding: .day, value: 30, to: Date())!.addingTimeInterval(21 * 3600), // 12 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 44, to: Date())!.addingTimeInterval(9 * 3600), // 9 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 44, to: Date())!.addingTimeInterval(21 * 3600), // 12 hours
             isFeatured: true,
             registrationRequired: false,
             frequency: .oneTime,
@@ -1008,8 +1126,8 @@ struct SampleData {
             mediaItems: [mediaItems[26]], // SamplePoster16
             registrationLink: "https://peakperformance.com/winter-comp",
             createdAt: Date(timeIntervalSince1970: 1696000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 60, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM
-            endDate: Calendar.current.date(byAdding: .day, value: 60, to: Date())!.addingTimeInterval(18 * 3600), // 8 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 74, to: Date())!.addingTimeInterval(10 * 3600), // 10 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 74, to: Date())!.addingTimeInterval(18 * 3600), // 8 hours
             isFeatured: true,
             registrationRequired: true,
             frequency: .oneTime,
@@ -1028,8 +1146,8 @@ struct SampleData {
             mediaItems: [], // SamplePoster17
             registrationLink: "https://climbhigh.co.uk/innovation-day",
             createdAt: Date(timeIntervalSince1970: 1697000000),
-            startDate: Calendar.current.date(byAdding: .day, value: 25, to: Date())!.addingTimeInterval(11 * 3600), // 11 AM
-            endDate: Calendar.current.date(byAdding: .day, value: 25, to: Date())!.addingTimeInterval(19 * 3600), // 8 hours
+            startDate: Calendar.current.date(byAdding: .day, value: 39, to: Date())!.addingTimeInterval(11 * 3600), // 11 AM
+            endDate: Calendar.current.date(byAdding: .day, value: 39, to: Date())!.addingTimeInterval(19 * 3600), // 8 hours
             isFeatured: false,
             registrationRequired: false,
             frequency: .oneTime,

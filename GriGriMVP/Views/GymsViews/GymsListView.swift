@@ -105,7 +105,7 @@ struct GymsListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: GymsMapView(viewModel: viewModel)) {
+                    NavigationLink(destination: GymsMapView(viewModel: viewModel, selectedGymId: nil)) {
                         Image(systemName: "map")
                             .foregroundColor(AppTheme.appPrimary)
                     }
@@ -129,7 +129,7 @@ struct GymsListView: View {
             }
             .navigationDestination(isPresented: $viewModel.showGymProfile) {
                 if let selectedGym = viewModel.selectedGym {
-                    GymProfileView(gym: selectedGym, viewModel: viewModel, appState: viewModel.currentAppState)
+                    GymProfileView(gym: selectedGym, appState: viewModel.currentAppState)
                 }
             }
         }

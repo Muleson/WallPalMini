@@ -27,7 +27,7 @@ struct GreetingSectionSkeleton: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.top, 8)
-        .redacted(reason: .placeholder)
+        .shimmer()
     }
 }
 

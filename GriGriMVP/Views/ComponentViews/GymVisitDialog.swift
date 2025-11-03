@@ -17,7 +17,7 @@ struct GymVisitDialog: ViewModifier {
         content
             .confirmationDialog("Visit Gym", isPresented: $isPresented) {
                 if let gym = gym {
-                    Button("View in Maps") { 
+                    Button("View in Maps") {
                         onViewInMaps() 
                     }
                     Button("View Gym Profile") { 

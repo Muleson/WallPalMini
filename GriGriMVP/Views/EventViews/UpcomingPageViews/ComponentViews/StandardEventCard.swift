@@ -139,23 +139,8 @@ struct StandardEventCard: View {
                     onGymTap?(event.host)
                 }) {
                     HStack(spacing: 6) {
-                        AsyncImage(url: event.host.profileImage?.url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 18, height: 18)
-                                .clipShape(Circle())
-                        } placeholder: {
-                            Circle()
-                                .fill(AppTheme.appTextLight.opacity(0.3))
-                                .frame(width: 18, height: 18)
-                                .overlay(
-                                    Image(systemName: "building.2")
-                                        .font(.system(size: 9))
-                                        .foregroundColor(AppTheme.appTextLight)
-                                )
-                        }
-                        
+                        CachedGymImageView(gym: event.host, size: 18)
+
                         Text(event.host.name)
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundColor(AppTheme.appPrimary)

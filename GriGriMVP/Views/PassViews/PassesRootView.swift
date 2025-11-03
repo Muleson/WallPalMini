@@ -15,75 +15,80 @@ struct PassesRootView: View {
     @State private var showPassCreation = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Fixed large title header
-            HStack {
-                Text("Passes")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                Spacer()
-                Button(action: {
-                    showPassCreation = true
-                }) {
-                    Image(systemName: "plus")
-                        .font(.title2)
-                        .foregroundStyle(AppTheme.appPrimary)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-            
-            // Scrollable content
-            ZStack {
-                VStack {
-                    if displayViewModel.allPasses.isEmpty {
-                        // Empty state view
-                        emptyStateView
-                    } else {
-                        // Show primary pass at the top
-                        PrimaryPassView(viewModel: displayViewModel)
-                            .padding()
-                        
-                        // Add spacing between barcode and list
-                        Spacer()
-                            .frame(height: 24)
-                        
-                        // Show ALL passes in the list, including the active one
-                        List {
-                            ForEach(displayViewModel.allPasses) { pass in
-                                PassRowView(
-                                    viewModel: displayViewModel, 
-                                    passToDelete: .constant(nil),
-                                    pass: pass
-                                )
-                                .padding(.top, 8)
-                            }
+        Group {
+            if displayViewModel.allPasses.isEmpty {
+                // Empty state view
+                emptyStateView
+            } else {
+                // Use unified List for smooth scrolling and swipe actions
+                List {
+                    // Primary pass section
+                    Section {
+                        VStack(spacing: 0) {
+                            PrimaryPassView(displayViewModel: displayViewModel)
+                                .padding(.top, 16)
+                            
+                            // Divider between barcode view and passes list
+                            Divider()
+                                .padding(.horizontal, 16)
+                                .padding(.top, 24)
+                                .padding(.bottom, 4)
                         }
                     }
-                }
-                
-                // Floating Add Pass Button - only show when user has passes
-                if !displayViewModel.allPasses.isEmpty {
-                    VStack {
-                        Spacer()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    
+                    // All Passes section
+                    Section {
+                        ForEach(displayViewModel.allPasses) { pass in
+                            PassRowView(
+                                viewModel: displayViewModel,
+                                pass: pass
+                            )
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        }
+                        
+                        // Bottom spacing for floating button
+                        Color.clear
+                            .frame(height: 100)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    } header: {
                         HStack {
-                            PrimaryActionButton.primary("Add Pass") {
-                                showPassCreation = true
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 40)
-                            .padding(.bottom, 20)
+                            Text("All Passes")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppTheme.appTextPrimary)
+                            Spacer()
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 8)
+                        .background(AppTheme.appBackgroundBG)
                     }
+                }
+                .listStyle(PlainListStyle())
+                .scrollContentBackground(.hidden)
+                .background(AppTheme.appBackgroundBG)
+                .overlay(alignment: .bottom) {
+                    // Floating Add Pass Button
+                    PrimaryActionButton.primary("Add Pass") {
+                        showPassCreation = true
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 20)
                 }
             }
         }
-        .confirmationDialog("Delete Pass?",
-                            isPresented: .init(
-                                get: { if case .confirming = displayViewModel.deletionState { return true }; return false },
-                                set: { if !$0 { displayViewModel.cancelDelete() }}
-                            )
-        ) {
+        .alert("Delete Pass?", 
+               isPresented: .init(
+                   get: { if case .confirming = displayViewModel.deletionState { return true }; return false },
+                   set: { if !$0 { displayViewModel.cancelDelete() }}
+               )) {
             if case let .confirming(pass) = displayViewModel.deletionState {
                 Button("Delete", role: .destructive) {
                     displayViewModel.handleDelete(for: pass)
@@ -98,7 +103,7 @@ struct PassesRootView: View {
             }
         }
         .navigationTitle("Passes")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: {

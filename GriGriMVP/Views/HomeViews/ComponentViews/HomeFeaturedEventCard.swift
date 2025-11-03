@@ -12,8 +12,12 @@ struct HomeFeaturedEventCard: View {
     let onView: () -> Void
     let onRegister: () -> Void
     let onAddToCalendar: (() -> Void)?
+    let onSave: () -> Void
+    let isSaved: Bool
     var onGymTap: ((Gym) -> Void)? = nil
-    
+
+    @State private var showShareSheet = false
+
     private var eventDateFormatted: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, d MMMM"
@@ -76,6 +80,7 @@ struct HomeFeaturedEventCard: View {
             .appCardShadow()
         }
         .buttonStyle(PlainButtonStyle())
+        .shareSheet(isPresented: $showShareSheet, activityItems: ShareLinkHelper.eventShareItems(event: event))
     }
     
     private var eventMediaSection: some View {
@@ -105,24 +110,9 @@ struct HomeFeaturedEventCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Host/venue info - made tappable
             HStack(spacing: 4) {
-                // Display host gym's profile image instead of house icon
-                AsyncImage(url: event.host.profileImage?.url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 20, height: 20)
-                        .clipShape(Circle())
-                } placeholder: {
-                    Circle()
-                        .fill(AppTheme.appTextLight.opacity(0.3))
-                        .frame(width: 20, height: 20)
-                        .overlay(
-                            Image(systemName: "house.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(AppTheme.appTextLight)
-                        )
-                }
-                
+                // Display host gym's profile image with caching
+                CachedGymImageView(gym: event.host, size: 20)
+
                 Text(event.host.name)
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .foregroundColor(AppTheme.appPrimary)
@@ -169,24 +159,14 @@ struct HomeFeaturedEventCard: View {
             
             // Action buttons - stacked vertically for better fit
             VStack(spacing: 8) {
-                PrimaryActionButton.outlineCompact("Share") {
-                    // TODO: Implement share functionality
-                    print("Share button tapped for event: \(event.name)")
+                PrimaryActionButton.custom(isSaved ? "Saved" : "Save", style: isSaved ? .engaged : .outline, size: .compact) {
+                    onSave()
                 }
-                
-                // Conditional button based on registration requirement
-                if event.registrationRequired == true {
-                    PrimaryActionButton(title: "Register",
-                                        style: .primary,
-                                        size: .compact) {
-                        onRegister()
-                    }
-                } else {
-                    PrimaryActionButton(title: "Add to Calendar",
-                                        style: .primary,
-                                        size: .compact) {
-                        onAddToCalendar?()
-                    }
+
+                PrimaryActionButton(title: "Share",
+                                    style: .primary,
+                                    size: .compact) {
+                    showShareSheet = true
                 }
             }
         }
@@ -226,7 +206,28 @@ struct HomeFeaturedEventCard: View {
             },
             onAddToCalendar: {
                 print("Add to calendar: \(SampleData.events[0].name)")
-            }
+            },
+            onSave: {
+                print("Save event: \(SampleData.events[0].name)")
+            },
+            isSaved: false
+        )
+
+        HomeFeaturedEventCard(
+            event: SampleData.events[1],
+            onView: {
+                print("View event: \(SampleData.events[1].name)")
+            },
+            onRegister: {
+                print("Register for: \(SampleData.events[1].name)")
+            },
+            onAddToCalendar: {
+                print("Add to calendar: \(SampleData.events[1].name)")
+            },
+            onSave: {
+                print("Save event: \(SampleData.events[1].name)")
+            },
+            isSaved: true
         )
     }
     .padding()

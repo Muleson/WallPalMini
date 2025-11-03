@@ -10,7 +10,7 @@ import SwiftUI
 struct GymCardViewSkeleton: View {
     var body: some View {
         VStack(spacing: 12) {
-            // Top header: profile, name, distance, visit button
+            // Top header: profile, name, distance, map button
             HStack(spacing: 12) {
                 Circle()
                     .fill(Color.gray.opacity(0.3))
@@ -30,10 +30,9 @@ struct GymCardViewSkeleton: View {
 
                 Spacer()
 
-                Rectangle()
+                Circle()
                     .fill(Color.gray.opacity(0.3))
-                    .frame(width: 96, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .frame(width: 44, height: 44)
             }
 
             // Climbing type icons with labels
@@ -58,7 +57,7 @@ struct GymCardViewSkeleton: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .appCardShadow()
-        .redacted(reason: .placeholder)
+        .shimmer()
     }
 }
 

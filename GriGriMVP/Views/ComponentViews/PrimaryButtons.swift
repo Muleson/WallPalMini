@@ -136,22 +136,22 @@ struct PrimaryActionButton: View {
     }
     
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(size.font)
-                .foregroundColor(style.foregroundColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, size.verticalPadding)
-                .padding(.horizontal, size.horizontalPadding)
-                .background(style.backgroundColor)
-                .overlay(
+           Button(action: action) {
+               Text(title)
+                   .font(size.font)
+                   .foregroundColor(style.foregroundColor)
+                   .frame(maxWidth: .infinity)
+                   .padding(.vertical, size.verticalPadding)
+                   .padding(.horizontal, size.horizontalPadding)
+                   .background(style.backgroundColor)
+                   .overlay(
                     RoundedRectangle(cornerRadius: size.cornerRadius)
                         .stroke(style.borderColor, lineWidth: style.borderWidth)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: size.cornerRadius))
-                .shadow(color: style.shadowColor, radius: size.shadowRadius, x: 0, y: 2)
-        }
-        .buttonStyle(PlainButtonStyle())
+                   )
+                   .clipShape(RoundedRectangle(cornerRadius: size.cornerRadius))
+                   .shadow(color: style.shadowColor, radius: size.shadowRadius, x: 0, y: 2)
+           }
+           .buttonStyle(PlainButtonStyle())
     }
 }
 

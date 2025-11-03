@@ -7,87 +7,65 @@
 
 import SwiftUI
 
-struct NearbyGymCard: View {
+struct NearbyPassCard: View {
     let gym: Gym?
     let distance: String?
     let onViewPass: () -> Void
     let onSetActivePass: () -> Bool // New closure that returns success status
-    
+
     @State private var showingAlert = false
     @State private var alertMessage = ""
-    
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Gym icon/image
-            if let profileImage = gym?.profileImage {
-                AsyncImage(url: profileImage.url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                } placeholder: {
-                    gymIconPlaceholder
-                }
+        Button(action: {
+            // First set the active pass, then navigate if successful
+            if onSetActivePass() {
+                onViewPass()
             } else {
-                gymIconPlaceholder
+                // Show alert if setting active pass failed
+                alertMessage = "No pass found for this gym. Add a pass first to view QR codes."
+                showingAlert = true
             }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(gym?.name ?? "Add a gym pass")
-                    .font(.system(size: 20, weight: .regular, design: .rounded))
-                    .foregroundColor(AppTheme.appTextPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .truncationMode(.tail)
-                
-                Text(distance ?? "Then find it here!")
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
-                    .foregroundColor(AppTheme.appTextLight)
-                    
-                    
-            }
-            
-            Spacer()
-            
-            // QR Code Button
-            Button(action: {
-                // First set the active pass, then navigate if successful
-                if onSetActivePass() {
-                    onViewPass()
-                } else {
-                    // Show alert if setting active pass failed
-                    alertMessage = "No pass found for this gym. Add a pass first to view QR codes."
-                    showingAlert = true
+        }) {
+            HStack(spacing: 12) {
+                // Gym icon/image - using persistent cached instance
+                CachedGymImageView(gym: gym, size: 50)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(gym?.name ?? "Add a gym pass")
+                        .font(.system(size: 20, weight: .regular, design: .rounded))
+                        .foregroundColor(AppTheme.appTextPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .truncationMode(.tail)
+
+                    Text(distance ?? "Then find it here!")
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundColor(AppTheme.appTextLight)
+
+
                 }
-            }) {
+
+                Spacer()
+
+                // QR Code Icon (non-interactive, just visual)
                 Image(systemName: "qrcode")
                     .font(.system(size: 24, weight: .medium))
                     .foregroundColor(AppTheme.appPrimary)
                     .frame(width: 32, height: 32)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 16)
+            .background(Color(AppTheme.appContentBG))
+            .clipShape(RoundedRectangle(cornerRadius: 15))
+            .appCardShadow()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 16)
-        .background(Color(AppTheme.appContentBG))
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-        .appCardShadow()
+        .buttonStyle(PlainButtonStyle())
         .alert("Pass Not Available", isPresented: $showingAlert) {
             Button("OK") { }
         } message: {
             Text(alertMessage)
         }
-    }
-    
-    private var gymIconPlaceholder: some View {
-        Circle()
-            .fill(AppTheme.appSecondary.opacity(0.2))
-            .frame(width: 50, height: 50)
-            .overlay(
-                Image(systemName: "figure.climbing")
-                    .font(.title2)
-                    .foregroundColor(AppTheme.appSecondary)
-            )
     }
 }
 
@@ -115,7 +93,7 @@ struct AddPassButton: View {
 }
 
 // Example usage in a parent view
-struct NearbyGymRow: View {
+struct NearbyPassRow: View {
     let gym: Gym?
     let distance: String?
     let onViewPass: () -> Void
@@ -124,7 +102,7 @@ struct NearbyGymRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            NearbyGymCard(
+            NearbyPassCard(
                 gym: gym,
                 distance: distance,
                 onViewPass: onViewPass,
@@ -139,7 +117,7 @@ struct NearbyGymRow: View {
 #Preview {
     VStack(spacing: 20) {
         // Preview with the new separated components
-        NearbyGymRow(
+        NearbyPassRow(
             gym: SampleData.gyms[0], // Boulder World
             distance: "780m away",
             onViewPass: {
@@ -154,7 +132,7 @@ struct NearbyGymRow: View {
             }
         )
         
-        NearbyGymRow(
+        NearbyPassRow(
             gym: SampleData.gyms[1], // Vertical Edge
             distance: "1.2km away",
             onViewPass: {
@@ -169,7 +147,7 @@ struct NearbyGymRow: View {
             }
         )
         
-        NearbyGymRow(
+        NearbyPassRow(
             gym: nil,
             distance: nil,
             onViewPass: {

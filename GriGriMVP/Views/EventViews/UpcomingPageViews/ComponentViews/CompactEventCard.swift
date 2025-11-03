@@ -20,23 +20,8 @@ struct CompactEventCard: View {
                     onGymTap?(event.host)
                 }) {
                     HStack(spacing: 4) {
-                        AsyncImage(url: event.host.profileImage?.url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 16, height: 16)
-                                .clipShape(Circle())
-                        } placeholder: {
-                            Circle()
-                                .fill(AppTheme.appTextLight.opacity(0.3))
-                                .frame(width: 16, height: 16)
-                                .overlay(
-                                    Image(systemName: "house.fill")
-                                        .font(.system(size: 8))
-                                        .foregroundColor(AppTheme.appTextLight)
-                                )
-                        }
-                        
+                        CachedGymImageView(gym: event.host, size: 16)
+
                         Text(event.host.name)
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundColor(AppTheme.appPrimary)
@@ -65,7 +50,7 @@ struct CompactEventCard: View {
                     .foregroundColor(AppTheme.appTextLight)
                 
                 Spacer()
-                
+
                 // Primary action button
                 PrimaryActionButton.custom("Enroll", style: .primary, size: .compact) {
                     // Currently functionless - enroll functionality to be implemented
