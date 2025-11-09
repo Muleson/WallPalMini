@@ -17,6 +17,7 @@ struct HomeFeaturedEventCard: View {
     var onGymTap: ((Gym) -> Void)? = nil
 
     @State private var showShareSheet = false
+    @StateObject private var colorService = MediaColorService.shared
 
     private var eventDateFormatted: String {
         let formatter = DateFormatter()
@@ -34,6 +35,11 @@ struct HomeFeaturedEventCard: View {
         return "\(startTime) - \(endTime)"
     }
     
+    private var prominentColor: Color {
+        // Use extracted color from media with neutral fallback
+        colorService.getColor(for: event.mediaItems?.first, fallback: AppTheme.appPrimary)
+    }
+
     private var fallbackGradient: LinearGradient {
         // Fallback gradient only used when no media is available
         let gradients: [LinearGradient] = [
@@ -58,7 +64,7 @@ struct HomeFeaturedEventCard: View {
                 endPoint: .bottomTrailing
             )
         ]
-        
+
         let index = abs(event.id.hashValue) % gradients.count
         return gradients[index]
     }
@@ -95,7 +101,7 @@ struct HomeFeaturedEventCard: View {
                         .clipped()
                 } placeholder: {
                     Rectangle()
-                        .fill(fallbackGradient)
+                        .fill(prominentColor.opacity(0.8))
                         .frame(width: 160, height: 240)
                 }
             } else {

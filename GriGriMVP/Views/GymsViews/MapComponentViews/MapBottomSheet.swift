@@ -10,66 +10,84 @@ import MapKit
 
 struct MapBottomSheet: View {
     let gym: Gym
-    @ObservedObject var viewModel: GymsViewModel
     let onDismiss: () -> Void
     let onVisit: (Gym) -> Void
+    
+    @ObservedObject var viewModel: GymsViewModel
+    
     @State private var dragOffset: CGFloat = 0 // For drag gesture
-    @State private var isCompact: Bool = false // Compact vs expanded state
+    @State private var showFullScreenProfile: Bool = false // Full-screen profile sheet
+
+    // Offset to push sheet down and hide extended content by default
+    private let defaultBottomOffset: CGFloat = 120
 
     var body: some View {
-        VStack {
-            Spacer() // Pushes the sheet to the bottom
+        GeometryReader { geometry in
+            VStack {
+                Spacer() // Pushes the sheet to the bottom
 
-            VStack(spacing: 8) {
+                VStack(spacing: 8) {
                 // Handle indicator
                 RoundedRectangle(cornerRadius: 2)
                     .fill(Color.gray.opacity(0.4))
                     .frame(width: 40, height: 4)
                     .padding(.top, 8)
 
-                // Close button
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            onDismiss()
-                        }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(.gray.opacity(0.6))
-                    }
-                    .padding(.trailing, 4)
-                }
-                .padding(.top, -4)
-
                 gymInfoSection
                     .padding(.top, -8)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        // Tap to expand when compact
-                        if isCompact {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                isCompact = false
-                            }
-                        }
+                        // Tap to show full profile
+                        showFullScreenProfile = true
                     }
 
-                if !isCompact {
-                    climbingTypesSection
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                climbingTypesSection
 
-                    actionButtons
-                        .padding(.bottom, 8)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                actionButtons
+                    .padding(.bottom, 4)
+
+                // Hidden content area that's revealed when dragging up
+                // This area is initially below the visible frame
+                VStack(spacing: 0) {
+                    // Show preview content when dragging up
+                    // Smooth fade in based on drag distance
+                    VStack(spacing: 8) {
+                        Divider()
+                            .padding(.horizontal, 8)
+                            .padding(.top, 0)
+
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.up")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            Text("Swipe up for more details")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Image(systemName: "chevron.up")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .opacity(dragOffset < 0 ? min(abs(dragOffset) / 50, 1.0) : 0)
+
+                    // Extended background spacer to go under tab bar
+                    Color.clear
+                        .frame(height: 300)
                 }
             }
             .padding(.horizontal, 20)
-            .background(AppTheme.appContentBG)
+            .background(
+                // Extended background that goes under tab bar
+                AppTheme.appContentBG
+            )
             .cornerRadius(16, corners: [.topLeft, .topRight])
             .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -2)
-            .offset(y: dragOffset)
-            .clipped()
+            .offset(y: defaultBottomOffset + dragOffset) // Offset down by default + drag offset
+            .frame(height: geometry.size.height + defaultBottomOffset, alignment: .bottom) // Extend frame to accommodate offset
+            .clipped() // Clip the extended content below
             .gesture(
                 DragGesture()
                     .onChanged { value in
@@ -79,16 +97,12 @@ struct MapBottomSheet: View {
                     .onEnded { value in
                         let swipeDistance = value.translation.height
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            if swipeDistance < -50 && isCompact {
-                                // Swipe up when compact -> expand
-                                isCompact = false
+                            if swipeDistance < -100 {
+                                // Swipe up -> show full-screen profile
                                 dragOffset = 0
-                            } else if swipeDistance > 100 && !isCompact {
-                                // Swipe down when expanded -> compact
-                                isCompact = true
-                                dragOffset = 0
-                            } else if swipeDistance > 50 && isCompact {
-                                // Swipe down when compact -> dismiss
+                                showFullScreenProfile = true
+                            } else if swipeDistance > 100 {
+                                // Swipe down -> dismiss
                                 onDismiss()
                             } else {
                                 // Not enough swipe -> return to position
@@ -97,11 +111,24 @@ struct MapBottomSheet: View {
                         }
                     }
                 )
+            }
         }
-        .clipped()
+        .ignoresSafeArea(edges: .bottom) // Allow sheet to extend under tab bar
         .onChange(of: gym.id) { _ in
-            // Reset to expanded when gym changes
-            isCompact = false
+            // Reset when gym changes
+            showFullScreenProfile = false
+        }
+        .sheet(isPresented: $showFullScreenProfile) {
+            NavigationStack {
+                GymProfileView(
+                    gym: gym,
+                    gymsViewModel: viewModel,
+                    appState: viewModel.currentAppState,
+                    enableRefresh: false
+                )
+            }
+            .presentationDetents([.fraction(0.95)])
+            .presentationDragIndicator(.visible)
         }
     }
     
@@ -224,8 +251,8 @@ struct RoundedCorner: Shape {
 #Preview {
     MapBottomSheet(
         gym: SampleData.gyms[0],
-        viewModel: GymsViewModel(appState: AppState()),
         onDismiss: {},
-        onVisit: { _ in }
+        onVisit: { _ in },
+        viewModel: GymsViewModel(appState: AppState())
     )
 }

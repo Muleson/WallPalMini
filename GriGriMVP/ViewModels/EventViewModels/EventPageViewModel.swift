@@ -11,9 +11,18 @@ import UIKit
 @MainActor
 class EventPageViewModel: ObservableObject {
     private let event: EventItem
-    
+    @Published var isSaved: Bool = false
+    @Published var isLiked: Bool = false
+    @Published var isDisliked: Bool = false
+    @Published var shouldNavigateToGym: Bool = false
+
     init(event: EventItem) {
         self.event = event
+        // TODO: Load saved/liked/disliked state from persistence
+    }
+
+    var gym: Gym {
+        event.host
     }
     
     // MARK: - Computed Properties
@@ -96,7 +105,44 @@ class EventPageViewModel: ObservableObject {
         guard event.registrationRequired,
               let registrationLink = event.registrationLink,
               let url = URL(string: registrationLink) else { return }
-        
+
         UIApplication.shared.open(url)
+    }
+
+    func toggleSave() {
+        isSaved.toggle()
+        // TODO: Persist save state to backend/local storage
+        print("Event \(isSaved ? "saved" : "unsaved"): \(event.name)")
+    }
+
+    func handleLike() {
+        if isLiked {
+            // Unlike
+            isLiked = false
+        } else {
+            // Like (and remove dislike if present)
+            isLiked = true
+            isDisliked = false
+        }
+        // TODO: Persist like state to backend
+        print("Event \(isLiked ? "liked" : "unliked"): \(event.name)")
+    }
+
+    func handleDislike() {
+        if isDisliked {
+            // Remove dislike
+            isDisliked = false
+        } else {
+            // Dislike (and remove like if present)
+            isDisliked = true
+            isLiked = false
+        }
+        // TODO: Persist dislike state to backend
+        print("Event \(isDisliked ? "disliked" : "undisliked"): \(event.name)")
+    }
+
+    func navigateToGym() {
+        shouldNavigateToGym = true
+        print("Navigating to gym: \(event.host.name)")
     }
 }

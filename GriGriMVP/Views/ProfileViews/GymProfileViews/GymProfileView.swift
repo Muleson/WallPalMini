@@ -13,16 +13,19 @@ struct GymProfileView: View {
     @State private var showVisitOptions: Bool = false
     @State private var selectedEvent: EventItem? = nil
     @State private var showShareSheet = false
-    
-    init(gym: Gym, gymsViewModel: GymsViewModel? = nil, appState: AppState? = nil) {
+
+    let enableRefresh: Bool
+
+    init(gym: Gym, gymsViewModel: GymsViewModel? = nil, appState: AppState? = nil, enableRefresh: Bool = true) {
         let finalAppState = appState ?? AppState()
         let finalGymsViewModel = gymsViewModel ?? GymsViewModel(appState: finalAppState)
-        
+
         self._viewModel = StateObject(wrappedValue: GymProfileViewModel(
             gym: gym,
             gymsViewModel: finalGymsViewModel,
             appState: finalAppState
         ))
+        self.enableRefresh = enableRefresh
     }
     
     var body: some View {
@@ -80,7 +83,7 @@ struct GymProfileView: View {
             }
         }
         .background(AppTheme.appBackgroundBG)
-        .refreshable {
+        .conditionalRefreshable(enabled: enableRefresh) {
             await viewModel.refreshGymData()
         }
         .alert("Error", isPresented: Binding<Bool>(
@@ -117,34 +120,7 @@ struct GymProfileView: View {
     }
     
     private var profileImageView: some View {
-        Group {
-            if let profileImage = viewModel.gym.profileImage {
-                AsyncImage(url: profileImage.url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle().fill(Color.gray.opacity(0.3))
-                        .overlay(
-                            Image(systemName: "building.2")
-                                .font(.system(size: 40))
-                                .foregroundColor(.white)
-                        )
-                }
-                .frame(width: 128, height: 128)
-                .clipShape(Circle())
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 150, height: 150)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        Image(systemName: "building.2")
-                            .font(.system(size: 40))
-                            .foregroundColor(.white)
-                    )
-            }
-        }
+        CachedGymImageView(gym: viewModel.gym, size: 128)
     }
     
     private var locationView: some View {
@@ -369,6 +345,18 @@ struct GymProfileView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - View Extension for Conditional Refreshable
+extension View {
+    @ViewBuilder
+    func conditionalRefreshable(enabled: Bool, action: @escaping @Sendable () async -> Void) -> some View {
+        if enabled {
+            self.refreshable(action: action)
+        } else {
+            self
+        }
     }
 }
 

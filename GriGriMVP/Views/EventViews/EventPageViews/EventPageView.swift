@@ -10,6 +10,7 @@ import SwiftUI
 struct EventPageView: View {
     let event: EventItem
     @StateObject private var viewModel: EventPageViewModel
+    @StateObject private var colorService = MediaColorService.shared
     @State private var showShareSheet = false
 
     init(event: EventItem) {
@@ -17,153 +18,191 @@ struct EventPageView: View {
         self._viewModel = StateObject(wrappedValue: EventPageViewModel(event: event))
     }
 
+    private func prominentColor(for mediaItem: MediaItem?) -> Color {
+        // Use extracted color from media with neutral fallback
+        colorService.getColor(for: mediaItem, fallback: AppTheme.appPrimary)
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // Event Name
-                Text(event.name)
-                    .font(.appHeadline)
-                    .foregroundStyle(AppTheme.appTextPrimary)
-                    .padding()
-                
-                // Divider
-                Rectangle()
-                    .fill(AppTheme.appSecondary)
-                    .frame(height: 1)
-                    .padding(.horizontal, 24)
-                
-                // Event date and time section
-                HStack(spacing: 8) {
-                    Text(viewModel.formattedEventDate)
-                        .font(.appSubheadline)
-                        .foregroundStyle(AppTheme.appTextPrimary)
-                    
-                    Text(viewModel.formattedTimeAndDuration)
-                        .font(.appUnderline)
-                        .foregroundColor(AppTheme.appTextLight)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 16)
-                
-                // Divider
-                Rectangle()
-                    .fill(AppTheme.appSecondary)
-                    .frame(height: 1)
-                    .padding(.horizontal, 24)
-                
-                // Host and location section
-                HStack {
-                    // Profile image placeholder
-                    if let profileImage = event.host.profileImage {
-                        AsyncImage(url: profileImage.url) { image in
+        ZStack {
+            // Background gradient from prominent color to white
+            LinearGradient(
+                gradient: Gradient(stops: [
+                    .init(color: prominentColor(for: event.mediaItems?.first).opacity(0.3), location: 0.0),
+                    .init(color: .white, location: 0.7)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Event Media - centered, 2:3 aspect ratio (matching FeaturedEventCard)
+                    if let firstMediaItem = event.mediaItems?.first {
+                        AsyncImage(url: firstMediaItem.url) { image in
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(width: 48, height: 48)
-                                .clipShape(Circle())
+                                .frame(width: 320, height: 400)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
                         } placeholder: {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 48, height: 48)
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(prominentColor(for: firstMediaItem).opacity(0.6))
+                                .frame(width: 320, height: 400)
                         }
-                    } else {
-                        Image(systemName: "building.2")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 48, height: 48)
-                            .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, -8)
+                        .padding(.bottom, 24)
                     }
-                    Text(event.host.name)
-                        .font(.appEventHost)
-                        .foregroundStyle(AppTheme.appPrimary)
-                    
-                    Spacer()
-                    
-                    // Maps button
-                    PrimaryActionButton.outlineCompact("View in Maps") {
-                        viewModel.openMaps()
-                    }
-                    .frame(maxWidth: 128)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                
-                // Divider
-                Rectangle()
-                    .fill(AppTheme.appSecondary)
-                    .frame(height: 1)
-                    .padding(.horizontal, 24)
-                
-                // Event media section
-                if viewModel.hasMediaItems {
-                    GeometryReader { geometry in
-                        TabView {
-                            ForEach(viewModel.mediaItems, id: \.id) { mediaItem in
-                                AsyncImage(url: mediaItem.url) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Rectangle()
-                                        .fill(Color.gray.opacity(0.3))
-                                }
-                                .frame(width: geometry.size.width - 16, height: (geometry.size.width - 16) * 3/2)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
-                        }
-                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: viewModel.mediaItems.count > 1 ? .automatic : .never))
-                        .frame(height: (geometry.size.width - 16) * 3/2)
-                    }
-                    .frame(height: UIScreen.main.bounds.width * 3/2 - 24)
-                    .padding(.horizontal, 8)
-                    .padding(.top, 16)
-                    
+
+                    // Event Title
+                    Text(event.name)
+                        .font(.appHeadline)
+                        .foregroundStyle(AppTheme.appTextPrimary)
+                        .padding(.horizontal)
+                        .padding(.bottom, 16)
+
                     // Divider
                     Rectangle()
                         .fill(AppTheme.appSecondary)
                         .frame(height: 1)
                         .padding(.horizontal, 24)
+
+                    // Host and Date/Time section
+                    HStack(spacing: 12) {
+                        // Host profile image and name - tappable
+                        Button(action: {
+                            viewModel.navigateToGym()
+                        }) {
+                            HStack(spacing: 12) {
+                                // Host profile image
+                                CachedGymImageView(gym: event.host, size: 48)
+
+                                // Host name
+                                Text(event.host.name)
+                                    .font(.appEventHost)
+                                    .foregroundStyle(AppTheme.appPrimary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+
+                        Spacer()
+
+                        // Date and Time
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(viewModel.formattedEventDate)
+                                .font(.system(size: 16, weight: .light, design: .rounded))
+                                .foregroundStyle(AppTheme.appTextPrimary)
+
+                            Text(viewModel.formattedTimeAndDuration)
+                                .font(.system(size: 13, weight: .regular, design: .rounded))
+                                .foregroundColor(AppTheme.appTextLight)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 16)
+
+                    // Divider
+                    Rectangle()
+                        .fill(AppTheme.appSecondary)
+                        .frame(height: 1)
+                        .padding(.horizontal, 24)
+
+                    // Action buttons
+                    HStack(spacing: 0) {
+                        actionButton(
+                            icon: viewModel.isSaved ? "bookmark.fill" : "bookmark",
+                            label: "Save",
+                            isActive: viewModel.isSaved
+                        ) {
+                            viewModel.toggleSave()
+                        }
+
+                        actionButton(icon: "square.and.arrow.up", label: "Share", isActive: false) {
+                            showShareSheet = true
+                        }
+
+                        actionButton(icon: "location.magnifyingglass", label: "Find", isActive: false) {
+                            viewModel.openMaps()
+                        }
+
+                        actionButton(
+                            icon: viewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
+                            label: "Like",
+                            isActive: viewModel.isLiked
+                        ) {
+                            viewModel.handleLike()
+                        }
+
+                        actionButton(
+                            icon: viewModel.isDisliked ? "hand.thumbsdown.fill" : "hand.thumbsdown",
+                            label: "Dislike",
+                            isActive: viewModel.isDisliked
+                        ) {
+                            viewModel.handleDislike()
+                        }
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 8)
+
+                    // Divider
+                    Rectangle()
+                        .fill(AppTheme.appSecondary)
+                        .frame(height: 1)
+                        .padding(.horizontal, 24)
+
+                    // Description section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Description")
+                            .font(.appSubheadline)
+                            .foregroundStyle(AppTheme.appPrimary)
+
+                        EventTypePill(eventType: event.eventType, size: .small)
+
+                        Text(event.description)
+                            .font(.appBody)
+                            .foregroundStyle(AppTheme.appTextPrimary)
+                            .lineLimit(nil)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 16)
+
+                    Spacer(minLength: 20)
                 }
-                
-                // Description section
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Description")
-                        .font(.appSubheadline)
-                        .foregroundStyle(AppTheme.appPrimary)
-                    
-                    Text(event.description)
-                        .font(.appBody)
-                        .lineLimit(nil)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 16)
-                
-                Spacer(minLength: 20)
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    showShareSheet = true
-                }) {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(AppTheme.appPrimary)
-                }
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            // Floating register button
-            if event.registrationRequired {
-                PrimaryActionButton.primary("Register") {
-                    viewModel.handleRegistration()
-                }
-                .frame(width: 120)
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-                .padding(.trailing, 20)
-                .padding(.bottom, 20)
             }
         }
         .shareSheet(isPresented: $showShareSheet, activityItems: ShareLinkHelper.eventShareItems(event: event))
+        .background(
+            NavigationLink(
+                destination: GymProfileView(gym: viewModel.gym),
+                isActive: $viewModel.shouldNavigateToGym
+            ) {
+                EmptyView()
+            }
+            .hidden()
+        )
+    }
+
+    // MARK: - Action Button Helper
+
+    @ViewBuilder
+    private func actionButton(icon: String, label: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(isActive ? AppTheme.appPrimary : AppTheme.appTextLight)
+
+                Text(label)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(isActive ? AppTheme.appPrimary : AppTheme.appTextPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

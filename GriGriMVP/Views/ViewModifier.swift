@@ -97,7 +97,7 @@ struct AmmenitiesIcons {
     static let workSpace = Image(systemName: "desktopcomputer")
     static let shop = Image(systemName: "storefront.fill")
     static let wifi = Image(systemName: "wifi")
-    
+
     // Method to get icon for amenity
     static func icon(for amenity: Amenities) -> Image {
         switch amenity {
@@ -123,6 +123,33 @@ struct AmmenitiesIcons {
             return shop
         case .wifi:
             return wifi
+        }
+    }
+}
+
+struct EventTypeIcons {
+    static let competition = Image("Comp")
+    static let social = Image("Social")
+    static let openDay = Image("OpenDay")
+    static let settingTaster = Image("Taster")
+    static let opening = Image("Demo")
+    static let gymClass = Image("Class")
+
+    // Method to get icon for event type
+    static func icon(for eventType: EventType) -> Image {
+        switch eventType {
+        case .competition:
+            return competition
+        case .social:
+            return social
+        case .openDay:
+            return openDay
+        case .settingTaster:
+            return settingTaster
+        case .opening:
+            return opening
+        case .gymClass:
+            return gymClass
         }
     }
 }

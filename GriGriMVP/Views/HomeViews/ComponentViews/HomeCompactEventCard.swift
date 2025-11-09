@@ -11,6 +11,8 @@ struct HomeCompactEventCard: View {
     let event: EventItem
     let onTap: () -> Void
 
+    @StateObject private var colorService = MediaColorService.shared
+
     private var title: String {
         event.name.uppercased()
     }
@@ -19,21 +21,13 @@ struct HomeCompactEventCard: View {
         event.host.name.uppercased()
     }
 
+    private var prominentColor: Color {
+        // Use extracted color from media with neutral fallback
+        colorService.getColor(for: mediaItem, fallback: AppTheme.appPrimary)
+    }
+
     private var backgroundColor: Color {
-        switch event.eventType {
-        case .competition:
-            return Color.yellow.opacity(0.8)
-        case .social:
-            return Color.green.opacity(0.8)
-        case .openDay:
-            return Color.blue.opacity(0.8)
-        case .settingTaster:
-            return Color.purple.opacity(0.8)
-        case .opening:
-            return Color.orange.opacity(0.8)
-        case .gymClass:
-            return Color.red.opacity(0.8)
-        }
+        prominentColor.opacity(0.8)
     }
 
     private var mediaItem: MediaItem? {

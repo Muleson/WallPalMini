@@ -85,7 +85,10 @@ struct GymsMapView: View {
                     }
                 }
             }
-            .mapStyle(isStandardMapStyle ? .standard : .hybrid)
+            .mapStyle(isStandardMapStyle ?
+                .standard(pointsOfInterest: .excludingAll) :
+                .hybrid(pointsOfInterest: .excludingAll)
+            )
             .onMapCameraChange { _ in
                 // User is interacting with map - restore all pins
                 if shouldHideNearbyPins {
@@ -94,18 +97,18 @@ struct GymsMapView: View {
                     }
                 }
             }
+            .ignoresSafeArea(edges: .bottom) // Allow map to extend under tab bar
 
             // Top Controls
             VStack {
                 topControlsView
                 Spacer()
             }
-            
+
             // Bottom Sheet for Selected Gym
             if let selectedGym = selectedGym {
                 MapBottomSheet(
                     gym: selectedGym,
-                    viewModel: viewModel,
                     onDismiss: {
                         self.selectedGym = nil
                         // Reset all flags when user manually deselects
@@ -118,7 +121,8 @@ struct GymsMapView: View {
                     onVisit: { gym in
                         gymToVisit = gym
                         showingVisitOptions = true
-                    }
+                    },
+                    viewModel: viewModel
                 )
                 .id("map-bottom-sheet-\(selectedGym.id)")
             }

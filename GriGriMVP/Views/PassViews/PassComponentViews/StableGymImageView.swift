@@ -14,7 +14,6 @@ struct CachedGymImageView: View {
     @State private var cachedImage: UIImage?
     @State private var isLoading = false
     @State private var loadError: CacheError?
-    @State private var retryCount = 0
 
     init(gym: Gym?, size: CGFloat) {
         self.gym = gym
@@ -31,54 +30,44 @@ struct CachedGymImageView: View {
     var body: some View {
         Group {
             if let cachedImage = cachedImage {
+                // Show cached image
                 Image(uiImage: cachedImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
                     .clipShape(Circle())
-            } else if let profileImageURL = gym?.profileImage?.url {
-                // Use AsyncImage as fallback when no cached image exists
-                AsyncImage(url: profileImageURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: size, height: size)
-                        .clipShape(Circle())
-                        .onAppear {
-                            // Cache the loaded image for future use
-                            Task {
-                                if let gymId = gym?.id {
-                                    let result = await LocalImageCache.shared.cacheImage(for: gymId, from: profileImageURL)
-                                    if case .failure(let error) = result {
-                                        loadError = error
-                                        print("⚠️ CachedGymImageView: Failed to cache image: \(error.localizedDescription)")
-                                    }
-                                    // Update cached image after caching
-                                    await MainActor.run {
-                                        cachedImage = LocalImageCache.shared.getCachedImage(for: gymId)
-                                    }
-                                }
-                            }
-                        }
-                } placeholder: {
-                    if isLoading {
-                        loadingPlaceholderView
-                    } else {
-                        placeholderView
-                    }
-                }
-                .onAppear {
-                    isLoading = true
-                }
-                .onDisappear {
-                    isLoading = false
-                }
+            } else if isLoading {
+                // Show loading state
+                loadingPlaceholderView
             } else {
+                // Show placeholder when no image available
                 placeholderView
             }
         }
         // Stable ID that never changes
         .id("cached-gym-image-\(gym?.id ?? "no-gym")")
+        .task {
+            // Trigger image loading if not cached and URL exists
+            guard cachedImage == nil,
+                  let gymId = gym?.id,
+                  let profileImageURL = gym?.profileImage?.url else {
+                return
+            }
+
+            isLoading = true
+
+            // Download and cache the image
+            let result = await LocalImageCache.shared.cacheImage(for: gymId, from: profileImageURL)
+
+            if case .failure(let error) = result {
+                loadError = error
+                print("⚠️ CachedGymImageView: Failed to cache image: \(error.localizedDescription)")
+            }
+
+            // Update UI with cached image
+            cachedImage = LocalImageCache.shared.getCachedImage(for: gymId)
+            isLoading = false
+        }
     }
     
     private var placeholderView: some View {
@@ -113,7 +102,6 @@ struct CachedCompanyImageView: View {
     @State private var cachedImage: UIImage?
     @State private var isLoading = false
     @State private var loadError: CacheError?
-    @State private var retryCount = 0
 
     init(company: GymCompany?, size: CGFloat) {
         self.company = company
@@ -130,54 +118,44 @@ struct CachedCompanyImageView: View {
     var body: some View {
         Group {
             if let cachedImage = cachedImage {
+                // Show cached image
                 Image(uiImage: cachedImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
                     .clipShape(Circle())
-            } else if let profileImageURL = company?.profileImage?.url {
-                // Use AsyncImage as fallback when no cached image exists
-                AsyncImage(url: profileImageURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: size, height: size)
-                        .clipShape(Circle())
-                        .onAppear {
-                            // Cache the loaded image for future use
-                            Task {
-                                if let companyId = company?.id {
-                                    let result = await LocalImageCache.shared.cacheImage(for: companyId, from: profileImageURL)
-                                    if case .failure(let error) = result {
-                                        loadError = error
-                                        print("⚠️ CachedCompanyImageView: Failed to cache image: \(error.localizedDescription)")
-                                    }
-                                    // Update cached image after caching
-                                    await MainActor.run {
-                                        cachedImage = LocalImageCache.shared.getCachedImage(for: companyId)
-                                    }
-                                }
-                            }
-                        }
-                } placeholder: {
-                    if isLoading {
-                        loadingPlaceholderView
-                    } else {
-                        placeholderView
-                    }
-                }
-                .onAppear {
-                    isLoading = true
-                }
-                .onDisappear {
-                    isLoading = false
-                }
+            } else if isLoading {
+                // Show loading state
+                loadingPlaceholderView
             } else {
+                // Show placeholder when no image available
                 placeholderView
             }
         }
         // Stable ID that never changes
         .id("cached-company-image-\(company?.id ?? "no-company")")
+        .task {
+            // Trigger image loading if not cached and URL exists
+            guard cachedImage == nil,
+                  let companyId = company?.id,
+                  let profileImageURL = company?.profileImage?.url else {
+                return
+            }
+
+            isLoading = true
+
+            // Download and cache the image
+            let result = await LocalImageCache.shared.cacheImage(for: companyId, from: profileImageURL)
+
+            if case .failure(let error) = result {
+                loadError = error
+                print("⚠️ CachedCompanyImageView: Failed to cache image: \(error.localizedDescription)")
+            }
+
+            // Update UI with cached image
+            cachedImage = LocalImageCache.shared.getCachedImage(for: companyId)
+            isLoading = false
+        }
     }
     
     private var placeholderView: some View {
