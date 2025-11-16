@@ -1,32 +1,32 @@
 //
-//  EventTypePill.swift
+//  ClimbingTypePill.swift
 //  GriGriMVP
 //
-//  Created by Sam Quested on 07/11/2025.
+//  Created by Sam Quested on 10/11/2025.
 //
 
 import SwiftUI
 
-/// A pill-shaped component that displays an event type with its corresponding icon
+/// A pill-shaped component that displays a climbing type with its corresponding icon
 /// Styled to match the outline primary action button style
-struct EventTypePill: View {
-    let eventType: EventType
+struct ClimbingTypePill: View {
+    let climbingType: ClimbingTypes
     let size: PillSize
 
-    init(eventType: EventType, size: PillSize = .medium) {
-        self.eventType = eventType
+    init(climbingType: ClimbingTypes, size: PillSize = .medium) {
+        self.climbingType = climbingType
         self.size = size
     }
 
     var body: some View {
         HStack(spacing: size.spacing) {
-            EventTypeIcons.icon(for: eventType)
+            ClimbingTypeIcons.icon(for: climbingType)
                 .resizable()
                 .scaledToFit()
                 .frame(width: size.iconSize, height: size.iconSize)
                 .offset(x: -2)
 
-            Text(eventType.displayName)
+            Text(climbingType.displayName)
                 .font(size.font)
                 .foregroundColor(AppTheme.appPrimary)
         }
@@ -104,48 +104,80 @@ struct EventTypePill: View {
     }
 }
 
-#Preview("All Event Types - Medium") {
+// MARK: - ClimbingTypeIcons Helper
+struct ClimbingTypeIcons {
+    static func icon(for type: ClimbingTypes) -> Image {
+        switch type {
+        case .bouldering:
+            return AppIcons.boulder
+        case .sport:
+            return AppIcons.sport
+        case .board:
+            return AppIcons.board
+        case .gym:
+            return AppIcons.gym
+        }
+    }
+}
+
+// MARK: - ClimbingTypes Extension
+extension ClimbingTypes {
+    var displayName: String {
+        switch self {
+        case .bouldering:
+            return "Bouldering"
+        case .sport:
+            return "Sport"
+        case .board:
+            return "Board"
+        case .gym:
+            return "Gym"
+        }
+    }
+}
+
+#Preview("All Climbing Types - Medium") {
     VStack(spacing: 12) {
-        ForEach(EventType.allCases, id: \.self) { eventType in
-            EventTypePill(eventType: eventType, size: .medium)
+        ForEach(ClimbingTypes.allCases, id: \.self) { climbingType in
+            ClimbingTypePill(climbingType: climbingType, size: .medium)
         }
     }
     .padding()
 }
 
-#Preview("Size Variations - Competition") {
+#Preview("Size Variations - Bouldering") {
     VStack(spacing: 12) {
-        EventTypePill(eventType: .competition, size: .small)
-        EventTypePill(eventType: .competition, size: .medium)
-        EventTypePill(eventType: .competition, size: .large)
+        ClimbingTypePill(climbingType: .bouldering, size: .small)
+        ClimbingTypePill(climbingType: .bouldering, size: .medium)
+        ClimbingTypePill(climbingType: .bouldering, size: .large)
     }
     .padding()
 }
 
-#Preview("All Event Types - All Sizes") {
+#Preview("All Climbing Types - All Sizes") {
     ScrollView {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Small")
                     .font(.headline)
-                ForEach(EventType.allCases, id: \.self) { eventType in
-                    EventTypePill(eventType: eventType, size: .small)
+                ForEach(ClimbingTypes.allCases, id: \.self) { climbingType in
+                    ClimbingTypePill(climbingType: climbingType, size: .small)
                 }
             }
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Medium")
                     .font(.headline)
-                ForEach(EventType.allCases, id: \.self) { eventType in
-                    EventTypePill(eventType: eventType, size: .medium)
+                ForEach(ClimbingTypes.allCases, id: \.self) { climbingType in
+                    ClimbingTypePill(climbingType: climbingType, size: .medium)
                 }
             }
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Large")
                     .font(.headline)
-                ForEach(EventType.allCases, id: \.self) { eventType in
-                    EventTypePill(eventType: eventType, size: .large)
+                ForEach(ClimbingTypes.allCases, id: \.self) { climbingType in
+                    ClimbingTypePill(climbingType: climbingType, size: .large)
                 }
             }
         }

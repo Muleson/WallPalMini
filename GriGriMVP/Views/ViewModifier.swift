@@ -154,6 +154,34 @@ struct EventTypeIcons {
     }
 }
 
+struct NegativeEventTypeIcons {
+    static let competition = Image("CompNegative")
+    static let social = Image("SocialNegative")
+    static let openDay = Image("OpenDayNegative")
+    static let settingTaster = Image("TasterNegative")
+    static let opening = Image("DemoNegative")
+    static let gymClass = Image("ClassNegative")
+
+    // Method to get icon for event type
+    static func icon(for eventType: EventType) -> Image {
+        switch eventType {
+        case .competition:
+            return competition
+        case .social:
+            return social
+        case .openDay:
+            return openDay
+        case .settingTaster:
+            return settingTaster
+        case .opening:
+            return opening
+        case .gymClass:
+            return gymClass
+        }
+    }
+}
+
+
 // MARK: - Shimmer Effect
 struct ShimmerModifier: ViewModifier {
     @State private var phase: CGFloat = 0

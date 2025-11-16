@@ -100,9 +100,20 @@ struct HomeFeaturedEventCard: View {
                         .frame(width: 160, height: 240)
                         .clipped()
                 } placeholder: {
-                    Rectangle()
-                        .fill(prominentColor.opacity(0.8))
-                        .frame(width: 160, height: 240)
+                    ZStack {
+                        Rectangle()
+                            .fill(prominentColor.opacity(0.8))
+                            .frame(width: 160, height: 240)
+
+                        NegativeEventTypeIcons.icon(for: event.eventType)
+                            .resizable()
+                            .renderingMode(.original)
+                            .interpolation(.high)
+                            .antialiased(true)
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 8)
+                    }
                 }
             } else {
                 Rectangle()

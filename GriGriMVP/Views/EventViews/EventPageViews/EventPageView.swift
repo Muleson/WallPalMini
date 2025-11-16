@@ -28,8 +28,8 @@ struct EventPageView: View {
             // Background gradient from prominent color to white
             LinearGradient(
                 gradient: Gradient(stops: [
-                    .init(color: prominentColor(for: event.mediaItems?.first).opacity(0.3), location: 0.0),
-                    .init(color: .white, location: 0.7)
+                    .init(color: prominentColor(for: event.mediaItems?.first).opacity(0.45), location: 0.15),
+                    .init(color: .white, location: 0.75)
                 ]),
                 startPoint: .top,
                 endPoint: .bottom
@@ -39,22 +39,24 @@ struct EventPageView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     // Event Media - centered, 2:3 aspect ratio (matching FeaturedEventCard)
-                    if let firstMediaItem = event.mediaItems?.first {
-                        AsyncImage(url: firstMediaItem.url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 320, height: 400)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                        } placeholder: {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(prominentColor(for: firstMediaItem).opacity(0.6))
-                                .frame(width: 320, height: 400)
+                    Group {
+                        if let firstMediaItem = event.mediaItems?.first {
+                            AsyncImage(url: firstMediaItem.url) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 320, height: 400)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                            } placeholder: {
+                                eventMediaPlaceholder
+                            }
+                        } else {
+                            eventMediaPlaceholder
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, -8)
-                        .padding(.bottom, 24)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, -8)
+                    .padding(.bottom, 24)
 
                     // Event Title
                     Text(event.name)
@@ -102,7 +104,7 @@ struct EventPageView: View {
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 12)
 
                     // Divider
                     Rectangle()
@@ -114,7 +116,7 @@ struct EventPageView: View {
                     HStack(spacing: 0) {
                         actionButton(
                             icon: viewModel.isSaved ? "bookmark.fill" : "bookmark",
-                            label: "Save",
+                            label: viewModel.isSaved ? "Saved" : "Save",
                             isActive: viewModel.isSaved
                         ) {
                             viewModel.toggleSave()
@@ -155,11 +157,21 @@ struct EventPageView: View {
 
                     // Description section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Description")
+                        Text("Event Info")
                             .font(.appSubheadline)
                             .foregroundStyle(AppTheme.appPrimary)
 
-                        EventTypePill(eventType: event.eventType, size: .small)
+                        HStack(spacing: 8) {
+                            EventTypePill(eventType: event.eventType, size: .small)
+                            
+                            if let climbingTypes = event.climbingType {
+                                ForEach(climbingTypes, id: \.self) { climbingType in
+                                    ClimbingTypePill(climbingType: climbingType, size: .small)
+                                }
+                            }
+                            
+                            Spacer()
+                        }
 
                         Text(event.description)
                             .font(.appBody)
@@ -183,6 +195,25 @@ struct EventPageView: View {
             }
             .hidden()
         )
+    }
+
+    // MARK: - Event Media Placeholder
+
+    private var eventMediaPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(prominentColor(for: event.mediaItems?.first).opacity(0.6))
+                .frame(width: 320, height: 400)
+
+            NegativeEventTypeIcons.icon(for: event.eventType)
+                .resizable()
+                .renderingMode(.original)
+                .interpolation(.high)
+                .antialiased(true)
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 8)
+        }
     }
 
     // MARK: - Action Button Helper

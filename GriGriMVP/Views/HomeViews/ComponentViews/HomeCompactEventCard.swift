@@ -47,9 +47,20 @@ struct HomeCompactEventCard: View {
                                 .frame(width: 180, height: 270)
                                 .clipped()
                         } placeholder: {
-                            Rectangle()
-                                .fill(backgroundColor)
-                                .frame(width: 180, height: 270)
+                            ZStack {
+                                Rectangle()
+                                    .fill(backgroundColor)
+                                    .frame(width: 180, height: 270)
+
+                                NegativeEventTypeIcons.icon(for: event.eventType)
+                                    .resizable()
+                                    .renderingMode(.original)
+                                    .interpolation(.high)
+                                    .antialiased(true)
+                                    .scaledToFit()
+                                    .frame(width: 90, height: 90)
+                                    .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 8)
+                            }
                         }
                     } else {
                         Rectangle()
